@@ -1,8 +1,9 @@
+import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { getToken } from "./session";
 
 type ProtectedRouteProps = {
-  children: JSX.Element;
+  children: ReactElement;
 };
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {

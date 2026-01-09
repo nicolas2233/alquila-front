@@ -23,6 +23,8 @@ type MapProperty = {
   contactLabel: string;
   rooms?: number;
   areaM2?: number;
+  imageUrl?: string;
+  badge?: string;
   lat: number;
   lng: number;
   kind?: "PROPERTY" | "POI";
