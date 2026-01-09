@@ -1,0 +1,106 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-night-900 text-[#f5f3ee] font-sans;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(141, 162, 255, 0.12), transparent 45%),
+      radial-gradient(circle at 85% 10%, rgba(202, 165, 106, 0.15), transparent 50%),
+      linear-gradient(180deg, #0e1116 0%, #121620 40%, #0f131b 100%);
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-2xl border border-white/10 bg-night-800/90 shadow-soft;
+  }
+
+  .gold-pill {
+    @apply inline-flex items-center rounded-full bg-gold-500/15 px-3 py-1 text-xs font-semibold text-gold-400;
+  }
+
+  .soft-divider {
+    @apply border-b border-white/10;
+  }
+
+  .elegant-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(202, 165, 106, 0.55) transparent;
+  }
+
+  .elegant-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .elegant-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .elegant-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, rgba(184, 139, 80, 0.7), rgba(224, 192, 138, 0.7));
+    border-radius: 999px;
+  }
+
+  .scroll-fade {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 48px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .scroll-fade-left {
+    left: 0;
+    background: linear-gradient(90deg, rgba(14, 17, 22, 1), rgba(14, 17, 22, 0));
+  }
+
+  .scroll-fade-right {
+    right: 0;
+    background: linear-gradient(270deg, rgba(14, 17, 22, 1), rgba(14, 17, 22, 0));
+  }
+
+  .leaflet-container {
+    z-index: 0;
+    font-family: inherit;
+  }
+
+  .leaflet-pane,
+  .leaflet-top,
+  .leaflet-bottom,
+  .leaflet-control,
+  .leaflet-popup {
+    z-index: 5;
+  }
+
+  .alquila-popup .leaflet-popup-content-wrapper {
+    background: rgba(245, 243, 238, 0.98);
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .alquila-popup .leaflet-popup-content {
+    margin: 0;
+    width: auto;
+  }
+
+  .alquila-popup .leaflet-popup-tip {
+    background: rgba(245, 243, 238, 0.98);
+  }
+
+  .map-popup-body {
+    padding: 12px;
+  }
+}
