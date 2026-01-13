@@ -39,6 +39,14 @@ export function RegisterPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const passwordRemaining = Math.max(0, 8 - password.length);
+  const passwordHelper =
+    password.length === 0
+      ? "Minimo 8 caracteres."
+      : passwordRemaining > 0
+      ? `Te faltan ${passwordRemaining} caracteres.`
+      : "Password valido.";
 
   const showPlan = accountType !== "viewer";
   const planChoices = useMemo(() => {
@@ -64,6 +72,11 @@ export function RegisterPage() {
           password: !password,
         });
         throw new Error("Email y password son obligatorios.");
+      }
+
+      if (password.length < 8) {
+        setFieldErrors({ password: true });
+        throw new Error("El password debe tener al menos 8 caracteres.");
       }
 
       if (accountType === "viewer") {
@@ -221,6 +234,9 @@ export function RegisterPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
+            <span className={emailInvalid ? "text-[11px] text-[#f5b78a]" : "text-[11px] text-[#9a948a]"}>
+              {emailInvalid ? "Email invalido." : "Ej: nombre@mail.com"}
+            </span>
           </label>
           <label className="space-y-2 text-xs text-[#9a948a]">
             Password
@@ -230,6 +246,15 @@ export function RegisterPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
+            <span
+              className={
+                passwordRemaining > 0
+                  ? "text-[11px] text-[#f5b78a]"
+                  : "text-[11px] text-[#9a948a]"
+              }
+            >
+              {passwordHelper}
+            </span>
           </label>
         </div>
       </section>

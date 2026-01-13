@@ -35,12 +35,16 @@ export function AppLayout() {
               <NavLink to="/mapa" className={navClass}>
                 Mapa
               </NavLink>
-              <NavLink to="/publicar" className={navClass}>
-                Publicar
-              </NavLink>
-              <NavLink to="/panel" className={navClass}>
-                Panel
-              </NavLink>
+              {user && user.role !== "VISITOR" && (
+                <>
+                  <NavLink to="/publicar" className={navClass}>
+                    Publicar
+                  </NavLink>
+                  <NavLink to="/panel" className={navClass}>
+                    Panel
+                  </NavLink>
+                </>
+              )}
             </nav>
             {user ? (
               <div className="flex flex-wrap items-center gap-3 text-sm text-[#c7c2b8]">
