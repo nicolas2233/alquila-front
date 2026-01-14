@@ -440,7 +440,7 @@ export function PublishPage() {
                 />
               </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
-                Localidad (ID)
+                Localidad
                 <input
                   className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
                   value={localityId}
