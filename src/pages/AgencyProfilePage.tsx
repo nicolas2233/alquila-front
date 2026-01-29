@@ -230,7 +230,7 @@ export function AgencyProfilePage() {
       }
       setContactStatus("success");
       setContactMessage("Solicitud enviada. Te contactaremos pronto.");
-      void loadSimilar(selectedListing);
+      void loadSimilar();
     } catch (error) {
       setContactStatus("error");
       setContactMessage(
@@ -239,7 +239,8 @@ export function AgencyProfilePage() {
     }
   };
 
-  const loadSimilar = async (base?: SearchListing | null) => {
+  const loadSimilar = async () => {
+    const base = selectedListing;
     if (!base) {
       return;
     }
