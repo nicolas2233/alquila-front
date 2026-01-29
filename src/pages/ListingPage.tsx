@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
+import { buildWhatsappLink } from "../shared/utils/whatsapp";
 
 export function ListingPage() {
   const { id } = useParams();
@@ -148,12 +149,18 @@ export function ListingPage() {
             <div className="mt-4 flex flex-wrap gap-3">
               {contactMethods?.map((contact) => {
                 if (contact.type === "WHATSAPP") {
-                  const phone = contact.value.replace(/[^0-9]/g, "");
+                  const message = `Hola, me interesa "${listing.title}". Link: ${
+                    window.location.origin
+                  }/publicacion/${property?.id ?? ""}`;
+                  const link = buildWhatsappLink(contact.value, message);
+                  if (!link) {
+                    return null;
+                  }
                   return (
                     <a
                       key={contact.id}
                       className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
-                      href={`https://wa.me/${phone}`}
+                      href={link}
                       target="_blank"
                       rel="noreferrer"
                     >

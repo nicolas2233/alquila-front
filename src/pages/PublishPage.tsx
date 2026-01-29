@@ -244,6 +244,7 @@ export function PublishPage() {
 
   const previewListing = useMemo<PropertyDetailListing>(
     () => ({
+      id: "preview",
       title: title || "Sin titulo",
       address: `${addressLine || "Sin direccion"}${localityId ? ` - ${localityId}` : ""}`,
       price: priceAmount ? `${priceAmount} ${priceCurrency}` : "Sin precio",

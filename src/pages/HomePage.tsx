@@ -1,8 +1,65 @@
-﻿import { Link } from "react-router-dom";
+﻿import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { env } from "../shared/config/env";
+import { getSessionUser, getToken } from "../shared/auth/session";
 
 export function HomePage() {
+  const [alertCount, setAlertCount] = useState(0);
+  const [sessionUser, setSessionUser] = useState(() => getSessionUser());
+  const [token, setToken] = useState(() => getToken());
+
+  useEffect(() => {
+    setSessionUser(getSessionUser());
+    setToken(getToken());
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    const loadAlerts = async () => {
+      if (!token) {
+        setAlertCount(0);
+        return;
+      }
+      try {
+        const response = await fetch(`${env.apiUrl}/saved-searches/alerts-summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+          throw new Error("No pudimos cargar alertas.");
+        }
+        const data = (await response.json()) as { items: { id: string; count: number }[] };
+        if (ignore) return;
+        const total = (data.items ?? []).reduce((sum, item) => sum + (item.count ?? 0), 0);
+        setAlertCount(total);
+      } catch {
+        if (ignore) return;
+        setAlertCount(0);
+      }
+    };
+    void loadAlerts();
+    return () => {
+      ignore = true;
+    };
+  }, [token]);
+
   return (
     <div className="grid gap-12">
+      {sessionUser && alertCount > 0 && (
+        <section className="glass-card flex flex-wrap items-center justify-between gap-4 p-5">
+          <div>
+            <h2 className="text-lg text-white">Tienes nuevas alertas</h2>
+            <p className="text-sm text-[#9a948a]">
+              {alertCount} publicaciones nuevas segun tus busquedas guardadas.
+            </p>
+          </div>
+          <Link
+            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+            to="/busquedas"
+          >
+            Ver alertas
+          </Link>
+        </section>
+      )}
       <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
           <span className="gold-pill">Portal premium local</span>

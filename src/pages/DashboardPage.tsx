@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { env } from "../shared/config/env";
-import { getSessionUser } from "../shared/auth/session";
+import { getSessionUser, getToken } from "../shared/auth/session";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type {
   PropertyApiDetail,
   PropertyApiListItem,
 } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
+import { buildWhatsappLink } from "../shared/utils/whatsapp";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Borrador",
@@ -25,6 +26,28 @@ const statusDotClass: Record<string, string> = {
   TEMPORARILY_UNAVAILABLE: "bg-rose-400",
 };
 const statusOptions = ["ACTIVE", "PAUSED", "SOLD", "RENTED", "TEMPORARILY_UNAVAILABLE"];
+const requestStatusLabels: Record<string, string> = {
+  NEW: "Nueva",
+  CONTACTED: "Contactado",
+  CLOSED: "Cerrada",
+};
+const requestTypeLabels: Record<string, string> = {
+  INTEREST: "Me interesa",
+  VISIT: "Reservar visita",
+};
+const operationLabels: Record<string, string> = {
+  SALE: "Venta",
+  RENT: "Alquiler",
+  TEMPORARY: "Temporario",
+};
+const propertyLabels: Record<string, string> = {
+  HOUSE: "Casa",
+  APARTMENT: "Departamento",
+  LAND: "Terreno",
+  COMMERCIAL: "Comercio",
+  OFFICE: "Oficina",
+  WAREHOUSE: "Deposito",
+};
 
 type AgencyProfile = {
   id: string;
@@ -40,10 +63,11 @@ type AgencyProfile = {
   logo?: string | null;
 };
 
-type PanelSection = "profile" | "listings";
+type PanelSection = "profile" | "listings" | "requests" | "my-requests";
 
 export function DashboardPage() {
   const sessionUser = useMemo(() => getSessionUser(), []);
+  const sessionToken = useMemo(() => getToken(), []);
   const isOwner = sessionUser?.role === "OWNER";
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
@@ -140,6 +164,52 @@ export function DashboardPage() {
   const [servicePavement, setServicePavement] = useState(false);
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [showPublicModal, setShowPublicModal] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<"idle" | "loading" | "error">(
+    "idle"
+  );
+  const [requestError, setRequestError] = useState("");
+  const [contactRequests, setContactRequests] = useState<
+    Array<{
+      id: string;
+      type: "INTEREST" | "VISIT";
+      status: "NEW" | "CONTACTED" | "CLOSED";
+      name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      message?: string | null;
+      createdAt: string;
+      property: {
+        id: string;
+        title: string;
+        operationType: string;
+        propertyType: string;
+        priceAmount: string;
+        priceCurrency: string;
+        location?: { addressLine?: string | null } | null;
+      };
+    }>
+  >([]);
+  const [myRequests, setMyRequests] = useState<
+    Array<{
+      id: string;
+      type: "INTEREST" | "VISIT";
+      status: "NEW" | "CONTACTED" | "CLOSED";
+      message?: string | null;
+      createdAt: string;
+      property: {
+        id: string;
+        title: string;
+        operationType: string;
+        propertyType: string;
+        priceAmount: string;
+        priceCurrency: string;
+        location?: { addressLine?: string | null } | null;
+      };
+    }>
+  >([]);
+  const [selectedRequest, setSelectedRequest] =
+    useState<(typeof contactRequests)[number] | null>(null);
+  const [requestDetailOpen, setRequestDetailOpen] = useState(false);
 
   const loadProperties = useCallback(async () => {
     if (!sessionUser) {
@@ -189,6 +259,64 @@ export function DashboardPage() {
     }
   }, [agencyId, ownerUserId, sessionUser]);
 
+  const loadRequests = useCallback(async () => {
+    if (!sessionToken) {
+      setRequestStatus("error");
+      setRequestError("Necesitas iniciar sesion.");
+      return;
+    }
+    setRequestStatus("loading");
+    setRequestError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/contact-requests`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos cargar las solicitudes.");
+      }
+      const data = (await response.json()) as { items: typeof contactRequests };
+      setContactRequests(data.items ?? []);
+      setRequestStatus("idle");
+    } catch (error) {
+      setRequestStatus("error");
+      setRequestError(
+        error instanceof Error ? error.message : "Error al cargar solicitudes."
+      );
+    }
+  }, [sessionToken]);
+
+  const loadMyRequests = useCallback(async () => {
+    if (!sessionToken) {
+      setRequestStatus("error");
+      setRequestError("Necesitas iniciar sesion.");
+      return;
+    }
+    setRequestStatus("loading");
+    setRequestError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/contact-requests/mine`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos cargar tus solicitudes.");
+      }
+      const data = (await response.json()) as { items: typeof myRequests };
+      setMyRequests(data.items ?? []);
+      setRequestStatus("idle");
+    } catch (error) {
+      setRequestStatus("error");
+      setRequestError(
+        error instanceof Error ? error.message : "Error al cargar tus solicitudes."
+      );
+    }
+  }, [sessionToken]);
+
   const loadAgency = useCallback(async () => {
     if (!agencyId) {
       return;
@@ -226,6 +354,20 @@ export function DashboardPage() {
       void loadProperties();
     }
   }, [activeSection, loadProperties]);
+
+  useEffect(() => {
+    if (activeSection !== "requests") {
+      return;
+    }
+    void loadRequests();
+  }, [activeSection, loadRequests]);
+
+  useEffect(() => {
+    if (activeSection !== "my-requests") {
+      return;
+    }
+    void loadMyRequests();
+  }, [activeSection, loadMyRequests]);
 
   useEffect(() => {
     if (isAgency && agencyId) {
@@ -504,6 +646,35 @@ export function DashboardPage() {
     }
   };
 
+  const updateRequestStatus = async (id: string, status: "NEW" | "CONTACTED" | "CLOSED") => {
+    if (!sessionToken) {
+      setRequestStatus("error");
+      setRequestError("Necesitas iniciar sesion.");
+      return;
+    }
+    try {
+      const response = await fetch(`${env.apiUrl}/contact-requests/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos actualizar la solicitud.");
+      }
+      setContactRequests((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status } : item))
+      );
+    } catch (error) {
+      setRequestStatus("error");
+      setRequestError(
+        error instanceof Error ? error.message : "No pudimos actualizar la solicitud."
+      );
+    }
+  };
+
   const saveOwner = async () => {
     if (!ownerUserId) {
       return;
@@ -580,6 +751,28 @@ export function DashboardPage() {
           }
         >
           Mis inmuebles
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("requests")}
+          className={
+            activeSection === "requests"
+              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
+              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+          }
+        >
+          Solicitudes
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("my-requests")}
+          className={
+            activeSection === "my-requests"
+              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
+              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+          }
+        >
+          Mis solicitudes
         </button>
       </aside>
 
@@ -878,6 +1071,311 @@ export function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {activeSection === "requests" && (
+        <div className="glass-card space-y-4 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Solicitudes de contacto</h3>
+              <p className="text-xs text-[#9a948a]">
+                Gestiona interesados y reservas de visita.
+              </p>
+            </div>
+            <button
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              type="button"
+              onClick={loadRequests}
+              disabled={requestStatus === "loading"}
+            >
+              {requestStatus === "loading" ? "Cargando..." : "Actualizar"}
+            </button>
+          </div>
+
+          {requestStatus === "error" && (
+            <p className="text-xs text-[#f5b78a]">{requestError}</p>
+          )}
+          {requestStatus === "loading" && (
+            <p className="text-xs text-[#9a948a]">Cargando solicitudes...</p>
+          )}
+          {requestStatus === "idle" && contactRequests.length === 0 && (
+            <p className="text-xs text-[#9a948a]">Todavia no recibiste solicitudes.</p>
+          )}
+
+          {contactRequests.length > 0 && (
+            <div className="space-y-3">
+              {contactRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm text-white">
+                        {requestTypeLabels[request.type] ?? request.type}
+                      </div>
+                      <div className="text-xs text-[#9a948a]">
+                        {request.property.title} -{" "}
+                        {operationLabels[request.property.operationType] ??
+                          request.property.operationType}{" "}
+                        -{" "}
+                        {propertyLabels[request.property.propertyType] ??
+                          request.property.propertyType}
+                      </div>
+                      {request.property.location?.addressLine && (
+                        <div className="text-xs text-[#9a948a]">
+                          {request.property.location.addressLine}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[#c7c2b8]">
+                      <div>
+                        {request.property.priceCurrency} {request.property.priceAmount}
+                      </div>
+                      <select
+                        className="rounded-lg border border-white/10 bg-night-900/60 px-2 py-1 text-xs text-white"
+                        value={request.status}
+                        onChange={(event) =>
+                          updateRequestStatus(
+                            request.id,
+                            event.target.value as "NEW" | "CONTACTED" | "CLOSED"
+                          )
+                        }
+                      >
+                        {["NEW", "CONTACTED", "CLOSED"].map((status) => (
+                          <option key={status} value={status}>
+                            {requestStatusLabels[status] ?? status}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="rounded-full border border-white/20 px-3 py-1 text-xs"
+                        type="button"
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setRequestDetailOpen(true);
+                        }}
+                      >
+                        Ver detalle
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs text-[#9a948a] md:grid-cols-3">
+                    <div>Nombre: {request.name ?? "Sin nombre"}</div>
+                    <div>Email: {request.email ?? "Sin email"}</div>
+                    <div>Telefono: {request.phone ?? "Sin telefono"}</div>
+                  </div>
+                  {request.message && (
+                    <div className="mt-2 text-xs text-[#9a948a]">
+                      Mensaje: {request.message}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSection === "my-requests" && (
+        <div className="glass-card space-y-4 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Mis solicitudes enviadas</h3>
+              <p className="text-xs text-[#9a948a]">
+                Historial de solicitudes que enviaste.
+              </p>
+            </div>
+            <button
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              type="button"
+              onClick={loadMyRequests}
+              disabled={requestStatus === "loading"}
+            >
+              {requestStatus === "loading" ? "Cargando..." : "Actualizar"}
+            </button>
+          </div>
+
+          {requestStatus === "error" && (
+            <p className="text-xs text-[#f5b78a]">{requestError}</p>
+          )}
+          {requestStatus === "loading" && (
+            <p className="text-xs text-[#9a948a]">Cargando solicitudes...</p>
+          )}
+          {requestStatus === "idle" && myRequests.length === 0 && (
+            <p className="text-xs text-[#9a948a]">Todavia no enviaste solicitudes.</p>
+          )}
+
+          {myRequests.length > 0 && (
+            <div className="space-y-3">
+              {myRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm text-white">
+                        {requestTypeLabels[request.type] ?? request.type}
+                      </div>
+                      <div className="text-xs text-[#9a948a]">
+                        {request.property.title} -{" "}
+                        {operationLabels[request.property.operationType] ??
+                          request.property.operationType}{" "}
+                        -{" "}
+                        {propertyLabels[request.property.propertyType] ??
+                          request.property.propertyType}
+                      </div>
+                      {request.property.location?.addressLine && (
+                        <div className="text-xs text-[#9a948a]">
+                          {request.property.location.addressLine}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[#c7c2b8]">
+                      <div>
+                        {request.property.priceCurrency} {request.property.priceAmount}
+                      </div>
+                      <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                        {requestStatusLabels[request.status] ?? request.status}
+                      </span>
+                    </div>
+                  </div>
+                  {request.message && (
+                    <div className="mt-2 text-xs text-[#9a948a]">
+                      Mensaje: {request.message}
+                    </div>
+                  )}
+                  <div className="mt-3">
+                    <a
+                      className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                      href={`/publicacion/${request.property.id}`}
+                    >
+                      Ver publicacion
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {requestDetailOpen && selectedRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+              <div>
+                <h3 className="text-xl text-white">Detalle de solicitud</h3>
+                <p className="text-xs text-[#9a948a]">
+                  {requestTypeLabels[selectedRequest.type] ?? selectedRequest.type}
+                </p>
+              </div>
+              <button
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                type="button"
+                onClick={() => {
+                  setRequestDetailOpen(false);
+                  setSelectedRequest(null);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="space-y-4 p-6 text-sm text-[#c7c2b8]">
+              <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+                <div className="text-sm text-white">{selectedRequest.property.title}</div>
+                <div className="text-xs text-[#9a948a]">
+                  {operationLabels[selectedRequest.property.operationType] ??
+                    selectedRequest.property.operationType}{" "}
+                  -{" "}
+                  {propertyLabels[selectedRequest.property.propertyType] ??
+                    selectedRequest.property.propertyType}
+                </div>
+                {selectedRequest.property.location?.addressLine && (
+                  <div className="text-xs text-[#9a948a]">
+                    {selectedRequest.property.location.addressLine}
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-[#9a948a]">
+                  {selectedRequest.property.priceCurrency}{" "}
+                  {selectedRequest.property.priceAmount}
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <div className="text-xs text-[#9a948a]">Nombre</div>
+                  <div className="text-sm text-white">
+                    {selectedRequest.name ?? "Sin nombre"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-[#9a948a]">Email</div>
+                  <div className="text-sm text-white">
+                    {selectedRequest.email ?? "Sin email"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-[#9a948a]">Telefono</div>
+                  <div className="text-sm text-white">
+                    {selectedRequest.phone ?? "Sin telefono"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-[#9a948a]">Estado</div>
+                  <div className="text-sm text-white">
+                    {requestStatusLabels[selectedRequest.status] ??
+                      selectedRequest.status}
+                  </div>
+                </div>
+              </div>
+              {selectedRequest.message && (
+                <div>
+                  <div className="text-xs text-[#9a948a]">Mensaje</div>
+                  <div className="text-sm text-white">{selectedRequest.message}</div>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {selectedRequest.phone && (
+                  (() => {
+                    const message = `Hola ${selectedRequest.name ?? ""}, vimos tu solicitud por "${
+                      selectedRequest.property.title
+                    }".`;
+                    const link = buildWhatsappLink(selectedRequest.phone, message);
+                    if (!link) {
+                      return null;
+                    }
+                    return (
+                      <a
+                        className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        WhatsApp
+                      </a>
+                    );
+                  })()
+                )}
+                {selectedRequest.email && (
+                  <a
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                    href={`mailto:${selectedRequest.email}`}
+                  >
+                    Email
+                  </a>
+                )}
+                {selectedRequest.property.id && (
+                  <a
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                    href={`/publicacion/${selectedRequest.property.id}`}
+                  >
+                    Ver publicacion
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {selectedId && (

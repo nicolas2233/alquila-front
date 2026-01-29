@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Container } from "../ui/Container";
-import { clearSession, getSessionUser } from "../auth/session";
+import { clearSession, getSessionUser, getToken } from "../auth/session";
 import type { SessionUser } from "../auth/session";
+import { env } from "../config/env";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? "text-gold-400" : "text-[#c7c2b8]";
@@ -11,10 +12,41 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
     setUser(getSessionUser());
+    setToken(getToken());
   }, [location.pathname]);
+
+  useEffect(() => {
+    let ignore = false;
+    const loadCount = async () => {
+      if (!token) {
+        setNotificationCount(0);
+        return;
+      }
+      try {
+        const response = await fetch(`${env.apiUrl}/notifications/unread-count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+          throw new Error("No pudimos cargar notificaciones.");
+        }
+        const data = (await response.json()) as { count: number };
+        if (ignore) return;
+        setNotificationCount(data.count ?? 0);
+      } catch {
+        if (ignore) return;
+        setNotificationCount(0);
+      }
+    };
+    void loadCount();
+    return () => {
+      ignore = true;
+    };
+  }, [token, location.pathname]);
 
   const handleLogout = () => {
     clearSession();
@@ -35,6 +67,21 @@ export function AppLayout() {
               <NavLink to="/mapa" className={navClass}>
                 Mapa
               </NavLink>
+              {user && (
+                <>
+                  <NavLink to="/busquedas" className={navClass}>
+                    Mis busquedas
+                  </NavLink>
+                  <NavLink to="/notificaciones" className={navClass}>
+                    Notificaciones
+                    {notificationCount > 0 && (
+                      <span className="ml-2 rounded-full bg-gold-500/30 px-2 py-0.5 text-[10px] text-gold-300">
+                        {notificationCount}
+                      </span>
+                    )}
+                  </NavLink>
+                </>
+              )}
               {user && user.role !== "VISITOR" && (
                 <>
                   <NavLink to="/publicar" className={navClass}>

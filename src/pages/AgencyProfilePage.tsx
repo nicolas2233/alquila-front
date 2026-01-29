@@ -1,167 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
 import { fetchJson } from "../shared/api/http";
-
-const agencies = [
-  {
-    slug: "bragado-realty",
-    name: "Bragado Realty",
-    description:
-      "Equipo local con foco en operaciones verificadas y respuesta rapida en Bragado.",
-    address: "Av. Alsina 245, Bragado",
-    phone: "2342 444-222",
-    whatsapp: "+54 9 2342 555 000",
-    email: "contacto@bragado-realty.com",
-    website: "www.bragadorealty.com",
-    instagram: "@bragado.realty",
-    logo: "BR",
-    agents: [
-      { name: "Lucia Perez", role: "Broker", contact: "lucia@bragado.com" },
-      { name: "Martin Salas", role: "Ventas", contact: "martin@bragado.com" },
-    ],
-    listings: [
-      {
-        id: "a1",
-        title: "Casa 3 ambientes con patio",
-        price: "ARS 180.000",
-        address: "Mitre 123",
-        operation: "Alquiler",
-        rooms: 3,
-        areaM2: 120,
-        garage: true,
-        pets: true,
-        kids: true,
-        images: [
-          "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80",
-        ],
-        description:
-          "Publicacion sin duplicados. Contacto directo por WhatsApp con el propietario.",
-        descriptionLong:
-          "Casa luminosa con patio, galeria y cocina integrada. Ambientes amplios, ventilacion cruzada y buena orientacion.",
-        image:
-          "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=900&q=80",
-      },
-      {
-        id: "a2",
-        title: "Depto 2 ambientes luminoso",
-        price: "USD 65.000",
-        address: "Sarmiento 845",
-        operation: "Venta",
-        rooms: 2,
-        areaM2: 65,
-        garage: false,
-        pets: false,
-        kids: true,
-        images: [
-          "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80",
-        ],
-        description:
-          "Ubicacion central, verificacion completa y disponibilidad inmediata.",
-        descriptionLong:
-          "Departamento con excelente luz natural, living comedor integrado y balcon. Ideal para primera vivienda o inversion.",
-        image:
-          "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=900&q=80",
-      },
-      {
-        id: "a3",
-        title: "Terreno con acceso directo",
-        price: "ARS 95.000",
-        address: "Ruta 5 Km 207",
-        operation: "Venta",
-        rooms: 0,
-        areaM2: 450,
-        garage: false,
-        pets: true,
-        kids: true,
-        images: [
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1501183638710-841dd1904471?auto=format&fit=crop&w=1400&q=80",
-        ],
-        description:
-          "Ideal para desarrollo, con documentacion catastral validada.",
-        descriptionLong:
-          "Lote con acceso directo, listo para proyecto residencial. Superficie regular y buen entorno.",
-        image:
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80",
-      },
-    ],
-  },
-  {
-    slug: "la-plaza-propiedades",
-    name: "La Plaza Propiedades",
-    description:
-      "Inmobiliaria boutique con foco en ventas residenciales y alquileres temporarios.",
-    address: "Plaza Central 22, Bragado",
-    phone: "2342 400-111",
-    whatsapp: "+54 9 2342 222 444",
-    email: "hola@laplaza.com",
-    website: "www.laplaza.com",
-    instagram: "@laplaza.propiedades",
-    logo: "LP",
-    agents: [
-      { name: "Julieta Rios", role: "Broker", contact: "julieta@laplaza.com" },
-      { name: "Diego Moran", role: "Atencion", contact: "diego@laplaza.com" },
-    ],
-    listings: [
-      {
-        id: "b1",
-        title: "Casa quinta con pileta",
-        price: "USD 120.000",
-        address: "Los Tilos 950",
-        operation: "Venta",
-        rooms: 4,
-        areaM2: 220,
-        garage: true,
-        pets: true,
-        kids: true,
-        images: [
-          "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80",
-        ],
-        description:
-          "Casa quinta con pileta, quincho y parque amplio.",
-        descriptionLong:
-          "Casa quinta con pileta, quincho completo y parque amplio. Ideal para fines de semana.",
-        image:
-          "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80",
-      },
-      {
-        id: "b2",
-        title: "PH moderno en el centro",
-        price: "ARS 140.000",
-        address: "Belgrano 340",
-        operation: "Alquiler",
-        rooms: 2,
-        areaM2: 70,
-        garage: false,
-        pets: false,
-        kids: true,
-        images: [
-          "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80",
-          "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
-        ],
-        description:
-          "PH moderno con patio interno, listo para ingresar.",
-        descriptionLong:
-          "PH moderno con patio interno, cocina integrada y buena ubicacion en el centro.",
-        image:
-          "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80",
-      },
-    ],
-  },
-];
+import { getToken } from "../shared/auth/session";
+import { buildWhatsappLink } from "../shared/utils/whatsapp";
 
 export function AgencyProfilePage() {
   const { slug } = useParams();
@@ -169,6 +15,9 @@ export function AgencyProfilePage() {
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
   const [detailStatus, setDetailStatus] = useState<"idle" | "loading">("idle");
+  const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [contactMessage, setContactMessage] = useState("");
+  const [similarListings, setSimilarListings] = useState<SearchListing[]>([]);
   const [agencyData, setAgencyData] = useState<{
     id: string;
     name: string;
@@ -193,11 +42,7 @@ export function AgencyProfilePage() {
   const [total, setTotal] = useState(0);
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
 
-  const fallbackAgency = useMemo(
-    () => agencies.find((item) => item.slug === slug),
-    [slug]
-  );
-  const agency = agencyData ?? fallbackAgency;
+  const agency = agencyData;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const agencyUrl = useMemo(
     () => (slug ? `${env.apiUrl}/agencies/${slug}` : ""),
@@ -285,29 +130,14 @@ export function AgencyProfilePage() {
           setListings(data.items.map(mapPropertyToSearchListing));
           setTotal(data.total ?? data.items.length);
           setListingStatus("idle");
-        } else if (fallbackAgency) {
-          setListings(
-            fallbackAgency.listings.map((item) => ({
-              ...item,
-              propertyType: "Propiedad",
-            })) as SearchListing[]
-          );
-          setListingStatus("error");
         } else {
           setListings([]);
-          setListingStatus("error");
+          setListingStatus("idle");
         }
       } catch {
         if (ignore) return;
         if (controller.signal.aborted) return;
-        if (fallbackAgency) {
-          setListings(
-            fallbackAgency.listings.map((item) => ({
-              ...item,
-              propertyType: "Propiedad",
-            })) as SearchListing[]
-          );
-        }
+        setListings([]);
         setListingStatus("error");
       }
     };
@@ -316,7 +146,7 @@ export function AgencyProfilePage() {
       ignore = true;
       controller.abort();
     };
-  }, [fallbackAgency, listingsUrl, slug]);
+  }, [listingsUrl, slug]);
 
   const openModal = (listing: SearchListing) => {
     setSelectedListing(listing);
@@ -349,6 +179,113 @@ export function AgencyProfilePage() {
 
   const closeModal = () => {
     setSelectedListing(null);
+    setContactStatus("idle");
+    setContactMessage("");
+    setSimilarListings([]);
+  };
+
+  const whatsappLink = useMemo(() => {
+    if (!selectedListing?.contactMethods) {
+      return null;
+    }
+    const method = selectedListing.contactMethods.find((item) => item.type === "WHATSAPP");
+    if (!method?.value) {
+      return null;
+    }
+    const message = `Hola, me interesa "${selectedListing.title}". Link: ${
+      selectedListing.id ? `${window.location.origin}/publicacion/${selectedListing.id}` : ""
+    }`;
+    return buildWhatsappLink(method.value, message);
+  }, [selectedListing]);
+
+  const handleContactRequest = async (type: "INTEREST" | "VISIT") => {
+    if (!selectedListing) {
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      setContactStatus("error");
+      setContactMessage("Inicia sesion para enviar la solicitud.");
+      return;
+    }
+    setContactStatus("loading");
+    setContactMessage("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/contact-requests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type,
+          message:
+            type === "INTEREST"
+              ? "Estoy interesado en esta propiedad."
+              : "Quiero reservar una visita.",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos enviar la solicitud.");
+      }
+      setContactStatus("success");
+      setContactMessage("Solicitud enviada. Te contactaremos pronto.");
+      void loadSimilar(selectedListing);
+    } catch (error) {
+      setContactStatus("error");
+      setContactMessage(
+        error instanceof Error ? error.message : "No pudimos enviar la solicitud."
+      );
+    }
+  };
+
+  const loadSimilar = async (base?: SearchListing | null) => {
+    if (!base) {
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      if (base.operation) {
+        params.set(
+          "operationType",
+          base.operation === "Venta"
+            ? "SALE"
+            : base.operation === "Alquiler"
+            ? "RENT"
+            : base.operation === "Temporario"
+            ? "TEMPORARY"
+            : ""
+        );
+      }
+      if (base.propertyType) {
+        params.set(
+          "propertyType",
+          base.propertyType === "Casa"
+            ? "HOUSE"
+            : base.propertyType === "Departamento"
+            ? "APARTMENT"
+            : base.propertyType === "Terreno"
+            ? "LAND"
+            : base.propertyType === "Comercio"
+            ? "COMMERCIAL"
+            : base.propertyType === "Oficina"
+            ? "OFFICE"
+            : base.propertyType === "Galpon" || base.propertyType === "Deposito"
+            ? "WAREHOUSE"
+            : ""
+        );
+      }
+      params.set("status", "ACTIVE");
+      params.set("page", "1");
+      params.set("pageSize", "3");
+      const response = await fetch(`${env.apiUrl}/properties?${params.toString()}`);
+      if (!response.ok) return;
+      const data = (await response.json()) as { items: PropertyApiListItem[] };
+      const mapped = data.items.map(mapPropertyToSearchListing);
+      setSimilarListings(mapped.filter((item) => item.id !== base.id));
+    } catch {
+      // ignore
+    }
   };
 
   if (!agency && agencyStatus === "error") {
@@ -395,22 +332,7 @@ export function AgencyProfilePage() {
         <div className="glass-card space-y-4 p-6">
           <h3 className="text-lg text-white">Equipo</h3>
           <div className="space-y-3">
-            {fallbackAgency?.agents?.length ? (
-              fallbackAgency.agents.map((agent) => (
-                <div
-                  key={agent.name}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm text-white">{agent.name}</p>
-                    <p className="text-xs text-[#9a948a]">{agent.role}</p>
-                  </div>
-                  <span className="text-xs text-[#9a948a]">{agent.contact}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-[#9a948a]">Equipo no disponible.</p>
-            )}
+            <p className="text-xs text-[#9a948a]">Equipo no disponible.</p>
           </div>
         </div>
       </section>
@@ -484,6 +406,26 @@ export function AgencyProfilePage() {
           {listingStatus === "error" && listings.length === 0 && (
             <p className="text-xs text-[#f5b78a]">No hay publicaciones activas.</p>
           )}
+          {listingStatus === "idle" && listings.length === 0 && (
+            <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
+              <p className="text-sm text-white">No hay publicaciones activas.</p>
+              <p className="mt-1">Explora otras opciones o publica un inmueble.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                  to="/publicar"
+                >
+                  Publicar inmueble
+                </Link>
+                <Link
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                  to="/buscar"
+                >
+                  Ver otras publicaciones
+                </Link>
+              </div>
+            </div>
+          )}
         <div
           className={
             viewMode === "grid"
@@ -531,13 +473,16 @@ export function AgencyProfilePage() {
               }
             >
               <div className={viewMode === "grid" ? "flex flex-col" : "flex flex-col gap-3"}>
-                <div
+                <img
                   className={
                     viewMode === "grid"
-                      ? "h-44 w-full bg-cover bg-center"
-                      : "h-40 rounded-2xl bg-cover bg-center"
+                      ? "h-44 w-full rounded-t-2xl object-cover"
+                      : "h-40 w-full rounded-2xl object-cover"
                   }
-                  style={{ backgroundImage: `url('${listing.image}')` }}
+                  src={listing.image}
+                  alt={listing.title}
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -568,6 +513,7 @@ export function AgencyProfilePage() {
                   <button
                     className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
                     type="button"
+                    onClick={() => openModal(listing)}
                   >
                     WhatsApp
                   </button>
@@ -690,12 +636,57 @@ export function AgencyProfilePage() {
             isLoading={detailStatus === "loading"}
             actions={
               <>
-                <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
+                <button
+                  className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
+                  type="button"
+                  onClick={() => {
+                    if (whatsappLink) {
+                      window.open(whatsappLink, "_blank", "noopener,noreferrer");
+                    } else {
+                      setContactStatus("error");
+                      setContactMessage("No hay WhatsApp disponible en esta publicacion.");
+                    }
+                  }}
+                >
                   WhatsApp
                 </button>
-                <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]">
-                  Guardar
+                <button
+                  className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
+                  type="button"
+                  onClick={() => handleContactRequest("INTEREST")}
+                  disabled={contactStatus === "loading"}
+                >
+                  Me interesa
                 </button>
+                <button
+                  className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
+                  type="button"
+                  onClick={() => handleContactRequest("VISIT")}
+                  disabled={contactStatus === "loading"}
+                >
+                  Reservar visita
+                </button>
+                {contactMessage && (
+                  <span className="text-xs text-[#9a948a]">{contactMessage}</span>
+                )}
+                {similarListings.length > 0 && (
+                  <div className="mt-4 w-full space-y-2 text-xs text-[#9a948a]">
+                    <div className="text-sm text-white">Publicaciones similares</div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {similarListings.slice(0, 2).map((item) => (
+                        <button
+                          key={item.id}
+                          className="rounded-xl border border-white/10 bg-night-900/60 p-3 text-left"
+                          type="button"
+                          onClick={() => openModal(item)}
+                        >
+                          <div className="text-sm text-white">{item.title}</div>
+                          <div className="text-xs text-[#9a948a]">{item.address}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             }
           />

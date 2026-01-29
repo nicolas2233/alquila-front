@@ -1,119 +1,86 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
 import { fetchJson } from "../shared/api/http";
-
-const fallbackListings: SearchListing[] = [
-  {
-    id: "1",
-    title: "Casa 3 ambientes con patio",
-    address: "Av. Mitre 123",
-    price: "ARS 180.000",
-    rooms: 3,
-    areaM2: 120,
-    garage: true,
-    pets: true,
-    kids: true,
-    operation: "Alquiler",
-    propertyType: "Casa",
-    agency: "Bragado Realty",
-    images: [
-      "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=1400&q=80",
-      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80",
-    ],
-    description:
-      "Publicacion sin duplicados. Contacto directo por WhatsApp con el propietario.",
-    descriptionLong:
-      "Casa luminosa con patio, galeria y cocina integrada. Ambientes amplios, ventilacion cruzada y buena orientacion. Lista para habitar.",
-    image:
-      "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "2",
-    title: "Depto 2 ambientes luminoso",
-    address: "Sarmiento 845",
-    price: "USD 65.000",
-    rooms: 2,
-    areaM2: 65,
-    garage: false,
-    pets: false,
-    kids: true,
-    operation: "Venta",
-    propertyType: "Departamento",
-    agency: "La Plaza Propiedades",
-    images: [
-      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80",
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80",
-    ],
-    description:
-      "Ubicacion central, verificacion completa y disponibilidad inmediata.",
-    descriptionLong:
-      "Departamento con excelente luz natural, living comedor integrado y balcon. Ideal para primera vivienda o inversion.",
-    image:
-      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "3",
-    title: "Terreno con acceso directo",
-    address: "Ruta 5 Km 207",
-    price: "ARS 95.000",
-    rooms: 0,
-    areaM2: 450,
-    garage: false,
-    pets: true,
-    kids: true,
-    operation: "Venta",
-    propertyType: "Terreno",
-    agency: null,
-    images: [
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80",
-      "https://images.unsplash.com/photo-1501183638710-841dd1904471?auto=format&fit=crop&w=1400&q=80",
-    ],
-    description:
-      "Ideal para desarrollo, con documentacion catastral validada.",
-    descriptionLong:
-      "Lote con acceso directo, listo para proyecto residencial. Superficie regular y buen entorno.",
-    image:
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=800&q=80",
-  },
-];
-
-const fallbackAgencies = [
-  { id: "bragado-realty", name: "Bragado Realty", logo: "BR" },
-  { id: "cuartel-norte", name: "Cuartel Norte", logo: "CN" },
-  { id: "la-plaza-propiedades", name: "La Plaza Propiedades", logo: "LP" },
-  { id: "campo-y-casa", name: "Campo & Casa", logo: "CC" },
-  { id: "estudio-urbano", name: "Estudio Urbano", logo: "EU" },
-  { id: "rural-bragado", name: "Rural Bragado", logo: "RB" },
-];
+import { getToken } from "../shared/auth/session";
+import { buildWhatsappLink } from "../shared/utils/whatsapp";
 
 export function SearchPage() {
-  const [listings, setListings] = useState<SearchListing[]>(fallbackListings);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [listings, setListings] = useState<SearchListing[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [total, setTotal] = useState(0);
-  const [agencies, setAgencies] = useState<{ id: string; name: string; logo?: string | null }[]>(
-    fallbackAgencies
-  );
+  const [agencies, setAgencies] = useState<{ id: string; name: string; logo?: string | null }[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [operationType, setOperationType] = useState<"" | "SALE" | "RENT" | "TEMPORARY">("");
+  const [propertyType, setPropertyType] = useState<
+    "" | "HOUSE" | "APARTMENT" | "LAND" | "COMMERCIAL" | "OFFICE" | "WAREHOUSE"
+  >("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
   const [detailStatus, setDetailStatus] = useState<"idle" | "loading">("idle");
+  const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [contactMessage, setContactMessage] = useState("");
+  const [similarListings, setSimilarListings] = useState<SearchListing[]>([]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
 
-  const listUrl = useMemo(
-    () => `${env.apiUrl}/properties?status=ACTIVE&page=${page}&pageSize=${pageSize}`,
-    [page, pageSize]
-  );
+  const listUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      status: "ACTIVE",
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    if (operationType) {
+      params.set("operationType", operationType);
+    }
+    if (propertyType) {
+      params.set("propertyType", propertyType);
+    }
+    return `${env.apiUrl}/properties?${params.toString()}`;
+  }, [page, pageSize, operationType, propertyType]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextOperation = (params.get("operationType") ?? "") as typeof operationType;
+    const nextProperty = (params.get("propertyType") ?? "") as typeof propertyType;
+    if (nextOperation !== operationType) {
+      setOperationType(nextOperation);
+      setPage(1);
+    }
+    if (nextProperty !== propertyType) {
+      setPropertyType(nextProperty);
+      setPage(1);
+    }
+  }, [location.search, operationType, propertyType]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (operationType) {
+      params.set("operationType", operationType);
+    }
+    if (propertyType) {
+      params.set("propertyType", propertyType);
+    }
+    const nextSearch = params.toString();
+    const currentSearch = location.search.startsWith("?")
+      ? location.search.slice(1)
+      : location.search;
+    if (nextSearch !== currentSearch) {
+      navigate(nextSearch ? `/buscar?${nextSearch}` : "/buscar", { replace: true });
+    }
+  }, [navigate, location.search, operationType, propertyType]);
 
   useEffect(() => {
     let ignore = false;
@@ -136,9 +103,9 @@ export function SearchPage() {
           setTotal(data.total ?? data.items.length);
           setListStatus("idle");
         } else {
-          setListings(fallbackListings);
-          setListStatus("error");
-          setListError("No hay publicaciones activas. Mostramos ejemplos.");
+          setListings([]);
+          setListStatus("idle");
+          setListError("");
         }
       } catch (error) {
         if (ignore) return;
@@ -147,7 +114,7 @@ export function SearchPage() {
         setListError(
           error instanceof Error ? error.message : "Error al cargar publicaciones."
         );
-        setListings(fallbackListings);
+        setListings([]);
       }
     };
     void load();
@@ -173,12 +140,12 @@ export function SearchPage() {
         if (data.items.length) {
           setAgencies(data.items);
         } else {
-          setAgencies(fallbackAgencies);
+          setAgencies([]);
         }
       } catch {
         if (ignore) return;
         if (controller.signal.aborted) return;
-        setAgencies(fallbackAgencies);
+        setAgencies([]);
       }
     };
     void loadAgencies();
@@ -234,6 +201,142 @@ export function SearchPage() {
 
   const closeModal = () => {
     setSelectedListing(null);
+    setContactStatus("idle");
+    setContactMessage("");
+    setSimilarListings([]);
+  };
+
+  const whatsappLink = useMemo(() => {
+    if (!selectedListing?.contactMethods) {
+      return null;
+    }
+    const method = selectedListing.contactMethods.find((item) => item.type === "WHATSAPP");
+    if (!method?.value) {
+      return null;
+    }
+    const message = `Hola, me interesa "${selectedListing.title}". Link: ${
+      selectedListing.id ? `${window.location.origin}/publicacion/${selectedListing.id}` : ""
+    }`;
+    return buildWhatsappLink(method.value, message);
+  }, [selectedListing]);
+
+  const handleContactRequest = async (type: "INTEREST" | "VISIT") => {
+    if (!selectedListing) {
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      setContactStatus("error");
+      setContactMessage("Inicia sesion para enviar la solicitud.");
+      return;
+    }
+    setContactStatus("loading");
+    setContactMessage("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/contact-requests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type,
+          message:
+            type === "INTEREST"
+              ? "Estoy interesado en esta propiedad."
+              : "Quiero reservar una visita.",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos enviar la solicitud.");
+      }
+      setContactStatus("success");
+      setContactMessage("Solicitud enviada. Te contactaremos pronto.");
+      void loadSimilar();
+    } catch (error) {
+      setContactStatus("error");
+      setContactMessage(
+        error instanceof Error ? error.message : "No pudimos enviar la solicitud."
+      );
+    }
+  };
+
+  const loadSimilar = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (operationType) params.set("operationType", operationType);
+      if (propertyType) params.set("propertyType", propertyType);
+      params.set("status", "ACTIVE");
+      params.set("page", "1");
+      params.set("pageSize", "3");
+      const response = await fetch(`${env.apiUrl}/properties?${params.toString()}`);
+      if (!response.ok) return;
+      const data = (await response.json()) as { items: PropertyApiListItem[] };
+      const mapped = data.items.map(mapPropertyToSearchListing);
+      setSimilarListings(mapped.filter((item) => item.id !== selectedListing?.id));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSaveSearch = async () => {
+    const token = getToken();
+    if (!token) {
+      setSaveStatus("error");
+      setSaveMessage("Inicia sesion para guardar busquedas.");
+      return;
+    }
+    setSaveStatus("loading");
+    setSaveMessage("");
+    try {
+      const operationLabel =
+        operationType === "SALE"
+          ? "Venta"
+          : operationType === "RENT"
+          ? "Alquiler"
+          : operationType === "TEMPORARY"
+          ? "Temporario"
+          : "Todas";
+      const propertyLabel =
+        propertyType === "HOUSE"
+          ? "Casa"
+          : propertyType === "APARTMENT"
+          ? "Departamento"
+          : propertyType === "LAND"
+          ? "Terreno"
+          : propertyType === "COMMERCIAL"
+          ? "Comercio"
+          : propertyType === "WAREHOUSE"
+          ? "Deposito"
+          : propertyType === "OFFICE"
+          ? "Oficina"
+          : "Todos";
+      const response = await fetch(`${env.apiUrl}/saved-searches`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: `${operationLabel} · ${propertyLabel}`,
+          query: {
+            operationType: operationType || null,
+            propertyType: propertyType || null,
+          },
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos guardar la busqueda.");
+      }
+      setSaveStatus("success");
+      setSaveMessage("Busqueda guardada.");
+      void loadSimilar();
+    } catch (error) {
+      setSaveStatus("error");
+      setSaveMessage(
+        error instanceof Error ? error.message : "No pudimos guardar la busqueda."
+      );
+    }
   };
 
   return (
@@ -250,25 +353,74 @@ export function SearchPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-2 text-xs text-[#9a948a]">
             Operacion
-            <select className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white">
-              <option>Venta</option>
-              <option>Alquiler</option>
-              <option>Temporario</option>
+            <select
+              className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+              value={operationType}
+              onChange={(event) => {
+                setOperationType(event.target.value as typeof operationType);
+                setPage(1);
+              }}
+            >
+              <option value="">Todas</option>
+              <option value="SALE">Venta</option>
+              <option value="RENT">Alquiler</option>
+              <option value="TEMPORARY">Temporario</option>
             </select>
           </label>
           <label className="space-y-2 text-xs text-[#9a948a]">
             Tipo
-            <select className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white">
-              <option>Casa</option>
-              <option>Departamento</option>
-              <option>Terreno</option>
-              <option>Comercio</option>
-              <option>Deposito</option>
-              <option>Galpon</option>
+            <select
+              className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+              value={propertyType}
+              onChange={(event) => {
+                setPropertyType(event.target.value as typeof propertyType);
+                setPage(1);
+              }}
+            >
+              <option value="">Todos</option>
+              <option value="HOUSE">Casa</option>
+              <option value="APARTMENT">Departamento</option>
+              <option value="LAND">Terreno</option>
+              <option value="COMMERCIAL">Comercio</option>
+              <option value="WAREHOUSE">Deposito</option>
+              <option value="OFFICE">Oficina</option>
             </select>
           </label>
+          <div className="flex flex-col justify-end gap-2 text-xs text-[#9a948a]">
+            <button
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              type="button"
+              onClick={handleSaveSearch}
+              disabled={saveStatus === "loading"}
+            >
+              {saveStatus === "loading" ? "Guardando..." : "Guardar busqueda"}
+            </button>
+            {saveMessage && <span className="text-xs text-[#9a948a]">{saveMessage}</span>}
+          </div>
         </div>
       </div>
+
+      {saveStatus === "success" && similarListings.length > 0 && (
+        <section className="glass-card space-y-3 p-5">
+          <div>
+            <h3 className="text-lg text-white">Sugeridos para tu busqueda</h3>
+            <p className="text-xs text-[#9a948a]">Resultados similares segun tus filtros.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {similarListings.slice(0, 3).map((item) => (
+              <button
+                key={item.id}
+                className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-left"
+                type="button"
+                onClick={() => openModal(item)}
+              >
+                <div className="text-sm text-white">{item.title}</div>
+                <div className="text-xs text-[#9a948a]">{item.address}</div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -305,6 +457,18 @@ export function SearchPage() {
                   </a>
                 );
               })}
+              {agencies.length === 0 && (
+                <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
+                  <p className="text-sm text-white">Aun no hay inmobiliarias cargadas.</p>
+                  <p className="mt-1">Sumate y destacate en el carrusel principal.</p>
+                  <Link
+                    className="mt-3 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                    to="/registro"
+                  >
+                    Crear perfil inmobiliaria
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -376,6 +540,28 @@ export function SearchPage() {
         {listStatus === "error" && (
           <p className="text-xs text-[#f5b78a]">{listError}</p>
         )}
+        {listStatus === "idle" && listings.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
+            <p className="text-sm text-white">No hay publicaciones activas.</p>
+            <p className="mt-1">
+              Podes ser el primero en publicar o crear una cuenta para recibir alertas.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                to="/publicar"
+              >
+                Publicar inmueble
+              </Link>
+              <Link
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                to="/registro"
+              >
+                Crear cuenta
+              </Link>
+            </div>
+          </div>
+        )}
 
         <div
           className={
@@ -427,13 +613,16 @@ export function SearchPage() {
                         : "flex flex-col gap-3"
                     }
                   >
-                    <div
+                    <img
                       className={
                         viewMode === "grid"
-                          ? "h-44 w-full bg-cover bg-center"
-                          : "h-40 rounded-2xl bg-cover bg-center"
+                          ? "h-44 w-full rounded-t-2xl object-cover"
+                          : "h-40 w-full rounded-2xl object-cover"
                       }
-                      style={{ backgroundImage: `url('${item.image}')` }}
+                      src={item.image}
+                      alt={item.title}
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div
                       className={
@@ -461,6 +650,7 @@ export function SearchPage() {
                             : "rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
                         }
                         type="button"
+                        onClick={() => openModal(item)}
                       >
                         WhatsApp
                       </button>
@@ -674,12 +864,57 @@ export function SearchPage() {
           isLoading={detailStatus === "loading"}
           actions={
             <>
-              <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
+              <button
+                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
+                type="button"
+                onClick={() => {
+                  if (whatsappLink) {
+                    window.open(whatsappLink, "_blank", "noopener,noreferrer");
+                  } else {
+                    setContactStatus("error");
+                    setContactMessage("No hay WhatsApp disponible en esta publicacion.");
+                  }
+                }}
+              >
                 WhatsApp
               </button>
-              <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]">
-                Guardar
+              <button
+                className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
+                type="button"
+                onClick={() => handleContactRequest("INTEREST")}
+                disabled={contactStatus === "loading"}
+              >
+                Me interesa
               </button>
+              <button
+                className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
+                type="button"
+                onClick={() => handleContactRequest("VISIT")}
+                disabled={contactStatus === "loading"}
+              >
+                Reservar visita
+              </button>
+              {contactMessage && (
+                <span className="text-xs text-[#9a948a]">{contactMessage}</span>
+              )}
+              {similarListings.length > 0 && (
+                <div className="mt-4 w-full space-y-2 text-xs text-[#9a948a]">
+                  <div className="text-sm text-white">Publicaciones similares</div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {similarListings.slice(0, 2).map((item) => (
+                      <button
+                        key={item.id}
+                        className="rounded-xl border border-white/10 bg-night-900/60 p-3 text-left"
+                        type="button"
+                        onClick={() => openModal(item)}
+                      >
+                        <div className="text-sm text-white">{item.title}</div>
+                        <div className="text-xs text-[#9a948a]">{item.address}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           }
         />

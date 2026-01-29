@@ -9,6 +9,8 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { LoginPage } from "../pages/LoginPage";
 import { AgencyProfilePage } from "../pages/AgencyProfilePage";
+import { SavedSearchesPage } from "../pages/SavedSearchesPage";
+import { NotificationsPage } from "../pages/NotificationsPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProtectedRoute } from "../shared/auth/ProtectedRoute";
 
@@ -21,6 +23,8 @@ export const router = createBrowserRouter([
       { path: "buscar", element: <SearchPage /> },
       { path: "mapa", element: <MapSearchPage /> },
       { path: "publicar", element: <ProtectedRoute><PublishPage /></ProtectedRoute> },
+      { path: "busquedas", element: <ProtectedRoute><SavedSearchesPage /></ProtectedRoute> },
+      { path: "notificaciones", element: <ProtectedRoute><NotificationsPage /></ProtectedRoute> },
       { path: "registro", element: <RegisterPage /> },
       { path: "login", element: <LoginPage /> },
       { path: "agencia/:slug", element: <AgencyProfilePage /> },

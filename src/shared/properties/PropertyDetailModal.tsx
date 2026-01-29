@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 export type PropertyDetailListing = {
+  id: string;
   title: string;
   address: string;
   price: string;
@@ -22,6 +23,7 @@ export type PropertyDetailListing = {
     available: boolean;
     amount?: string;
   };
+  contactMethods?: { type: "WHATSAPP" | "PHONE" | "IN_APP"; value: string }[];
   services?: {
     electricity?: boolean;
     gas?: boolean;
@@ -94,6 +96,8 @@ export function PropertyDetailModal({
                   className="h-72 w-full object-cover"
                   src={activeImageUrl}
                   alt={listing.title}
+                  loading="eager"
+                  decoding="async"
                 />
               ) : (
                 <div className="flex h-72 items-center justify-center bg-night-900/60 text-xs text-[#9a948a]">
@@ -140,7 +144,13 @@ export function PropertyDetailModal({
                     type="button"
                     onClick={() => setActiveImage(index)}
                   >
-                    <img className="h-full w-full object-cover" src={img} alt="" />
+                    <img
+                      className="h-full w-full object-cover"
+                      src={img}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </button>
                 ))}
               </div>

@@ -54,7 +54,6 @@ export type PropertyApiDetail = PropertyApiListItem & {
 };
 
 export type SearchListing = PropertyDetailListing & {
-  id: string;
   propertyType: string;
   description: string;
   image: string;
@@ -161,6 +160,7 @@ export const mapPropertyToDetailListing = (
   const images = item.photos?.map((photo) => photo.url) ?? [];
 
   return {
+    id: item.id,
     title: item.title,
     address,
     price: formatPrice(item.priceAmount, item.priceCurrency),
@@ -189,5 +189,9 @@ export const mapPropertyToDetailListing = (
           ? formatPrice(item.features.financingAmount, item.features.financingCurrency ?? item.priceCurrency)
           : undefined,
     },
+    contactMethods: item.contactMethods?.map((method) => ({
+      type: method.type,
+      value: method.value,
+    })),
   };
 };
