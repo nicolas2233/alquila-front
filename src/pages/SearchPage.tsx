@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
+import { fetchJson } from "../shared/api/http";
 
 const fallbackListings: SearchListing[] = [
   {
@@ -105,24 +106,30 @@ export function SearchPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
+  const [detailStatus, setDetailStatus] = useState<"idle" | "loading">("idle");
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
+
+  const listUrl = useMemo(
+    () => `${env.apiUrl}/properties?status=ACTIVE&page=${page}&pageSize=${pageSize}`,
+    [page, pageSize]
+  );
 
   useEffect(() => {
     let ignore = false;
+    const controller = new AbortController();
     const load = async () => {
       setListStatus("loading");
       setListError("");
       try {
-        const response = await fetch(
-          `${env.apiUrl}/properties?status=ACTIVE&page=${page}&pageSize=${pageSize}`
-        );
-        if (!response.ok) {
-          throw new Error("No pudimos cargar las publicaciones.");
-        }
-        const data = (await response.json()) as {
+        const data = await fetchJson<{
           items: PropertyApiListItem[];
           total: number;
-        };
+        }>(listUrl, {
+          cacheKey: listUrl,
+          ttlMs: 15_000,
+          signal: controller.signal,
+        });
         if (ignore) return;
         if (data.items.length > 0) {
           setListings(data.items.map(mapPropertyToSearchListing));
@@ -135,6 +142,7 @@ export function SearchPage() {
         }
       } catch (error) {
         if (ignore) return;
+        if (controller.signal.aborted) return;
         setListStatus("error");
         setListError(
           error instanceof Error ? error.message : "Error al cargar publicaciones."
@@ -145,20 +153,22 @@ export function SearchPage() {
     void load();
     return () => {
       ignore = true;
+      controller.abort();
     };
-  }, [page, pageSize]);
+  }, [listUrl]);
 
   useEffect(() => {
     let ignore = false;
+    const controller = new AbortController();
     const loadAgencies = async () => {
       try {
-        const response = await fetch(`${env.apiUrl}/agencies`);
-        if (!response.ok) {
-          throw new Error("No pudimos cargar inmobiliarias.");
-        }
-        const data = (await response.json()) as {
+        const data = await fetchJson<{
           items: { id: string; name: string; logo?: string | null }[];
-        };
+        }>(`${env.apiUrl}/agencies`, {
+          cacheKey: `${env.apiUrl}/agencies`,
+          ttlMs: 60_000,
+          signal: controller.signal,
+        });
         if (ignore) return;
         if (data.items.length) {
           setAgencies(data.items);
@@ -167,26 +177,58 @@ export function SearchPage() {
         }
       } catch {
         if (ignore) return;
+        if (controller.signal.aborted) return;
         setAgencies(fallbackAgencies);
       }
     };
     void loadAgencies();
     return () => {
       ignore = true;
+      controller.abort();
     };
   }, []);
 
+  const prefetchDetail = (listingId: string) => {
+    if (detailCacheRef.current.has(listingId)) {
+      return;
+    }
+    fetchJson<PropertyApiDetail>(`${env.apiUrl}/properties/${listingId}`, {
+      cacheKey: `${env.apiUrl}/properties/${listingId}`,
+      ttlMs: 30_000,
+    })
+      .then((data) => {
+        const mapped = mapPropertyToDetailListing(data);
+        detailCacheRef.current.set(listingId, mapped);
+      })
+      .catch(() => {
+        // ignore prefetch failures
+      });
+  };
+
   const openModal = async (listing: SearchListing) => {
     setSelectedListing(listing);
+    const cached = detailCacheRef.current.get(listing.id);
+    if (cached) {
+      setSelectedListing(cached);
+      setDetailStatus("idle");
+      return;
+    }
+    setDetailStatus("loading");
     try {
-      const response = await fetch(`${env.apiUrl}/properties/${listing.id}`);
-      if (!response.ok) {
-        return;
-      }
-      const data = (await response.json()) as PropertyApiDetail;
-      setSelectedListing(mapPropertyToDetailListing(data));
+      const data = await fetchJson<PropertyApiDetail>(
+        `${env.apiUrl}/properties/${listing.id}`,
+        {
+          cacheKey: `${env.apiUrl}/properties/${listing.id}`,
+          ttlMs: 30_000,
+        }
+      );
+      const mapped = mapPropertyToDetailListing(data);
+      detailCacheRef.current.set(listing.id, mapped);
+      setSelectedListing(mapped);
     } catch {
       // keep initial listing preview
+    } finally {
+      setDetailStatus("idle");
     }
   };
 
@@ -370,6 +412,8 @@ export function SearchPage() {
             : listings.map((item) => (
                 <article
                   key={item.id}
+                  onMouseEnter={() => prefetchDetail(item.id)}
+                  onFocus={() => prefetchDetail(item.id)}
                   className={
                     viewMode === "grid"
                       ? "glass-card flex h-full flex-col overflow-hidden"
@@ -406,6 +450,7 @@ export function SearchPage() {
                         }
                         type="button"
                         onClick={() => openModal(item)}
+                        onMouseEnter={() => prefetchDetail(item.id)}
                       >
                         Ver ficha
                       </button>
@@ -626,6 +671,7 @@ export function SearchPage() {
         <PropertyDetailModal
           listing={selectedListing}
           onClose={closeModal}
+          isLoading={detailStatus === "loading"}
           actions={
             <>
               <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">

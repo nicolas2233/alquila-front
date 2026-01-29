@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { env } from "../shared/config/env";
-import type { PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
-import { mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
+import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
+import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
+import { fetchJson } from "../shared/api/http";
 
 const agencies = [
   {
@@ -167,6 +168,7 @@ export function AgencyProfilePage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
+  const [detailStatus, setDetailStatus] = useState<"idle" | "loading">("idle");
   const [agencyData, setAgencyData] = useState<{
     id: string;
     name: string;
@@ -189,6 +191,7 @@ export function AgencyProfilePage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [total, setTotal] = useState(0);
+  const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
 
   const fallbackAgency = useMemo(
     () => agencies.find((item) => item.slug === slug),
@@ -196,20 +199,28 @@ export function AgencyProfilePage() {
   );
   const agency = agencyData ?? fallbackAgency;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const agencyUrl = useMemo(
+    () => (slug ? `${env.apiUrl}/agencies/${slug}` : ""),
+    [slug]
+  );
+  const listingsUrl = useMemo(
+    () =>
+      slug
+        ? `${env.apiUrl}/properties?agencyId=${slug}&status=ACTIVE&page=${page}&pageSize=${pageSize}`
+        : "",
+    [slug, page, pageSize]
+  );
 
   useEffect(() => {
     if (!slug) {
       return;
     }
     let ignore = false;
+    const controller = new AbortController();
     const loadAgency = async () => {
       setAgencyStatus("loading");
       try {
-        const response = await fetch(`${env.apiUrl}/agencies/${slug}`);
-        if (!response.ok) {
-          throw new Error("No pudimos cargar la inmobiliaria.");
-        }
-        const data = (await response.json()) as {
+        const data = await fetchJson<{
           id: string;
           name: string;
           about?: string | null;
@@ -220,7 +231,11 @@ export function AgencyProfilePage() {
           website?: string | null;
           instagram?: string | null;
           logo?: string | null;
-        };
+        }>(agencyUrl, {
+          cacheKey: agencyUrl,
+          ttlMs: 60_000,
+          signal: controller.signal,
+        });
         if (ignore) return;
         setAgencyData({
           id: data.id,
@@ -237,33 +252,34 @@ export function AgencyProfilePage() {
         setAgencyStatus("idle");
       } catch {
         if (ignore) return;
+        if (controller.signal.aborted) return;
         setAgencyStatus("error");
       }
     };
     void loadAgency();
     return () => {
       ignore = true;
+      controller.abort();
     };
-  }, [slug]);
+  }, [agencyUrl, slug]);
 
   useEffect(() => {
     if (!slug) {
       return;
     }
     let ignore = false;
+    const controller = new AbortController();
     const loadListings = async () => {
       setListingStatus("loading");
       try {
-        const response = await fetch(
-          `${env.apiUrl}/properties?agencyId=${slug}&status=ACTIVE&page=${page}&pageSize=${pageSize}`
-        );
-        if (!response.ok) {
-          throw new Error("No pudimos cargar las publicaciones.");
-        }
-        const data = (await response.json()) as {
+        const data = await fetchJson<{
           items: PropertyApiListItem[];
           total: number;
-        };
+        }>(listingsUrl, {
+          cacheKey: listingsUrl,
+          ttlMs: 15_000,
+          signal: controller.signal,
+        });
         if (ignore) return;
         if (data.items.length) {
           setListings(data.items.map(mapPropertyToSearchListing));
@@ -283,6 +299,7 @@ export function AgencyProfilePage() {
         }
       } catch {
         if (ignore) return;
+        if (controller.signal.aborted) return;
         if (fallbackAgency) {
           setListings(
             fallbackAgency.listings.map((item) => ({
@@ -297,11 +314,37 @@ export function AgencyProfilePage() {
     void loadListings();
     return () => {
       ignore = true;
+      controller.abort();
     };
-  }, [fallbackAgency, slug, page, pageSize]);
+  }, [fallbackAgency, listingsUrl, slug]);
 
   const openModal = (listing: SearchListing) => {
     setSelectedListing(listing);
+    const cached = detailCacheRef.current.get(listing.id);
+    if (cached) {
+      setSelectedListing(cached);
+      setDetailStatus("idle");
+      return;
+    }
+    setDetailStatus("loading");
+    fetchJson<PropertyApiDetail>(
+      `${env.apiUrl}/properties/${listing.id}`,
+      {
+        cacheKey: `${env.apiUrl}/properties/${listing.id}`,
+        ttlMs: 30_000,
+      }
+    )
+      .then((data) => mapPropertyToDetailListing(data))
+      .then((mapped) => {
+        detailCacheRef.current.set(listing.id, mapped);
+        setSelectedListing(mapped);
+      })
+      .catch(() => {
+        // keep preview
+      })
+      .finally(() => {
+        setDetailStatus("idle");
+      });
   };
 
   const closeModal = () => {
@@ -451,6 +494,36 @@ export function AgencyProfilePage() {
           {listings.map((listing) => (
             <article
               key={listing.id}
+              onMouseEnter={() => {
+                if (!detailCacheRef.current.has(listing.id)) {
+                  fetchJson<PropertyApiDetail>(`${env.apiUrl}/properties/${listing.id}`, {
+                    cacheKey: `${env.apiUrl}/properties/${listing.id}`,
+                    ttlMs: 30_000,
+                  })
+                    .then((data) => {
+                      const mapped = mapPropertyToDetailListing(data);
+                      detailCacheRef.current.set(listing.id, mapped);
+                    })
+                    .catch(() => {
+                      // ignore prefetch failures
+                    });
+                }
+              }}
+              onFocus={() => {
+                if (!detailCacheRef.current.has(listing.id)) {
+                  fetchJson<PropertyApiDetail>(`${env.apiUrl}/properties/${listing.id}`, {
+                    cacheKey: `${env.apiUrl}/properties/${listing.id}`,
+                    ttlMs: 30_000,
+                  })
+                    .then((data) => {
+                      const mapped = mapPropertyToDetailListing(data);
+                      detailCacheRef.current.set(listing.id, mapped);
+                    })
+                    .catch(() => {
+                      // ignore prefetch failures
+                    });
+                }
+              }}
               className={
                 viewMode === "grid"
                   ? "glass-card flex h-full flex-col overflow-hidden"
@@ -471,6 +544,24 @@ export function AgencyProfilePage() {
                     className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
                     type="button"
                     onClick={() => openModal(listing)}
+                    onMouseEnter={() => {
+                      if (!detailCacheRef.current.has(listing.id)) {
+                        fetchJson<PropertyApiDetail>(
+                          `${env.apiUrl}/properties/${listing.id}`,
+                          {
+                            cacheKey: `${env.apiUrl}/properties/${listing.id}`,
+                            ttlMs: 30_000,
+                          }
+                        )
+                          .then((data) => {
+                            const mapped = mapPropertyToDetailListing(data);
+                            detailCacheRef.current.set(listing.id, mapped);
+                          })
+                          .catch(() => {
+                            // ignore prefetch failures
+                          });
+                      }
+                    }}
                   >
                     Ver ficha
                   </button>
@@ -596,6 +687,7 @@ export function AgencyProfilePage() {
           <PropertyDetailModal
             listing={selectedListing}
             onClose={closeModal}
+            isLoading={detailStatus === "loading"}
             actions={
               <>
                 <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">

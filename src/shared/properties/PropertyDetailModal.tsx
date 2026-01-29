@@ -36,12 +36,14 @@ type PropertyDetailModalProps = {
   listing: PropertyDetailListing;
   onClose: () => void;
   actions?: React.ReactNode;
+  isLoading?: boolean;
 };
 
 export function PropertyDetailModal({
   listing,
   onClose,
   actions,
+  isLoading = false,
 }: PropertyDetailModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const images = listing.images.length ? listing.images : [];
@@ -155,6 +157,11 @@ export function PropertyDetailModal({
               <span className="text-sm text-[#9a948a]">{listing.areaM2} m2</span>
             </div>
             <p className="text-sm text-[#9a948a]">{listing.descriptionLong}</p>
+            {isLoading && (
+              <p className="text-xs text-[#9a948a] animate-pulse">
+                Cargando detalles...
+              </p>
+            )}
             <div className="grid gap-2 text-xs text-[#9a948a]">
               <div>Ambientes: {listing.rooms > 0 ? listing.rooms : "Sin ambientes"}</div>
               {listing.bathrooms !== undefined && (
@@ -176,7 +183,7 @@ export function PropertyDetailModal({
                 <div>{listing.agency ? `Inmobiliaria: ${listing.agency}` : "Dueno directo"}</div>
               )}
             </div>
-            {(amenities.length > 0 || Object.values(services).some(Boolean)) && (
+            {!isLoading && (amenities.length > 0 || Object.values(services).some(Boolean)) && (
               <div className="space-y-2 text-xs text-[#9a948a]">
                 {amenities.length > 0 && (
                   <div className="flex flex-wrap gap-2">
