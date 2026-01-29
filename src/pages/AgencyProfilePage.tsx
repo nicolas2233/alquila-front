@@ -1,5 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
+import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
+import { env } from "../shared/config/env";
+import type { PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
+import { mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
 
 const agencies = [
   {
@@ -157,28 +162,153 @@ const agencies = [
   },
 ];
 
-type AgencyListing = (typeof agencies)[number]["listings"][number];
-
 export function AgencyProfilePage() {
   const { slug } = useParams();
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
-  const [selectedListing, setSelectedListing] = useState<AgencyListing | null>(null);
-  const [activeImage, setActiveImage] = useState(0);
-  const agency = useMemo(
+  const [selectedListing, setSelectedListing] =
+    useState<PropertyDetailListing | null>(null);
+  const [agencyData, setAgencyData] = useState<{
+    id: string;
+    name: string;
+    description?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    whatsapp?: string | null;
+    email?: string | null;
+    website?: string | null;
+    instagram?: string | null;
+    logo?: string | null;
+  } | null>(null);
+  const [agencyStatus, setAgencyStatus] = useState<"idle" | "loading" | "error">(
+    "loading"
+  );
+  const [listings, setListings] = useState<SearchListing[]>([]);
+  const [listingStatus, setListingStatus] = useState<"idle" | "loading" | "error">(
+    "loading"
+  );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [total, setTotal] = useState(0);
+
+  const fallbackAgency = useMemo(
     () => agencies.find((item) => item.slug === slug),
     [slug]
   );
+  const agency = agencyData ?? fallbackAgency;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const openModal = (listing: AgencyListing) => {
+  useEffect(() => {
+    if (!slug) {
+      return;
+    }
+    let ignore = false;
+    const loadAgency = async () => {
+      setAgencyStatus("loading");
+      try {
+        const response = await fetch(`${env.apiUrl}/agencies/${slug}`);
+        if (!response.ok) {
+          throw new Error("No pudimos cargar la inmobiliaria.");
+        }
+        const data = (await response.json()) as {
+          id: string;
+          name: string;
+          about?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          whatsapp?: string | null;
+          email?: string | null;
+          website?: string | null;
+          instagram?: string | null;
+          logo?: string | null;
+        };
+        if (ignore) return;
+        setAgencyData({
+          id: data.id,
+          name: data.name,
+          description: data.about ?? null,
+          address: data.address ?? null,
+          phone: data.phone ?? null,
+          whatsapp: data.whatsapp ?? null,
+          email: data.email ?? null,
+          website: data.website ?? null,
+          instagram: data.instagram ?? null,
+          logo: data.logo ?? null,
+        });
+        setAgencyStatus("idle");
+      } catch {
+        if (ignore) return;
+        setAgencyStatus("error");
+      }
+    };
+    void loadAgency();
+    return () => {
+      ignore = true;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug) {
+      return;
+    }
+    let ignore = false;
+    const loadListings = async () => {
+      setListingStatus("loading");
+      try {
+        const response = await fetch(
+          `${env.apiUrl}/properties?agencyId=${slug}&status=ACTIVE&page=${page}&pageSize=${pageSize}`
+        );
+        if (!response.ok) {
+          throw new Error("No pudimos cargar las publicaciones.");
+        }
+        const data = (await response.json()) as {
+          items: PropertyApiListItem[];
+          total: number;
+        };
+        if (ignore) return;
+        if (data.items.length) {
+          setListings(data.items.map(mapPropertyToSearchListing));
+          setTotal(data.total ?? data.items.length);
+          setListingStatus("idle");
+        } else if (fallbackAgency) {
+          setListings(
+            fallbackAgency.listings.map((item) => ({
+              ...item,
+              propertyType: "Propiedad",
+            })) as SearchListing[]
+          );
+          setListingStatus("error");
+        } else {
+          setListings([]);
+          setListingStatus("error");
+        }
+      } catch {
+        if (ignore) return;
+        if (fallbackAgency) {
+          setListings(
+            fallbackAgency.listings.map((item) => ({
+              ...item,
+              propertyType: "Propiedad",
+            })) as SearchListing[]
+          );
+        }
+        setListingStatus("error");
+      }
+    };
+    void loadListings();
+    return () => {
+      ignore = true;
+    };
+  }, [fallbackAgency, slug, page, pageSize]);
+
+  const openModal = (listing: SearchListing) => {
     setSelectedListing(listing);
-    setActiveImage(0);
   };
 
   const closeModal = () => {
     setSelectedListing(null);
   };
 
-  if (!agency) {
+  if (!agency && agencyStatus === "error") {
     return (
       <div className="space-y-2">
         <h2 className="text-3xl text-white">Agencia no encontrada</h2>
@@ -195,75 +325,122 @@ export function AgencyProfilePage() {
         <div className="glass-card space-y-4 p-6">
           <div className="flex items-start gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/15 text-xl font-semibold text-gold-400">
-              {agency.logo}
+              {agency?.logo ??
+                agency?.name
+                  ?.split(" ")
+                  .slice(0, 2)
+                  .map((part) => part.charAt(0))
+                  .join("")}
             </div>
             <div>
-              <h2 className="text-3xl text-white">{agency.name}</h2>
-              <p className="text-sm text-[#9a948a]">{agency.description}</p>
+              <h2 className="text-3xl text-white">{agency?.name ?? "Inmobiliaria"}</h2>
+              <p className="text-sm text-[#9a948a]">{agency?.description}</p>
             </div>
           </div>
+          {agencyStatus === "loading" && (
+            <p className="text-xs text-[#9a948a]">Cargando datos...</p>
+          )}
           <div className="grid gap-3 text-sm text-[#c7c2b8]">
-            <div>Direccion: {agency.address}</div>
-            <div>Telefono: {agency.phone}</div>
-            <div>WhatsApp: {agency.whatsapp}</div>
-            <div>Email: {agency.email}</div>
-            <div>Web: {agency.website}</div>
-            <div>Instagram: {agency.instagram}</div>
+            <div>Direccion: {agency?.address ?? "-"}</div>
+            <div>Telefono: {agency?.phone ?? "-"}</div>
+            <div>WhatsApp: {agency?.whatsapp ?? "-"}</div>
+            <div>Email: {agency?.email ?? "-"}</div>
+            <div>Web: {agency?.website ?? "-"}</div>
+            <div>Instagram: {agency?.instagram ?? "-"}</div>
           </div>
         </div>
         <div className="glass-card space-y-4 p-6">
           <h3 className="text-lg text-white">Equipo</h3>
           <div className="space-y-3">
-            {agency.agents.map((agent) => (
-              <div
-                key={agent.name}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm text-white">{agent.name}</p>
-                  <p className="text-xs text-[#9a948a]">{agent.role}</p>
+            {fallbackAgency?.agents?.length ? (
+              fallbackAgency.agents.map((agent) => (
+                <div
+                  key={agent.name}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm text-white">{agent.name}</p>
+                    <p className="text-xs text-[#9a948a]">{agent.role}</p>
+                  </div>
+                  <span className="text-xs text-[#9a948a]">{agent.contact}</span>
                 </div>
-                <span className="text-xs text-[#9a948a]">{agent.contact}</span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-xs text-[#9a948a]">Equipo no disponible.</p>
+            )}
           </div>
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg text-white">Propiedades publicadas</h3>
-            <p className="text-xs text-[#9a948a]">
-              {agency.listings.length} inmuebles activos
-            </p>
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Propiedades publicadas</h3>
+              <p className="text-xs text-[#9a948a]">
+                {listings.length} inmuebles activos
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#9a948a]">Vista</span>
+              <button
+                className={
+                  viewMode === "list"
+                    ? "rounded-full border border-white/30 px-3 py-1 text-xs text-white"
+                    : "rounded-full border border-white/15 px-3 py-1 text-xs text-[#9a948a]"
+                }
+                type="button"
+                onClick={() => {
+                  setViewMode("list");
+                  setPageSize(5);
+                  setPage(1);
+                }}
+              >
+                Lista
+              </button>
+              <button
+                className={
+                  viewMode === "grid"
+                    ? "rounded-full border border-white/30 px-3 py-1 text-xs text-white"
+                    : "rounded-full border border-white/15 px-3 py-1 text-xs text-[#9a948a]"
+                }
+                type="button"
+                onClick={() => {
+                  setViewMode("grid");
+                  setPageSize(9);
+                  setPage(1);
+                }}
+              >
+                Cuadricula
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[#9a948a]">Vista</span>
-            <button
-              className={
-                viewMode === "list"
-                  ? "rounded-full border border-white/30 px-3 py-1 text-xs text-white"
-                  : "rounded-full border border-white/15 px-3 py-1 text-xs text-[#9a948a]"
-              }
-              type="button"
-              onClick={() => setViewMode("list")}
-            >
-              Lista
-            </button>
-            <button
-              className={
-                viewMode === "grid"
-                  ? "rounded-full border border-white/30 px-3 py-1 text-xs text-white"
-                  : "rounded-full border border-white/15 px-3 py-1 text-xs text-[#9a948a]"
-              }
-              type="button"
-              onClick={() => setViewMode("grid")}
-            >
-              Cuadricula
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#9a948a]">
+            <div>
+              Pagina {page} de {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <span>Por pagina</span>
+              <select
+                className="rounded-full border border-white/15 bg-night-900/60 px-3 py-1 text-xs text-white"
+                value={pageSize}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  setPageSize(next);
+                  setPage(1);
+                }}
+              >
+                <option value={5}>5</option>
+                <option value={9}>9</option>
+                <option value={15}>15</option>
+              </select>
+            </div>
           </div>
-        </div>
+          {listingStatus === "loading" && (
+            <p className="text-xs text-[#9a948a]">Cargando publicaciones...</p>
+          )}
+          {listingStatus === "error" && listings.length === 0 && (
+            <p className="text-xs text-[#f5b78a]">No hay publicaciones activas.</p>
+          )}
         <div
           className={
             viewMode === "grid"
@@ -271,7 +448,7 @@ export function AgencyProfilePage() {
               : "space-y-4"
           }
         >
-          {agency.listings.map((listing) => (
+          {listings.map((listing) => (
             <article
               key={listing.id}
               className={
@@ -395,112 +572,42 @@ export function AgencyProfilePage() {
             </article>
           ))}
         </div>
+        <div className="flex items-center justify-between text-xs text-[#9a948a]">
+          <button
+            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={page <= 1 || listingStatus === "loading"}
+          >
+            Anterior
+          </button>
+          <button
+            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+            type="button"
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={page >= totalPages || listingStatus === "loading"}
+          >
+            Siguiente
+          </button>
+        </div>
       </section>
 
-      {selectedListing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-10">
-          <div className="w-full max-w-4xl rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <div>
-                <h3 className="text-xl text-white">{selectedListing.title}</h3>
-                <p className="text-sm text-[#9a948a]">{selectedListing.address}</p>
-              </div>
-              <button
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                type="button"
-                onClick={closeModal}
-              >
-                Cerrar
-              </button>
-            </div>
-            <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-4">
-                <div className="relative overflow-hidden rounded-2xl">
-                  <img
-                    className="h-72 w-full object-cover"
-                    src={selectedListing.images[activeImage]}
-                    alt={selectedListing.title}
-                  />
-                  <div className="absolute inset-x-0 bottom-4 flex items-center justify-between px-4">
-                    <button
-                      className="rounded-full border border-white/30 bg-night-900/80 px-3 py-1 text-xs text-white"
-                      type="button"
-                      onClick={() =>
-                        setActiveImage((prev) =>
-                          prev === 0
-                            ? selectedListing.images.length - 1
-                            : prev - 1
-                        )
-                      }
-                    >
-                      Anterior
-                    </button>
-                    <button
-                      className="rounded-full border border-white/30 bg-night-900/80 px-3 py-1 text-xs text-white"
-                      type="button"
-                      onClick={() =>
-                        setActiveImage((prev) =>
-                          prev === selectedListing.images.length - 1
-                            ? 0
-                            : prev + 1
-                        )
-                      }
-                    >
-                      Siguiente
-                    </button>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {selectedListing.images.map((img, index) => (
-                    <button
-                      key={img}
-                      className={
-                        index === activeImage
-                          ? "h-14 w-20 overflow-hidden rounded-xl border border-gold-400/60"
-                          : "h-14 w-20 overflow-hidden rounded-xl border border-white/10"
-                      }
-                      type="button"
-                      onClick={() => setActiveImage(index)}
-                    >
-                      <img className="h-full w-full object-cover" src={img} alt="" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{selectedListing.price}</p>
-                    <span className="mt-2 inline-flex rounded-full bg-gold-500/20 px-3 py-1 text-xs font-semibold text-gold-400">
-                      {selectedListing.operation}
-                    </span>
-                  </div>
-                  <span className="text-sm text-[#9a948a]">
-                    {selectedListing.areaM2} m2
-                  </span>
-                </div>
-                <p className="text-sm text-[#9a948a]">{selectedListing.descriptionLong}</p>
-                <div className="grid gap-2 text-xs text-[#9a948a]">
-                  <div>
-                    Ambientes: {selectedListing.rooms > 0 ? selectedListing.rooms : "Sin ambientes"}
-                  </div>
-                  <div>Cochera: {selectedListing.garage ? "Si" : "No"}</div>
-                  <div>Mascotas: {selectedListing.pets ? "Si" : "No"}</div>
-                  <div>Ninos: {selectedListing.kids ? "Si" : "No"}</div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
-                    WhatsApp
-                  </button>
-                  <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]">
-                    Guardar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        {selectedListing && (
+          <PropertyDetailModal
+            listing={selectedListing}
+            onClose={closeModal}
+            actions={
+              <>
+                <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
+                  WhatsApp
+                </button>
+                <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]">
+                  Guardar
+                </button>
+              </>
+            }
+          />
+        )}
     </div>
   );
 }

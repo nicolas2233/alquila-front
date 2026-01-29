@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
 import { env } from "../shared/config/env";
 import { getSessionUser } from "../shared/auth/session";
+import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
+import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import "leaflet/dist/leaflet.css";
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -14,7 +16,7 @@ const steps = [
   },
   {
     title: "Ubicacion",
-    description: "Direccion, cuartel y coordenadas.",
+    description: "Direccion, localidad, partido, barrio y mapa.",
   },
   {
     title: "Caracteristicas",
@@ -89,6 +91,8 @@ export function PublishPage() {
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [step, setStep] = useState<Step>(0);
+  const [showErrors, setShowErrors] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const [title, setTitle] = useState("");
   const [operationType, setOperationType] = useState("SALE");
@@ -99,8 +103,15 @@ export function PublishPage() {
   const [rooms, setRooms] = useState("");
   const [bathrooms, setBathrooms] = useState("");
   const [areaM2, setAreaM2] = useState("");
+  const [coveredAreaM2, setCoveredAreaM2] = useState("");
+  const [semiCoveredAreaM2, setSemiCoveredAreaM2] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
+  const [floorsCount, setFloorsCount] = useState("");
   const [addressLine, setAddressLine] = useState("");
   const [localityId, setLocalityId] = useState("");
+  const [party, setParty] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [lat, setLat] = useState<number | undefined>(undefined);
   const [lng, setLng] = useState<number | undefined>(undefined);
   const [cadastralType, setCadastralType] = useState("PARTIDA");
@@ -122,6 +133,9 @@ export function PublishPage() {
 
   const [expensesAmount, setExpensesAmount] = useState("");
   const [expensesCurrency, setExpensesCurrency] = useState("ARS");
+  const [financingAvailable, setFinancingAvailable] = useState(false);
+  const [financingAmount, setFinancingAmount] = useState("");
+  const [financingCurrency, setFinancingCurrency] = useState("ARS");
 
   const [hasGarage, setHasGarage] = useState(false);
   const [petsAllowed, setPetsAllowed] = useState(false);
@@ -135,19 +149,24 @@ export function PublishPage() {
 
   const [floor, setFloor] = useState("");
   const [unit, setUnit] = useState("");
+  const [lotOrParcel, setLotOrParcel] = useState("");
   const [facing, setFacing] = useState("FRONT");
 
-  const [amenityPool, setAmenityPool] = useState(false);
-  const [amenitySolarium, setAmenitySolarium] = useState(false);
-  const [amenityGym, setAmenityGym] = useState(false);
-  const [amenitySum, setAmenitySum] = useState(false);
-  const [amenityPatio, setAmenityPatio] = useState(false);
-  const [amenityGarden, setAmenityGarden] = useState(false);
+  const [amenityAir, setAmenityAir] = useState(false);
+  const [amenityHeater, setAmenityHeater] = useState(false);
+  const [amenityKitchen, setAmenityKitchen] = useState(false);
   const [amenityGrill, setAmenityGrill] = useState(false);
+  const [amenityPool, setAmenityPool] = useState(false);
+  const [amenityJacuzzi, setAmenityJacuzzi] = useState(false);
+  const [amenitySolarium, setAmenitySolarium] = useState(false);
+  const [amenityElevator, setAmenityElevator] = useState(false);
 
-  const [commercialGastronomy, setCommercialGastronomy] = useState(false);
-  const [commercialPublicBathrooms, setCommercialPublicBathrooms] = useState(false);
-  const [commercialStorage, setCommercialStorage] = useState(false);
+  const [businessFood, setBusinessFood] = useState(false);
+  const [businessEvents, setBusinessEvents] = useState(false);
+  const [businessRetail, setBusinessRetail] = useState(false);
+  const [businessFactory, setBusinessFactory] = useState(false);
+  const [businessOffices, setBusinessOffices] = useState(false);
+  const [businessClinics, setBusinessClinics] = useState(false);
 
   const [officeMeetingRoom, setOfficeMeetingRoom] = useState(false);
   const [officeReception, setOfficeReception] = useState(false);
@@ -156,6 +175,7 @@ export function PublishPage() {
   const [warehouseTruckAccess, setWarehouseTruckAccess] = useState(false);
   const [warehouseHeight, setWarehouseHeight] = useState("");
   const [warehouseGateHeight, setWarehouseGateHeight] = useState("");
+  const [landInvestment, setLandInvestment] = useState(false);
 
   const [serviceElectricity, setServiceElectricity] = useState(false);
   const [serviceGas, setServiceGas] = useState(false);
@@ -169,6 +189,121 @@ export function PublishPage() {
     : isAgency
     ? "Inmobiliaria"
     : "Usuario";
+  const propertyTypeLabel = useMemo(() => {
+    switch (propertyType) {
+      case "HOUSE":
+        return "Casa";
+      case "APARTMENT":
+        return "Departamento";
+      case "LAND":
+        return "Terreno";
+      case "COMMERCIAL":
+        return "Negocio";
+      case "OFFICE":
+        return "Oficina";
+      case "WAREHOUSE":
+        return "Galpon / Deposito";
+      default:
+        return "Inmueble";
+    }
+  }, [propertyType]);
+  const operationLabel = useMemo(() => {
+    switch (operationType) {
+      case "SALE":
+        return "Venta";
+      case "RENT":
+        return "Alquiler";
+      case "TEMPORARY":
+        return "Temporario";
+      default:
+        return operationType;
+    }
+  }, [operationType]);
+
+  const previewAmenities = useMemo(() => {
+    const values: string[] = [];
+    if (amenityAir) values.push("AIR_CONDITIONING");
+    if (amenityHeater) values.push("HEATER");
+    if (amenityKitchen) values.push("KITCHEN");
+    if (amenityGrill) values.push("GRILL");
+    if (amenityPool) values.push("POOL");
+    if (amenityJacuzzi) values.push("JACUZZI");
+    if (amenitySolarium) values.push("SOLARIUM");
+    if (amenityElevator) values.push("ELEVATOR");
+    return values;
+  }, [
+    amenityAir,
+    amenityHeater,
+    amenityKitchen,
+    amenityGrill,
+    amenityPool,
+    amenityJacuzzi,
+    amenitySolarium,
+    amenityElevator,
+  ]);
+
+  const previewListing = useMemo<PropertyDetailListing>(
+    () => ({
+      title: title || "Sin titulo",
+      address: `${addressLine || "Sin direccion"}${localityId ? ` - ${localityId}` : ""}`,
+      price: priceAmount ? `${priceAmount} ${priceCurrency}` : "Sin precio",
+      operation: operationLabel,
+      areaM2: areaM2 ? Number(areaM2) : 0,
+      rooms: rooms ? Number(rooms) : 0,
+      bathrooms: bathrooms ? Number(bathrooms) : undefined,
+      bedrooms: bedrooms ? Number(bedrooms) : undefined,
+      garage: hasGarage,
+      pets: petsAllowed,
+      kids: kidsAllowed,
+      descriptionLong: description || "Sin descripcion",
+      images: photoPreviews.map((item) => item.url),
+      amenities: previewAmenities.length ? previewAmenities : undefined,
+      services: {
+        electricity: serviceElectricity,
+        gas: serviceGas,
+        water: serviceWater,
+        sewer: serviceSewer,
+        internet: serviceInternet,
+        pavement: servicePavement,
+      },
+      expensesAmount: expensesAmount ? `${expensesAmount} ${expensesCurrency}` : undefined,
+      financing: {
+        available: financingAvailable,
+        amount:
+          financingAvailable && financingAmount
+            ? `${financingAmount} ${financingCurrency}`
+            : undefined,
+      },
+    }),
+    [
+      title,
+      addressLine,
+      localityId,
+      priceAmount,
+      priceCurrency,
+      operationLabel,
+      areaM2,
+      rooms,
+      bathrooms,
+      hasGarage,
+      petsAllowed,
+      kidsAllowed,
+      description,
+      photoPreviews,
+      previewAmenities,
+      serviceElectricity,
+      serviceGas,
+      serviceWater,
+      serviceSewer,
+      serviceInternet,
+      servicePavement,
+      expensesAmount,
+      expensesCurrency,
+      financingAvailable,
+      financingAmount,
+      financingCurrency,
+    ]
+  );
 
   const canNext = useMemo(() => {
     if (step === 0) {
@@ -179,6 +314,12 @@ export function PublishPage() {
     }
     return true;
   }, [step, title, description, priceAmount, addressLine, localityId]);
+
+  const inputBaseClass =
+    "w-full rounded-xl border bg-night-900/60 px-3 py-2 text-sm text-white";
+  const inputClass = (invalid: boolean) =>
+    `${inputBaseClass} ${invalid ? "border-red-400/70 focus:border-red-400" : "border-white/10"}`;
+  const requiredError = (value: string) => showErrors && !value.trim();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -199,18 +340,22 @@ export function PublishPage() {
       }
 
       const amenities: string[] = [];
-      if (amenityPool) amenities.push("POOL");
-      if (amenitySolarium) amenities.push("SOLARIUM");
-      if (amenityGym) amenities.push("GYM");
-      if (amenitySum) amenities.push("SUM");
-      if (amenityPatio) amenities.push("PATIO");
-      if (amenityGarden) amenities.push("GARDEN");
+      if (amenityAir) amenities.push("AIR_CONDITIONING");
+      if (amenityHeater) amenities.push("HEATER");
+      if (amenityKitchen) amenities.push("KITCHEN");
       if (amenityGrill) amenities.push("GRILL");
+      if (amenityPool) amenities.push("POOL");
+      if (amenityJacuzzi) amenities.push("JACUZZI");
+      if (amenitySolarium) amenities.push("SOLARIUM");
+      if (amenityElevator) amenities.push("ELEVATOR");
 
-      const commercialFeatures: string[] = [];
-      if (commercialGastronomy) commercialFeatures.push("GASTRONOMY");
-      if (commercialPublicBathrooms) commercialFeatures.push("PUBLIC_BATHROOMS");
-      if (commercialStorage) commercialFeatures.push("STORAGE");
+      const businessUses: string[] = [];
+      if (businessFood) businessUses.push("FOOD");
+      if (businessEvents) businessUses.push("EVENTS");
+      if (businessRetail) businessUses.push("RETAIL");
+      if (businessFactory) businessUses.push("FACTORY");
+      if (businessOffices) businessUses.push("OFFICES");
+      if (businessClinics) businessUses.push("CLINICS");
 
       const officeFeatures: string[] = [];
       if (officeMeetingRoom) officeFeatures.push("MEETING_ROOM");
@@ -242,23 +387,35 @@ export function PublishPage() {
           lat,
           lng,
         },
-        features: {
-          hasGarage,
-          petsAllowed,
-          kidsAllowed,
-          furnished,
-          ageYears: ageYears ? Number(ageYears) : undefined,
-          frontageM: frontageM ? Number(frontageM) : undefined,
-          depthM: depthM ? Number(depthM) : undefined,
-          buildable,
-          floor: floor ? Number(floor) : undefined,
-          unit: unit || undefined,
-          facing: facing || undefined,
-          amenities: amenities.length ? amenities : undefined,
-          commercialFeatures: commercialFeatures.length ? commercialFeatures : undefined,
-          officeFeatures: officeFeatures.length ? officeFeatures : undefined,
-          warehouseFeatures: warehouseFeatures.length ? warehouseFeatures : undefined,
-        },
+          features: {
+            hasGarage,
+            petsAllowed,
+            kidsAllowed,
+            furnished,
+            ageYears: ageYears ? Number(ageYears) : undefined,
+            coveredAreaM2: coveredAreaM2 ? Number(coveredAreaM2) : undefined,
+            semiCoveredAreaM2: semiCoveredAreaM2 ? Number(semiCoveredAreaM2) : undefined,
+            bedrooms: bedrooms ? Number(bedrooms) : undefined,
+            floorsCount: floorsCount ? Number(floorsCount) : undefined,
+            party: party || undefined,
+            neighborhood: neighborhood || undefined,
+            lotOrParcel: lotOrParcel || undefined,
+            postalCode: postalCode || undefined,
+            frontageM: frontageM ? Number(frontageM) : undefined,
+            depthM: depthM ? Number(depthM) : undefined,
+            buildable,
+            investmentOpportunity: landInvestment || undefined,
+            financingAvailable: financingAvailable || undefined,
+            financingAmount: financingAvailable && financingAmount ? Number(financingAmount) : undefined,
+            financingCurrency: financingAvailable ? financingCurrency : undefined,
+            floor: floor ? Number(floor) : undefined,
+            unit: unit || undefined,
+            facing: facing || undefined,
+            amenities: amenities.length ? amenities : undefined,
+            businessUses: businessUses.length ? businessUses : undefined,
+            officeFeatures: officeFeatures.length ? officeFeatures : undefined,
+            warehouseFeatures: warehouseFeatures.length ? warehouseFeatures : undefined,
+          },
         services: {
           electricity: serviceElectricity,
           gas: serviceGas,
@@ -357,14 +514,14 @@ export function PublishPage() {
         {step === 0 && (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Titulo
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Titulo
+                  <input
+                    className={inputClass(requiredError(title))}
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                  />
+                </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
                 Operacion
                 <select
@@ -395,14 +552,18 @@ export function PublishPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Precio
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={priceAmount}
-                  onChange={(event) => setPriceAmount(event.target.value)}
-                />
-              </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Precio
+                  <input
+                    className={inputClass(requiredError(priceAmount))}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="1"
+                    value={priceAmount}
+                    onChange={(event) => setPriceAmount(event.target.value)}
+                  />
+                </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
                 Moneda
                 <select
@@ -416,38 +577,163 @@ export function PublishPage() {
               </label>
             </div>
 
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Descripcion
-              <textarea
-                rows={4}
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </label>
-          </div>
-        )}
+              <label className="space-y-2 text-xs text-[#9a948a]">
+                Descripcion
+                <textarea
+                  rows={4}
+                  className={inputClass(requiredError(description))}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </label>
+
+              {propertyType === "APARTMENT" && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Expensas (monto)
+                    <input
+                      className={inputClass(false)}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="1"
+                      value={expensesAmount}
+                      onChange={(event) => setExpensesAmount(event.target.value)}
+                    />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Moneda expensas
+                    <select
+                      className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                      value={expensesCurrency}
+                      onChange={(event) => setExpensesCurrency(event.target.value)}
+                    >
+                      <option value="ARS">ARS</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={financingAvailable}
+                    onChange={(event) => setFinancingAvailable(event.target.checked)}
+                  />
+                  Financia
+                </label>
+                {financingAvailable && (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <label className="space-y-2 text-xs text-[#9a948a]">
+                      Monto financiable
+                      <input
+                        className={inputClass(false)}
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="1"
+                        value={financingAmount}
+                        onChange={(event) => setFinancingAmount(event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-2 text-xs text-[#9a948a]">
+                      Moneda financiacion
+                      <select
+                        className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                        value={financingCurrency}
+                        onChange={(event) => setFinancingCurrency(event.target.value)}
+                      >
+                        <option value="ARS">ARS</option>
+                        <option value="USD">USD</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         {step === 1 && (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Direccion
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={addressLine}
-                  onChange={(event) => setAddressLine(event.target.value)}
-                />
-              </label>
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Localidad
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={localityId}
-                  onChange={(event) => setLocalityId(event.target.value)}
-                />
-              </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Direccion
+                  <input
+                    className={inputClass(requiredError(addressLine))}
+                    value={addressLine}
+                    onChange={(event) => setAddressLine(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Localidad
+                  <input
+                    className={inputClass(requiredError(localityId))}
+                    value={localityId}
+                    onChange={(event) => setLocalityId(event.target.value)}
+                  />
+                </label>
             </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="space-y-2 text-xs text-[#9a948a]">
+                Partido
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={party}
+                  onChange={(event) => setParty(event.target.value)}
+                />
+              </label>
+              <label className="space-y-2 text-xs text-[#9a948a]">
+                Barrio
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={neighborhood}
+                  onChange={(event) => setNeighborhood(event.target.value)}
+                />
+              </label>
+              <label className="space-y-2 text-xs text-[#9a948a]">
+                Codigo postal
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={postalCode}
+                  onChange={(event) => setPostalCode(event.target.value)}
+                />
+              </label>
+              {propertyType === "LAND" && (
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Lote o partida
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={lotOrParcel}
+                    onChange={(event) => setLotOrParcel(event.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+
+            {propertyType === "APARTMENT" && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Piso
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={floor}
+                    onChange={(event) => setFloor(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Departamento (ej: 3F)
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={unit}
+                    onChange={(event) => setUnit(event.target.value)}
+                  />
+                </label>
+              </div>
+            )}
 
             <LocationPicker
               lat={lat}
@@ -484,9 +770,38 @@ export function PublishPage() {
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
-            {propertyType !== "LAND" && (
+          <div className="space-y-8">
+            <div className="rounded-2xl border border-white/10 bg-night-900/40 px-4 py-3 text-sm text-[#cfc9bf]">
+              Tipo seleccionado: <span className="text-white">{propertyTypeLabel}</span>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-white">Caracteristicas principales</h4>
               <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Superficie total (m2)
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={areaM2}
+                    onChange={(event) => setAreaM2(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Superficie cubierta (m2)
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={coveredAreaM2}
+                    onChange={(event) => setCoveredAreaM2(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Superficie semicubierta (m2)
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={semiCoveredAreaM2}
+                    onChange={(event) => setSemiCoveredAreaM2(event.target.value)}
+                  />
+                </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Ambientes
                   <input
@@ -504,128 +819,80 @@ export function PublishPage() {
                   />
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
-                  M2
+                  Dormitorios
                   <input
                     className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={areaM2}
-                    onChange={(event) => setAreaM2(event.target.value)}
-                  />
-                </label>
-              </div>
-            )}
-
-            {propertyType === "LAND" && (
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="space-y-2 text-xs text-[#9a948a]">
-                  Frente (m)
-                  <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={frontageM}
-                    onChange={(event) => setFrontageM(event.target.value)}
+                    value={bedrooms}
+                    onChange={(event) => setBedrooms(event.target.value)}
                   />
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
-                  Fondo (m)
+                  Antiguedad (anos)
                   <input
                     className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={depthM}
-                    onChange={(event) => setDepthM(event.target.value)}
+                    value={ageYears}
+                    onChange={(event) => setAgeYears(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Pisos
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={floorsCount}
+                    onChange={(event) => setFloorsCount(event.target.value)}
                   />
                 </label>
                 <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-[#d1a466]"
-                    checked={buildable}
-                    onChange={(event) => setBuildable(event.target.checked)}
+                    checked={hasGarage}
+                    onChange={(event) => setHasGarage(event.target.checked)}
                   />
-                  Apto construccion
+                  Cochera
                 </label>
               </div>
-            )}
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#d1a466]"
-                  checked={hasGarage}
-                  onChange={(event) => setHasGarage(event.target.checked)}
-                />
-                Cochera
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#d1a466]"
-                  checked={furnished}
-                  onChange={(event) => setFurnished(event.target.checked)}
-                />
-                Amueblado
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#d1a466]"
-                  checked={petsAllowed}
-                  onChange={(event) => setPetsAllowed(event.target.checked)}
-                />
-                Mascotas
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#d1a466]"
-                  checked={kidsAllowed}
-                  onChange={(event) => setKidsAllowed(event.target.checked)}
-                />
-                Ninos
-              </label>
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Antiguedad (anos)
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={ageYears}
-                  onChange={(event) => setAgeYears(event.target.value)}
-                />
-              </label>
             </div>
 
-            {propertyType === "APARTMENT" && (
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="space-y-2 text-xs text-[#9a948a]">
-                  Piso
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-white">Amenities</h4>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={floor}
-                    onChange={(event) => setFloor(event.target.value)}
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenityAir}
+                    onChange={(event) => setAmenityAir(event.target.checked)}
                   />
+                  Aire acondicionado
                 </label>
-                <label className="space-y-2 text-xs text-[#9a948a]">
-                  Departamento
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={unit}
-                    onChange={(event) => setUnit(event.target.value)}
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenityHeater}
+                    onChange={(event) => setAmenityHeater(event.target.checked)}
                   />
+                  Estufa
                 </label>
-                <label className="space-y-2 text-xs text-[#9a948a]">
-                  Vista
-                  <select
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={facing}
-                    onChange={(event) => setFacing(event.target.value)}
-                  >
-                    <option value="FRONT">Frente</option>
-                    <option value="BACK">Contrafrente</option>
-                    <option value="INTERNAL">Pulmon</option>
-                  </select>
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenityKitchen}
+                    onChange={(event) => setAmenityKitchen(event.target.checked)}
+                  />
+                  Cocina
                 </label>
-              </div>
-            )}
-
-            {(propertyType === "APARTMENT" || propertyType === "HOUSE") && (
-              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenityGrill}
+                    onChange={(event) => setAmenityGrill(event.target.checked)}
+                  />
+                  Parrilla
+                </label>
                 <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                   <input
                     type="checkbox"
@@ -633,7 +900,16 @@ export function PublishPage() {
                     checked={amenityPool}
                     onChange={(event) => setAmenityPool(event.target.checked)}
                   />
-                  Pileta
+                  Piscina / pileta
+                </label>
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenityJacuzzi}
+                    onChange={(event) => setAmenityJacuzzi(event.target.checked)}
+                  />
+                  Hidromasaje
                 </label>
                 <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                   <input
@@ -648,154 +924,246 @@ export function PublishPage() {
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-[#d1a466]"
-                    checked={amenityGym}
-                    onChange={(event) => setAmenityGym(event.target.checked)}
+                    checked={amenityElevator}
+                    onChange={(event) => setAmenityElevator(event.target.checked)}
                   />
-                  Gimnasio
+                  Ascensor
                 </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={amenitySum}
-                    onChange={(event) => setAmenitySum(event.target.checked)}
-                  />
-                  SUM
-                </label>
+              </div>
+            </div>
+
+            {(propertyType === "HOUSE" || propertyType === "APARTMENT") && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-white">Convivencia</h4>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={furnished}
+                      onChange={(event) => setFurnished(event.target.checked)}
+                    />
+                    Amueblado
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={petsAllowed}
+                      onChange={(event) => setPetsAllowed(event.target.checked)}
+                    />
+                    Mascotas
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={kidsAllowed}
+                      onChange={(event) => setKidsAllowed(event.target.checked)}
+                    />
+                    Ninos
+                  </label>
+                </div>
               </div>
             )}
 
-            {propertyType === "HOUSE" && (
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={amenityPatio}
-                    onChange={(event) => setAmenityPatio(event.target.checked)}
-                  />
-                  Patio
-                </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={amenityGarden}
-                    onChange={(event) => setAmenityGarden(event.target.checked)}
-                  />
-                  Jardin
-                </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={amenityGrill}
-                    onChange={(event) => setAmenityGrill(event.target.checked)}
-                  />
-                  Parrilla
-                </label>
+            {propertyType === "APARTMENT" && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-white">Departamento</h4>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Vista
+                    <select
+                      className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                      value={facing}
+                      onChange={(event) => setFacing(event.target.value)}
+                    >
+                      <option value="FRONT">Frente</option>
+                      <option value="BACK">Contrafrente</option>
+                      <option value="INTERNAL">Pulmon</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {propertyType === "LAND" && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-white">Terreno</h4>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Frente (m)
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                      value={frontageM}
+                      onChange={(event) => setFrontageM(event.target.value)}
+                    />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Fondo (m)
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                      value={depthM}
+                      onChange={(event) => setDepthM(event.target.value)}
+                    />
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={buildable}
+                      onChange={(event) => setBuildable(event.target.checked)}
+                    />
+                    Apto para construir
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={landInvestment}
+                      onChange={(event) => setLandInvestment(event.target.checked)}
+                    />
+                    Oportunidad de inversion
+                  </label>
+                </div>
               </div>
             )}
 
             {propertyType === "COMMERCIAL" && (
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={commercialGastronomy}
-                    onChange={(event) => setCommercialGastronomy(event.target.checked)}
-                  />
-                  Apto gastronomia
-                </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={commercialPublicBathrooms}
-                    onChange={(event) => setCommercialPublicBathrooms(event.target.checked)}
-                  />
-                  Banos publicos
-                </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={commercialStorage}
-                    onChange={(event) => setCommercialStorage(event.target.checked)}
-                  />
-                  Deposito
-                </label>
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-white">Negocio</h4>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={businessFood}
+                      onChange={(event) => setBusinessFood(event.target.checked)}
+                    />
+                    Local de comida
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={businessEvents}
+                      onChange={(event) => setBusinessEvents(event.target.checked)}
+                    />
+                    Salon de eventos
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={businessRetail}
+                      onChange={(event) => setBusinessRetail(event.target.checked)}
+                    />
+                    Negocio comercial
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={businessFactory}
+                      onChange={(event) => setBusinessFactory(event.target.checked)}
+                    />
+                    Fabrica
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={businessOffices}
+                      onChange={(event) => setBusinessOffices(event.target.checked)}
+                    />
+                    Oficinas
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={businessClinics}
+                      onChange={(event) => setBusinessClinics(event.target.checked)}
+                    />
+                    Consultorios
+                  </label>
+                </div>
               </div>
             )}
 
             {propertyType === "OFFICE" && (
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={officeMeetingRoom}
-                    onChange={(event) => setOfficeMeetingRoom(event.target.checked)}
-                  />
-                  Sala de reuniones
-                </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={officeReception}
-                    onChange={(event) => setOfficeReception(event.target.checked)}
-                  />
-                  Recepcion
-                </label>
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={officePrivateOffices}
-                    onChange={(event) => setOfficePrivateOffices(event.target.checked)}
-                  />
-                  Despachos
-                </label>
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-white">Oficina</h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={officeMeetingRoom}
+                      onChange={(event) => setOfficeMeetingRoom(event.target.checked)}
+                    />
+                    Sala de reuniones
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={officeReception}
+                      onChange={(event) => setOfficeReception(event.target.checked)}
+                    />
+                    Recepcion
+                  </label>
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={officePrivateOffices}
+                      onChange={(event) => setOfficePrivateOffices(event.target.checked)}
+                    />
+                    Despachos
+                  </label>
+                </div>
               </div>
             )}
 
             {propertyType === "WAREHOUSE" && (
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={warehouseTruckAccess}
-                    onChange={(event) => setWarehouseTruckAccess(event.target.checked)}
-                  />
-                  Acceso camion
-                </label>
-                <label className="space-y-2 text-xs text-[#9a948a]">
-                  Altura (m)
-                  <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={warehouseHeight}
-                    onChange={(event) => setWarehouseHeight(event.target.value)}
-                  />
-                </label>
-                <label className="space-y-2 text-xs text-[#9a948a]">
-                  Altura porton (m)
-                  <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                    value={warehouseGateHeight}
-                    onChange={(event) => setWarehouseGateHeight(event.target.value)}
-                  />
-                </label>
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-white">Galpon / deposito</h4>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#d1a466]"
+                      checked={warehouseTruckAccess}
+                      onChange={(event) => setWarehouseTruckAccess(event.target.checked)}
+                    />
+                    Acceso camion
+                  </label>
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Altura (m)
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                      value={warehouseHeight}
+                      onChange={(event) => setWarehouseHeight(event.target.value)}
+                    />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#9a948a]">
+                    Altura porton (m)
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                      value={warehouseGateHeight}
+                      onChange={(event) => setWarehouseGateHeight(event.target.value)}
+                    />
+                  </label>
+                </div>
               </div>
             )}
           </div>
         )}
         {step === 3 && (
-          <div className="space-y-6">
-            <div className="grid gap-3 md:grid-cols-3">
-              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+            <div className="space-y-6">
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-[#d1a466]"
@@ -840,40 +1208,18 @@ export function PublishPage() {
                 />
                 Internet
               </label>
-              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#d1a466]"
-                  checked={servicePavement}
-                  onChange={(event) => setServicePavement(event.target.checked)}
-                />
-                Asfalto
-              </label>
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={servicePavement}
+                    onChange={(event) => setServicePavement(event.target.checked)}
+                  />
+                  Asfalto
+                </label>
+              </div>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Expensas (monto)
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={expensesAmount}
-                  onChange={(event) => setExpensesAmount(event.target.value)}
-                />
-              </label>
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Moneda expensas
-                <select
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={expensesCurrency}
-                  onChange={(event) => setExpensesCurrency(event.target.value)}
-                >
-                  <option value="ARS">ARS</option>
-                  <option value="USD">USD</option>
-                </select>
-              </label>
-            </div>
-          </div>
-        )}
+          )}
 
         {step === 4 && (
           <div className="space-y-6">
@@ -940,59 +1286,93 @@ export function PublishPage() {
               </label>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Catastro tipo
-                <select
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={cadastralType}
-                  onChange={(event) => setCadastralType(event.target.value)}
-                >
-                  <option value="PARTIDA">Partida</option>
-                  <option value="NOMENCLATURA">Nomenclatura</option>
-                  <option value="OTHER">Otro</option>
-                </select>
-              </label>
-              <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
-                Catastro valor
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={cadastralValue}
-                  onChange={(event) => setCadastralValue(event.target.value)}
-                />
-              </label>
-            </div>
-          </div>
-        )}
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Catastro tipo
+                  <select
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={cadastralType}
+                    onChange={(event) => setCadastralType(event.target.value)}
+                  >
+                    <option value="PARTIDA">Partida</option>
+                    <option value="NOMENCLATURA">Nomenclatura</option>
+                    <option value="OTHER">Otro</option>
+                  </select>
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
+                  Catastro valor
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={cadastralValue}
+                    onChange={(event) => setCadastralValue(event.target.value)}
+                  />
+                </label>
+              </div>
 
-        {status === "error" && (
-          <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
-        )}
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                onClick={() => setShowPreview(true)}
+              >
+                Ver ficha
+              </button>
+            </div>
+          )}
+
+          {showPreview && (
+            <PropertyDetailModal
+              listing={previewListing}
+              onClose={() => setShowPreview(false)}
+              actions={
+                <>
+                  <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
+                    WhatsApp
+                  </button>
+                  <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]">
+                    Guardar
+                  </button>
+                </>
+              }
+            />
+          )}
+
+          {status === "error" && (
+            <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
+          )}
         {status === "success" && (
           <p className="text-xs text-[#9fe0c0]">Publicacion creada correctamente.</p>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-              type="button"
-              onClick={() => setStep((prev) => (prev > 0 ? ((prev - 1) as Step) : prev))}
-              disabled={step === 0}
-            >
-              Anterior
-            </button>
-            {step < steps.length - 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
-                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
                 type="button"
-                onClick={() => setStep((prev) => ((prev + 1) as Step))}
-                disabled={!canNext}
+                onClick={() => {
+                  setShowErrors(false);
+                  setStep((prev) => (prev > 0 ? ((prev - 1) as Step) : prev));
+                }}
+                disabled={step === 0}
               >
-                Siguiente
+                Anterior
               </button>
-            )}
-          </div>
+              {step < steps.length - 1 && (
+                <button
+                  className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                  type="button"
+                  onClick={() => {
+                    if (!canNext) {
+                      setShowErrors(true);
+                      return;
+                    }
+                    setShowErrors(false);
+                    setStep((prev) => ((prev + 1) as Step));
+                  }}
+                >
+                  Siguiente
+                </button>
+              )}
+            </div>
 
           {step === steps.length - 1 && (
             <button
