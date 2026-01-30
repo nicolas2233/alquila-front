@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
+import { geocodeAddress } from "../shared/map/geocode";
+import { useLocation } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
@@ -8,6 +11,8 @@ import type {
 } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
+import { useToast } from "../shared/ui/toast/ToastProvider";
+import { formatRentalRequirements } from "../shared/utils/rentalRequirements";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Borrador",
@@ -44,10 +49,57 @@ const propertyLabels: Record<string, string> = {
   HOUSE: "Casa",
   APARTMENT: "Departamento",
   LAND: "Terreno",
+  FIELD: "Campo",
+  QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
   WAREHOUSE: "Deposito",
 };
+
+function EditLocationPicker({
+  lat,
+  lng,
+  onChange,
+}: {
+  lat?: number;
+  lng?: number;
+  onChange: (nextLat: number, nextLng: number) => void;
+}) {
+  const center = useMemo(() => [lat ?? -35.1197, lng ?? -60.4899], [lat, lng]);
+
+  function ClickHandler() {
+    useMapEvents({
+      click: (event) => {
+        onChange(event.latlng.lat, event.latlng.lng);
+      },
+    });
+    return null;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10">
+      <MapContainer
+        center={center as [number, number]}
+        zoom={13}
+        className="h-[220px] w-full"
+        scrollWheelZoom={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ClickHandler />
+        {lat !== undefined && lng !== undefined && (
+          <CircleMarker
+            center={[lat, lng]}
+            radius={8}
+            pathOptions={{ color: "#f4d19a", fillColor: "#d1a466", fillOpacity: 0.9 }}
+          />
+        )}
+      </MapContainer>
+    </div>
+  );
+}
 
 type AgencyProfile = {
   id: string;
@@ -66,6 +118,8 @@ type AgencyProfile = {
 type PanelSection = "profile" | "listings" | "requests" | "my-requests";
 
 export function DashboardPage() {
+  const location = useLocation();
+  const { addToast } = useToast();
   const sessionUser = useMemo(() => getSessionUser(), []);
   const sessionToken = useMemo(() => getToken(), []);
   const isOwner = sessionUser?.role === "OWNER";
@@ -83,6 +137,8 @@ export function DashboardPage() {
     "idle"
   );
   const [propertyError, setPropertyError] = useState("");
+  const [propertyFilterType, setPropertyFilterType] = useState("");
+  const [propertyFilterOperation, setPropertyFilterOperation] = useState("");
   const [agencyStatus, setAgencyStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
   );
@@ -106,6 +162,7 @@ export function DashboardPage() {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [ownerAddress, setOwnerAddress] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
+  const [ownerAvatarUrl, setOwnerAvatarUrl] = useState("");
   const [activeSection, setActiveSection] = useState<PanelSection>("profile");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<PropertyApiDetail | null>(null);
@@ -142,6 +199,8 @@ export function DashboardPage() {
   const [editLotOrParcel, setEditLotOrParcel] = useState("");
   const [editFrontageM, setEditFrontageM] = useState("");
   const [editDepthM, setEditDepthM] = useState("");
+  const [editLat, setEditLat] = useState("");
+  const [editLng, setEditLng] = useState("");
   const [editBuildable, setEditBuildable] = useState(false);
   const [editInvestmentOpportunity, setEditInvestmentOpportunity] = useState(false);
   const [editFinancingAvailable, setEditFinancingAvailable] = useState(false);
@@ -150,6 +209,13 @@ export function DashboardPage() {
   const [editFloor, setEditFloor] = useState("");
   const [editUnit, setEditUnit] = useState("");
   const [editFacing, setEditFacing] = useState("FRONT");
+  const [editAddressLine, setEditAddressLine] = useState("");
+  const [editAddressQuery, setEditAddressQuery] = useState("");
+  const [editShowMapLocation, setEditShowMapLocation] = useState(true);
+  const [editGeoStatus, setEditGeoStatus] = useState<"idle" | "loading" | "error">(
+    "idle"
+  );
+  const [editGeoMessage, setEditGeoMessage] = useState("");
 
   const [editAmenities, setEditAmenities] = useState<string[]>([]);
   const [editBusinessUses, setEditBusinessUses] = useState<string[]>([]);
@@ -178,6 +244,12 @@ export function DashboardPage() {
       phone?: string | null;
       message?: string | null;
       createdAt: string;
+      requesterUser?: {
+        id?: string;
+        name?: string | null;
+        email?: string | null;
+        phone?: string | null;
+      } | null;
       property: {
         id: string;
         title: string;
@@ -186,9 +258,20 @@ export function DashboardPage() {
         priceAmount: string;
         priceCurrency: string;
         location?: { addressLine?: string | null } | null;
+        rentalRequirements?: {
+          guarantees?: string;
+          entryMonths?: number;
+          contractDurationMonths?: number;
+          indexFrequency?: string;
+          indexType?: string;
+          indexValue?: number;
+          isPublic?: boolean;
+        } | null;
       };
     }>
   >([]);
+  const [requestFilterType, setRequestFilterType] = useState("");
+  const [requestFilterOperation, setRequestFilterOperation] = useState("");
   const [myRequests, setMyRequests] = useState<
     Array<{
       id: string;
@@ -210,6 +293,11 @@ export function DashboardPage() {
   const [selectedRequest, setSelectedRequest] =
     useState<(typeof contactRequests)[number] | null>(null);
   const [requestDetailOpen, setRequestDetailOpen] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [highlightRequestId, setHighlightRequestId] = useState<string | null>(null);
+  const [highlightFlash, setHighlightFlash] = useState(false);
+  const [highlightPulse, setHighlightPulse] = useState(false);
+  // chat in-app lives in floating widget
 
   const loadProperties = useCallback(async () => {
     if (!sessionUser) {
@@ -238,6 +326,12 @@ export function DashboardPage() {
       if (agencyId) {
         params.set("agencyId", agencyId);
       }
+      if (propertyFilterType) {
+        params.set("propertyType", propertyFilterType);
+      }
+      if (propertyFilterOperation) {
+        params.set("operationType", propertyFilterOperation);
+      }
 
       const response = await fetch(`${env.apiUrl}/properties?${params.toString()}`, {
         signal: controller.signal,
@@ -257,7 +351,7 @@ export function DashboardPage() {
     } finally {
       clearTimeout(timeout);
     }
-  }, [agencyId, ownerUserId, sessionUser]);
+  }, [agencyId, ownerUserId, sessionUser, propertyFilterType, propertyFilterOperation]);
 
   const loadRequests = useCallback(async () => {
     if (!sessionToken) {
@@ -287,6 +381,44 @@ export function DashboardPage() {
       );
     }
   }, [sessionToken]);
+
+  const loadRequestDetail = useCallback(
+    async (requestId: string) => {
+      if (!sessionToken) {
+        addToast("Necesitas iniciar sesion.", "warning");
+        return null;
+      }
+      try {
+        const response = await fetch(`${env.apiUrl}/contact-requests/${requestId}`, {
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+        if (!response.ok) {
+          throw new Error("No pudimos cargar el detalle.");
+        }
+        const data = (await response.json()) as (typeof contactRequests)[number];
+        return data;
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : "No pudimos cargar el detalle.",
+          "error"
+        );
+        return null;
+      }
+    },
+    [sessionToken, addToast, contactRequests]
+  );
+
+  const openRequestDetail = useCallback(
+    async (requestItem: (typeof contactRequests)[number]) => {
+      setSelectedRequest(requestItem);
+      setRequestDetailOpen(true);
+      const detail = await loadRequestDetail(requestItem.id);
+      if (detail) {
+        setSelectedRequest(detail);
+      }
+    },
+    [loadRequestDetail]
+  );
 
   const loadMyRequests = useCallback(async () => {
     if (!sessionToken) {
@@ -370,6 +502,77 @@ export function DashboardPage() {
   }, [activeSection, loadMyRequests]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    const requestId = params.get("requestId");
+    if (tab === "my-requests") {
+      setActiveSection("my-requests");
+      setPendingRequestId(null);
+      return;
+    }
+    if (tab === "requests" || requestId) {
+      setActiveSection("requests");
+      setPendingRequestId(requestId);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!pendingRequestId || requestStatus !== "idle") {
+      return;
+    }
+    const run = async () => {
+      const match = contactRequests.find((item) => item.id === pendingRequestId);
+      if (match) {
+      setSelectedRequest(match);
+      setRequestDetailOpen(true);
+      setHighlightRequestId(match.id);
+      setHighlightFlash((prev) => !prev);
+      setHighlightPulse(false);
+      setPendingRequestId(null);
+      return;
+    }
+    const detail = await loadRequestDetail(pendingRequestId);
+    if (detail) {
+      setSelectedRequest(detail);
+      setRequestDetailOpen(true);
+      setHighlightRequestId(detail.id);
+      setHighlightFlash((prev) => !prev);
+      setHighlightPulse(false);
+    } else {
+      addToast("No encontramos esa solicitud.", "warning");
+    }
+    setPendingRequestId(null);
+    };
+    void run();
+  }, [pendingRequestId, requestStatus, contactRequests, addToast, loadRequestDetail]);
+
+  useEffect(() => {
+    if (!highlightRequestId) return;
+    const timeout = setTimeout(() => setHighlightRequestId(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [highlightRequestId]);
+
+  useEffect(() => {
+    if (!highlightRequestId) return;
+    const timeout = setTimeout(() => setHighlightPulse(true), 120);
+    return () => clearTimeout(timeout);
+  }, [highlightRequestId, highlightFlash]);
+
+  useEffect(() => {
+    if (!highlightRequestId) return;
+    const timeout = setTimeout(() => {
+      const el = document.querySelector(
+        `[data-request-id="${highlightRequestId}"]`
+      ) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 120);
+    return () => clearTimeout(timeout);
+  }, [highlightRequestId, highlightFlash]);
+
+
+  useEffect(() => {
     if (isAgency && agencyId) {
       void loadAgency();
     }
@@ -392,11 +595,13 @@ export function DashboardPage() {
           email?: string | null;
           phone?: string | null;
           address?: string | null;
+          avatarUrl?: string | null;
         };
         setOwnerName(data.name ?? "");
         setOwnerEmail(data.email ?? "");
         setOwnerPhone(data.phone ?? "");
         setOwnerAddress(data.address ?? "");
+        setOwnerAvatarUrl(data.avatarUrl ?? "");
         setOwnerStatus("idle");
       } catch (error) {
         setOwnerStatus("error");
@@ -470,6 +675,7 @@ export function DashboardPage() {
       setEditLotOrParcel(String((features as { lotOrParcel?: string }).lotOrParcel ?? ""));
       setEditFrontageM(String((features as { frontageM?: number }).frontageM ?? ""));
       setEditDepthM(String((features as { depthM?: number }).depthM ?? ""));
+      setEditAddressLine(String(data.location?.addressLine ?? ""));
       setEditBuildable(Boolean((features as { buildable?: boolean }).buildable));
       setEditInvestmentOpportunity(
         Boolean((features as { investmentOpportunity?: boolean }).investmentOpportunity)
@@ -491,6 +697,16 @@ export function DashboardPage() {
       setEditOfficeFeatures((features as { officeFeatures?: string[] }).officeFeatures ?? []);
       setEditWarehouseFeatures(
         (features as { warehouseFeatures?: string[] }).warehouseFeatures ?? []
+      );
+      setEditShowMapLocation(
+        (features as { showMapLocation?: boolean }).showMapLocation ?? true
+      );
+
+      setEditLat(
+        typeof data.location?.lat === "number" ? data.location.lat.toString() : ""
+      );
+      setEditLng(
+        typeof data.location?.lng === "number" ? data.location.lng.toString() : ""
       );
 
       const services = data.services ?? {};
@@ -524,6 +740,12 @@ export function DashboardPage() {
       if (editPrice && Number.isNaN(Number(editPrice))) {
         throw new Error("El precio debe ser un numero valido.");
       }
+      if (editLat && Number.isNaN(Number(editLat))) {
+        throw new Error("La latitud debe ser un numero valido.");
+      }
+      if (editLng && Number.isNaN(Number(editLng))) {
+        throw new Error("La longitud debe ser un numero valido.");
+      }
 
       const response = await fetch(`${env.apiUrl}/properties/${selectedId}`, {
         method: "PATCH",
@@ -537,41 +759,45 @@ export function DashboardPage() {
           priceCurrency: editPrice ? editCurrency : undefined,
           expensesAmount: editExpensesAmount ? Number(editExpensesAmount) : undefined,
           expensesCurrency: editExpensesAmount ? editExpensesCurrency : undefined,
-          rooms: editRooms ? Number(editRooms) : undefined,
-          bathrooms: editBathrooms ? Number(editBathrooms) : undefined,
-          areaM2: editAreaM2 ? Number(editAreaM2) : undefined,
-          features: {
-            hasGarage: editHasGarage,
-            petsAllowed: editPetsAllowed,
-            kidsAllowed: editKidsAllowed,
-            furnished: editFurnished,
-            ageYears: editAgeYears ? Number(editAgeYears) : undefined,
-            coveredAreaM2: editCoveredAreaM2 ? Number(editCoveredAreaM2) : undefined,
-            semiCoveredAreaM2: editSemiCoveredAreaM2 ? Number(editSemiCoveredAreaM2) : undefined,
-            bedrooms: editBedrooms ? Number(editBedrooms) : undefined,
-            floorsCount: editFloorsCount ? Number(editFloorsCount) : undefined,
-            party: editParty || undefined,
-            neighborhood: editNeighborhood || undefined,
-            postalCode: editPostalCode || undefined,
-            lotOrParcel: editLotOrParcel || undefined,
-            frontageM: editFrontageM ? Number(editFrontageM) : undefined,
-            depthM: editDepthM ? Number(editDepthM) : undefined,
-            buildable: editBuildable,
-            investmentOpportunity: editInvestmentOpportunity,
-            financingAvailable: editFinancingAvailable,
-            financingAmount:
-              editFinancingAvailable && editFinancingAmount
-                ? Number(editFinancingAmount)
-                : undefined,
-            financingCurrency: editFinancingAvailable ? editFinancingCurrency : undefined,
-            floor: editFloor ? Number(editFloor) : undefined,
-            unit: editUnit || undefined,
-            facing: editFacing || undefined,
-            amenities: editAmenities.length ? editAmenities : undefined,
-            businessUses: editBusinessUses.length ? editBusinessUses : undefined,
-            officeFeatures: editOfficeFeatures.length ? editOfficeFeatures : undefined,
-            warehouseFeatures: editWarehouseFeatures.length ? editWarehouseFeatures : undefined,
-          },
+          rooms:
+            editRooms && Number(editRooms) > 0 ? Number(editRooms) : undefined,
+          bathrooms:
+            editBathrooms && Number(editBathrooms) > 0 ? Number(editBathrooms) : undefined,
+          areaM2: editAreaM2 && Number(editAreaM2) > 0 ? Number(editAreaM2) : undefined,
+            features: {
+              hasGarage: editHasGarage,
+              petsAllowed: editPetsAllowed,
+              kidsAllowed: editKidsAllowed,
+              furnished: editFurnished,
+              ageYears: editAgeYears ? Number(editAgeYears) : undefined,
+              coveredAreaM2: editCoveredAreaM2 ? Number(editCoveredAreaM2) : undefined,
+              semiCoveredAreaM2: editSemiCoveredAreaM2 ? Number(editSemiCoveredAreaM2) : undefined,
+              bedrooms:
+                editBedrooms && Number(editBedrooms) > 0 ? Number(editBedrooms) : undefined,
+              floorsCount: editFloorsCount ? Number(editFloorsCount) : undefined,
+              party: editParty || undefined,
+              neighborhood: editNeighborhood || undefined,
+              postalCode: editPostalCode || undefined,
+              lotOrParcel: editLotOrParcel || undefined,
+              frontageM: editFrontageM ? Number(editFrontageM) : undefined,
+              depthM: editDepthM ? Number(editDepthM) : undefined,
+              buildable: editBuildable,
+              investmentOpportunity: editInvestmentOpportunity,
+              financingAvailable: editFinancingAvailable,
+              financingAmount:
+                editFinancingAvailable && editFinancingAmount
+                  ? Number(editFinancingAmount)
+                  : undefined,
+              financingCurrency: editFinancingAvailable ? editFinancingCurrency : undefined,
+              floor: editFloor ? Number(editFloor) : undefined,
+              unit: editUnit || undefined,
+              facing: editFacing || undefined,
+              amenities: editAmenities.length ? editAmenities : undefined,
+              businessUses: editBusinessUses.length ? editBusinessUses : undefined,
+              officeFeatures: editOfficeFeatures.length ? editOfficeFeatures : undefined,
+              warehouseFeatures: editWarehouseFeatures.length ? editWarehouseFeatures : undefined,
+              showMapLocation: editShowMapLocation,
+            },
           services: {
             electricity: serviceElectricity,
             gas: serviceGas,
@@ -580,6 +806,14 @@ export function DashboardPage() {
             internet: serviceInternet,
             pavement: servicePavement,
           },
+          location:
+            editAddressLine || editLat || editLng
+              ? {
+                  addressLine: editAddressLine || undefined,
+                  lat: editLat ? Number(editLat) : undefined,
+                  lng: editLng ? Number(editLng) : undefined,
+                }
+              : undefined,
         }),
       });
       if (!response.ok) {
@@ -601,9 +835,11 @@ export function DashboardPage() {
       await loadProperties();
       await openDetail({ id: selectedId } as PropertyApiListItem);
       setIsEditing(false);
+      addToast("Cambios guardados.", "success");
     } catch (error) {
       setDetailStatus("error");
       setDetailError("No pudimos guardar los cambios.");
+      addToast("No pudimos guardar los cambios.", "error");
     }
   };
 
@@ -638,11 +874,13 @@ export function DashboardPage() {
       }
 
       setAgencyStatus("idle");
+      addToast("Perfil actualizado.", "success");
     } catch (error) {
       setAgencyStatus("error");
       setAgencyError(
         error instanceof Error ? error.message : "Error al guardar la inmobiliaria."
       );
+      addToast("No pudimos guardar el perfil.", "error");
     }
   };
 
@@ -690,6 +928,7 @@ export function DashboardPage() {
           email: ownerEmail,
           phone: ownerPhone || undefined,
           address: ownerAddress || undefined,
+          avatarUrl: ownerAvatarUrl ? ownerAvatarUrl : null,
           password: ownerPassword || undefined,
         }),
       });
@@ -698,10 +937,56 @@ export function DashboardPage() {
       }
       setOwnerPassword("");
       setOwnerStatus("idle");
+      const currentUser = getSessionUser();
+      if (currentUser && currentUser.id === ownerUserId) {
+        localStorage.setItem(
+          "alquila_user",
+          JSON.stringify({
+            ...currentUser,
+            name: ownerName,
+            email: ownerEmail,
+            avatarUrl: ownerAvatarUrl || null,
+          })
+        );
+      }
+      addToast("Perfil actualizado.", "success");
     } catch (error) {
       setOwnerStatus("error");
       setOwnerError(
         error instanceof Error ? error.message : "Error al guardar tu perfil."
+      );
+      addToast("No pudimos guardar tu perfil.", "error");
+    }
+  };
+
+  const sendRentalRequirements = async (id: string) => {
+    if (!sessionToken) {
+      addToast("Necesitas iniciar sesion.", "error");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${env.apiUrl}/contact-requests/${id}/send-requirements`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message ?? "No pudimos enviar los requisitos.");
+      }
+      setContactRequests((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status: "CONTACTED" } : item))
+      );
+      addToast("Requisitos enviados al solicitante.", "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos enviar los requisitos.",
+        "error"
       );
     }
   };
@@ -763,17 +1048,19 @@ export function DashboardPage() {
         >
           Solicitudes
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection("my-requests")}
-          className={
-            activeSection === "my-requests"
-              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
-          }
-        >
-          Mis solicitudes
-        </button>
+        {sessionUser?.role === "VISITOR" && (
+          <button
+            type="button"
+            onClick={() => setActiveSection("my-requests")}
+            className={
+              activeSection === "my-requests"
+                ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
+                : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+            }
+          >
+            Mis solicitudes
+          </button>
+        )}
       </aside>
 
       <div className="space-y-8">
@@ -782,9 +1069,6 @@ export function DashboardPage() {
           <h2 className="text-3xl text-white">Panel de publicaciones</h2>
           <p className="text-sm text-[#9a948a]">Controla estados, disponibilidad y contactos.</p>
         </div>
-        <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
-          Nueva publicacion
-        </button>
       </div>
 
       <div className="glass-card space-y-3 p-6 text-sm text-[#c7c2b8]">
@@ -900,14 +1184,59 @@ export function DashboardPage() {
                 onChange={(event) => setAgencyInstagram(event.target.value)}
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Logo (texto corto)
+            <div className="space-y-2 text-xs text-[#9a948a]">
+              <div>Logo</div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-500/15 text-sm font-semibold text-gold-200">
+                  {agencyLogo?.startsWith("data:") || agencyLogo?.startsWith("http") ? (
+                    <img
+                      src={agencyLogo}
+                      alt="Logo"
+                      className="h-12 w-12 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    (agencyLogo || agencyName || "A")
+                      .split(" ")
+                      .map((part) => part.charAt(0))
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()
+                  )}
+                </div>
+                <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]">
+                  Subir logo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === "string") {
+                          setAgencyLogo(reader.result);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                  onClick={() => setAgencyLogo("")}
+                >
+                  Iniciales
+                </button>
+              </div>
               <input
                 className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
                 value={agencyLogo}
                 onChange={(event) => setAgencyLogo(event.target.value)}
+                placeholder="URL del logo o texto corto"
               />
-            </label>
+            </div>
           </div>
 
           <label className="space-y-2 text-xs text-[#9a948a]">
@@ -949,6 +1278,69 @@ export function DashboardPage() {
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/60 p-4 md:col-span-2">
+              <div className="text-xs text-[#9a948a]">Avatar</div>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/15 text-lg text-gold-200">
+                  {ownerAvatarUrl?.startsWith("emoji:") ? (
+                    <span>{ownerAvatarUrl.replace("emoji:", "")}</span>
+                  ) : ownerAvatarUrl ? (
+                    <img
+                      src={ownerAvatarUrl}
+                      alt="Avatar"
+                      className="h-14 w-14 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm">
+                      {(ownerName || ownerEmail || "U")
+                        .split(" ")
+                        .map((part) => part.charAt(0))
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {["🙂", "🏡", "⭐", "💬"].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-night-900/60 text-base"
+                      onClick={() => setOwnerAvatarUrl(`emoji:${emoji}`)}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                  <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]">
+                    Subir foto
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === "string") {
+                            setOwnerAvatarUrl(reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                    onClick={() => setOwnerAvatarUrl("")}
+                  >
+                    Iniciales
+                  </button>
+                </div>
+              </div>
+            </div>
             <label className="space-y-2 text-xs text-[#9a948a]">
               Nombre completo
               <input
@@ -1010,6 +1402,53 @@ export function DashboardPage() {
             >
               {propertyStatus === "loading" ? "Cargando..." : "Actualizar"}
             </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Tipo de inmueble
+              <select
+                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                value={propertyFilterType}
+                onChange={(event) => {
+                  setPropertyFilterType(event.target.value);
+                }}
+              >
+                <option value="">Todos</option>
+                <option value="HOUSE">Casa</option>
+                <option value="APARTMENT">Departamento</option>
+                <option value="LAND">Terreno</option>
+                <option value="FIELD">Campo</option>
+                <option value="QUINTA">Quinta</option>
+                <option value="COMMERCIAL">Comercio</option>
+                <option value="OFFICE">Oficina</option>
+                <option value="WAREHOUSE">Deposito</option>
+              </select>
+            </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Operacion
+              <select
+                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                value={propertyFilterOperation}
+                onChange={(event) => {
+                  setPropertyFilterOperation(event.target.value);
+                }}
+              >
+                <option value="">Todas</option>
+                <option value="SALE">Venta</option>
+                <option value="RENT">Alquiler</option>
+                <option value="TEMPORARY">Temporario</option>
+              </select>
+            </label>
+            <div className="flex items-end">
+              <button
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                type="button"
+                onClick={loadProperties}
+                disabled={propertyStatus === "loading"}
+              >
+                Aplicar filtros
+              </button>
+            </div>
           </div>
           {propertyStatus === "error" && (
             <p className="text-xs text-[#f5b78a]">{propertyError}</p>
@@ -1103,12 +1542,79 @@ export function DashboardPage() {
             <p className="text-xs text-[#9a948a]">Todavia no recibiste solicitudes.</p>
           )}
 
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Tipo de inmueble
+              <select
+                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                value={requestFilterType}
+                onChange={(event) => setRequestFilterType(event.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="HOUSE">Casa</option>
+                <option value="APARTMENT">Departamento</option>
+                <option value="LAND">Terreno</option>
+                <option value="FIELD">Campo</option>
+                <option value="QUINTA">Quinta</option>
+                <option value="COMMERCIAL">Comercio</option>
+                <option value="OFFICE">Oficina</option>
+                <option value="WAREHOUSE">Deposito</option>
+              </select>
+            </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Operacion
+              <select
+                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                value={requestFilterOperation}
+                onChange={(event) => setRequestFilterOperation(event.target.value)}
+              >
+                <option value="">Todas</option>
+                <option value="SALE">Venta</option>
+                <option value="RENT">Alquiler</option>
+                <option value="TEMPORARY">Temporario</option>
+              </select>
+            </label>
+            <div className="flex items-end">
+              <button
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                type="button"
+                onClick={loadRequests}
+                disabled={requestStatus === "loading"}
+              >
+                Aplicar filtros
+              </button>
+            </div>
+          </div>
+
           {contactRequests.length > 0 && (
             <div className="space-y-3">
-              {contactRequests.map((request) => (
+              {contactRequests
+                .filter((request) => {
+                  if (
+                    requestFilterType &&
+                    request.property.propertyType !== requestFilterType
+                  ) {
+                    return false;
+                  }
+                  if (
+                    requestFilterOperation &&
+                    request.property.operationType !== requestFilterOperation
+                  ) {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((request) => (
                 <div
                   key={request.id}
-                  className="rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                  data-request-id={request.id}
+                  className={
+                    highlightRequestId === request.id
+                      ? `rounded-2xl border border-gold-500/70 bg-night-900/85 p-4 shadow-[0_0_0_2px_rgba(224,192,138,0.7)] transition duration-500 ${
+                          highlightPulse ? "scale-[1.01]" : "scale-100"
+                        }`
+                      : "rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                  }
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1153,8 +1659,7 @@ export function DashboardPage() {
                         className="rounded-full border border-white/20 px-3 py-1 text-xs"
                         type="button"
                         onClick={() => {
-                          setSelectedRequest(request);
-                          setRequestDetailOpen(true);
+                          void openRequestDetail(request);
                         }}
                       >
                         Ver detalle
@@ -1212,7 +1717,14 @@ export function DashboardPage() {
               {myRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                  data-request-id={request.id}
+                  className={
+                    highlightRequestId === request.id
+                      ? `rounded-2xl border border-gold-500/70 bg-night-900/85 p-4 shadow-[0_0_0_2px_rgba(224,192,138,0.7)] transition duration-500 ${
+                          highlightPulse ? "scale-[1.01]" : "scale-100"
+                        }`
+                      : "rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                  }
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1247,6 +1759,24 @@ export function DashboardPage() {
                       Mensaje: {request.message}
                     </div>
                   )}
+                  {request.type === "INTEREST" &&
+                    request.property.rentalRequirements &&
+                    request.property.rentalRequirements.isPublic === false && (
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#c7c2b8]">
+                        <div className="rounded-full border border-white/10 px-3 py-1">
+                          Requisitos privados:{" "}
+                          {formatRentalRequirements(request.property.rentalRequirements) ||
+                            "Sin detalles"}
+                        </div>
+                        <button
+                          className="rounded-full border border-white/20 px-3 py-1 text-xs"
+                          type="button"
+                          onClick={() => sendRentalRequirements(request.id)}
+                        >
+                          Enviar requisitos
+                        </button>
+                      </div>
+                    )}
                   <div className="mt-3">
                     <a
                       className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
@@ -1263,7 +1793,7 @@ export function DashboardPage() {
       )}
       {requestDetailOpen && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
                 <h3 className="text-xl text-white">Detalle de solicitud</h3>
@@ -1282,7 +1812,7 @@ export function DashboardPage() {
                 Cerrar
               </button>
             </div>
-            <div className="space-y-4 p-6 text-sm text-[#c7c2b8]">
+            <div className="max-h-[calc(90vh-90px)] overflow-y-auto space-y-4 px-6 py-5 text-sm text-[#c7c2b8]">
               <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
                 <div className="text-sm text-white">{selectedRequest.property.title}</div>
                 <div className="text-xs text-[#9a948a]">
@@ -1306,19 +1836,25 @@ export function DashboardPage() {
                 <div>
                   <div className="text-xs text-[#9a948a]">Nombre</div>
                   <div className="text-sm text-white">
-                    {selectedRequest.name ?? "Sin nombre"}
+                    {selectedRequest.name ??
+                      selectedRequest.requesterUser?.name ??
+                      "Sin nombre"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#9a948a]">Email</div>
                   <div className="text-sm text-white">
-                    {selectedRequest.email ?? "Sin email"}
+                    {selectedRequest.email ??
+                      selectedRequest.requesterUser?.email ??
+                      "Sin email"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#9a948a]">Telefono</div>
                   <div className="text-sm text-white">
-                    {selectedRequest.phone ?? "Sin telefono"}
+                    {selectedRequest.phone ??
+                      selectedRequest.requesterUser?.phone ??
+                      "Sin telefono"}
                   </div>
                 </div>
                 <div>
@@ -1336,35 +1872,51 @@ export function DashboardPage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
-                {selectedRequest.phone && (
-                  (() => {
-                    const message = `Hola ${selectedRequest.name ?? ""}, vimos tu solicitud por "${
-                      selectedRequest.property.title
-                    }".`;
-                    const link = buildWhatsappLink(selectedRequest.phone, message);
-                    if (!link) {
-                      return null;
-                    }
-                    return (
-                      <a
-                        className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
-                        href={link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        WhatsApp
-                      </a>
-                    );
-                  })()
-                )}
-                {selectedRequest.email && (
-                  <a
-                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                    href={`mailto:${selectedRequest.email}`}
-                  >
-                    Email
-                  </a>
-                )}
+                {(() => {
+                  const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
+                  if (!phone) return null;
+                  const message = `Hola ${selectedRequest.name ?? ""}, vimos tu solicitud por "${
+                    selectedRequest.property.title
+                  }".`;
+                  const link = buildWhatsappLink(phone, message);
+                  if (!link) {
+                    return null;
+                  }
+                  return (
+                    <a
+                      className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                      href={link}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      WhatsApp
+                    </a>
+                  );
+                })()}
+                {(() => {
+                  const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
+                  if (!phone) return null;
+                  return (
+                    <a
+                      className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                      href={`tel:${phone}`}
+                    >
+                      Llamar
+                    </a>
+                  );
+                })()}
+                {(() => {
+                  const email = selectedRequest.email ?? selectedRequest.requesterUser?.email;
+                  if (!email) return null;
+                  return (
+                    <a
+                      className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                      href={`mailto:${email}`}
+                    >
+                      Email
+                    </a>
+                  );
+                })()}
                 {selectedRequest.property.id && (
                   <a
                     className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
@@ -1596,6 +2148,15 @@ export function DashboardPage() {
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-white">Ubicacion y datos</h4>
                           <div className="grid gap-4 md:grid-cols-3">
+                            <label className="space-y-2 text-xs text-[#9a948a] md:col-span-3">
+                              Direccion
+                              <input
+                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                                value={editAddressLine}
+                                onChange={(event) => setEditAddressLine(event.target.value)}
+                                placeholder="Calle y altura"
+                              />
+                            </label>
                             <label className="space-y-2 text-xs text-[#9a948a]">
                               Partido
                               <input
@@ -1644,6 +2205,106 @@ export function DashboardPage() {
                                 onChange={(event) => setEditDepthM(event.target.value)}
                               />
                             </label>
+                            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/60 p-4 md:col-span-3">
+                              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#9a948a]">
+                                <span>Ubicacion en el mapa</span>
+                                <button
+                                  type="button"
+                                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                                  onClick={async () => {
+                                    const query = (
+                                      editAddressQuery.trim()
+                                        ? editAddressQuery
+                                        : [
+                                            editAddressLine,
+                                            editNeighborhood,
+                                            editParty,
+                                            "Bragado",
+                                            "Buenos Aires",
+                                            "Argentina",
+                                          ]
+                                            .filter(Boolean)
+                                            .join(", ")
+                                    ).trim();
+                                    if (!query) {
+                                      setEditGeoStatus("error");
+                                      setEditGeoMessage(
+                                        "Completa la direccion para buscarla en el mapa."
+                                      );
+                                      return;
+                                    }
+                                    setEditGeoStatus("loading");
+                                    setEditGeoMessage("");
+                                    try {
+                                      const result = await geocodeAddress(query);
+                                      if (!result) {
+                                        setEditGeoStatus("error");
+                                        setEditGeoMessage("No encontramos esa direccion.");
+                                        return;
+                                      }
+                                      setEditLat(String(result.lat));
+                                      setEditLng(String(result.lng));
+                                      setEditGeoStatus("idle");
+                                      setEditGeoMessage(`Encontrado: ${result.displayName}`);
+                                    } catch (error) {
+                                      setEditGeoStatus("error");
+                                      setEditGeoMessage(
+                                        error instanceof Error
+                                          ? error.message
+                                          : "No pudimos buscar la direccion."
+                                      );
+                                    }
+                                  }}
+                                  disabled={editGeoStatus === "loading"}
+                                >
+                                  {editGeoStatus === "loading"
+                                    ? "Buscando..."
+                                    : "Buscar direccion"}
+                                </button>
+                              </div>
+                              <label className="space-y-2 text-xs text-[#9a948a]">
+                                Buscar direccion (texto libre)
+                                <input
+                                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                                  value={editAddressQuery}
+                                  onChange={(event) => setEditAddressQuery(event.target.value)}
+                                  placeholder="Ej: Rivadavia 456, Bragado"
+                                />
+                              </label>
+                              {editGeoMessage && (
+                                <div
+                                  className={`text-xs ${
+                                    editGeoStatus === "error"
+                                      ? "text-[#f5b78a]"
+                                      : "text-[#9a948a]"
+                                  }`}
+                                >
+                                  {editGeoMessage}
+                                </div>
+                              )}
+                              <EditLocationPicker
+                                lat={editLat ? Number(editLat) : undefined}
+                                lng={editLng ? Number(editLng) : undefined}
+                                onChange={(nextLat, nextLng) => {
+                                  setEditLat(String(nextLat));
+                                  setEditLng(String(nextLng));
+                                }}
+                              />
+                              {editLat && editLng && (
+                                <div className="text-[11px] text-[#9a948a]">
+                                  Coordenadas: {Number(editLat).toFixed(5)}, {Number(editLng).toFixed(5)}
+                                </div>
+                              )}
+                              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 accent-[#d1a466]"
+                                  checked={editShowMapLocation}
+                                  onChange={(event) => setEditShowMapLocation(event.target.checked)}
+                                />
+                                Mostrar ubicacion en el mapa publico
+                              </label>
+                            </div>
                           </div>
                         </div>
 

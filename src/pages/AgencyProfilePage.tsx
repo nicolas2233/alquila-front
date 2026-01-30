@@ -6,11 +6,14 @@ import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
 import { fetchJson } from "../shared/api/http";
-import { getToken } from "../shared/auth/session";
+import { getSessionUser, getToken } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
+import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
+import { useToast } from "../shared/ui/toast/ToastProvider";
 
 export function AgencyProfilePage() {
   const { slug } = useParams();
+  const { addToast } = useToast();
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
@@ -18,6 +21,7 @@ export function AgencyProfilePage() {
   const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [contactMessage, setContactMessage] = useState("");
   const [similarListings, setSimilarListings] = useState<SearchListing[]>([]);
+  const sessionUser = useMemo(() => getSessionUser(), []);
   const [agencyData, setAgencyData] = useState<{
     id: string;
     name: string;
@@ -150,6 +154,8 @@ export function AgencyProfilePage() {
 
   const openModal = (listing: SearchListing) => {
     setSelectedListing(listing);
+    setContactStatus("idle");
+    setContactMessage("");
     const cached = detailCacheRef.current.get(listing.id);
     if (cached) {
       setSelectedListing(cached);
@@ -198,18 +204,47 @@ export function AgencyProfilePage() {
     return buildWhatsappLink(method.value, message);
   }, [selectedListing]);
 
+  const isOwnListing = useMemo(() => {
+    if (!selectedListing || !sessionUser) {
+      return false;
+    }
+    if (sessionUser.role === "OWNER") {
+      return selectedListing.ownerUserId === sessionUser.id;
+    }
+    if (sessionUser.role.startsWith("AGENCY")) {
+      return selectedListing.agencyId === sessionUser.agencyId;
+    }
+    return false;
+  }, [selectedListing, sessionUser]);
+
   const handleContactRequest = async (type: "INTEREST" | "VISIT") => {
     if (!selectedListing) {
+      return;
+    }
+    if (hasSentContactRequest({ propertyId: selectedListing.id, type })) {
+      setContactStatus("success");
+      setContactMessage("Ya enviaste una solicitud para esta publicacion.");
+      addToast("Ya enviaste una solicitud para esta publicacion.", "info");
+      return;
+    }
+    if (isOwnListing) {
+      setContactStatus("error");
+      setContactMessage("No puedes enviar solicitudes a tus propias publicaciones.");
+      addToast("No puedes enviar solicitudes a tus propias publicaciones.", "warning");
+      return;
+    }
+    if (contactStatus === "loading") {
       return;
     }
     const token = getToken();
     if (!token) {
       setContactStatus("error");
       setContactMessage("Inicia sesion para enviar la solicitud.");
+      addToast("Inicia sesion para enviar la solicitud.", "warning");
       return;
     }
     setContactStatus("loading");
-    setContactMessage("");
+    setContactMessage("Enviando solicitud...");
     try {
       const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/contact-requests`, {
         method: "POST",
@@ -219,10 +254,10 @@ export function AgencyProfilePage() {
         },
         body: JSON.stringify({
           type,
-          message:
-            type === "INTEREST"
-              ? "Estoy interesado en esta propiedad."
-              : "Quiero reservar una visita.",
+          message: (() => {
+            const author = sessionUser?.name ?? sessionUser?.email ?? "Un interesado";
+            return `Hola, soy ${author}. Estoy interesado en "${selectedListing.title}".`;
+          })(),
         }),
       });
       if (!response.ok) {
@@ -230,11 +265,17 @@ export function AgencyProfilePage() {
       }
       setContactStatus("success");
       setContactMessage("Solicitud enviada. Te contactaremos pronto.");
+      addToast("Solicitud enviada correctamente.", "success");
+      markContactRequestSent({ propertyId: selectedListing.id, type });
       void loadSimilar();
     } catch (error) {
       setContactStatus("error");
       setContactMessage(
         error instanceof Error ? error.message : "No pudimos enviar la solicitud."
+      );
+      addToast(
+        error instanceof Error ? error.message : "No pudimos enviar la solicitud.",
+        "error"
       );
     }
   };
@@ -267,6 +308,10 @@ export function AgencyProfilePage() {
             ? "APARTMENT"
             : base.propertyType === "Terreno"
             ? "LAND"
+            : base.propertyType === "Campo"
+            ? "FIELD"
+            : base.propertyType === "Quinta"
+            ? "QUINTA"
             : base.propertyType === "Comercio"
             ? "COMMERCIAL"
             : base.propertyType === "Oficina"
@@ -305,13 +350,20 @@ export function AgencyProfilePage() {
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="glass-card space-y-4 p-6">
           <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/15 text-xl font-semibold text-gold-400">
-              {agency?.logo ??
+            <div
+              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gold-500/15 text-xl font-semibold text-gold-400"
+              title={agency?.name ?? "Inmobiliaria"}
+            >
+              {agency?.logo && (agency.logo.startsWith("http") || agency.logo.startsWith("data:")) ? (
+                <img src={agency.logo} alt={agency.name ?? "Logo"} className="h-16 w-16 object-cover" />
+              ) : (
+                agency?.logo ??
                 agency?.name
                   ?.split(" ")
                   .slice(0, 2)
                   .map((part) => part.charAt(0))
-                  .join("")}
+                  .join("")
+              )}
             </div>
             <div>
               <h2 className="text-3xl text-white">{agency?.name ?? "Inmobiliaria"}</h2>
@@ -637,15 +689,22 @@ export function AgencyProfilePage() {
             isLoading={detailStatus === "loading"}
             actions={
               <>
-                <button
-                  className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
-                  type="button"
-                  onClick={() => {
-                    if (whatsappLink) {
-                      window.open(whatsappLink, "_blank", "noopener,noreferrer");
-                    } else {
+              <button
+                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
+                type="button"
+                onClick={() => {
+                  if (isOwnListing) {
+                    setContactStatus("error");
+                    setContactMessage("No puedes contactar tus propias publicaciones.");
+                    addToast("No puedes contactar tus propias publicaciones.", "warning");
+                    return;
+                  }
+                  if (whatsappLink) {
+                    window.open(whatsappLink, "_blank", "noopener,noreferrer");
+                  } else {
                       setContactStatus("error");
                       setContactMessage("No hay WhatsApp disponible en esta publicacion.");
+                      addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
                     }
                   }}
                 >
@@ -653,22 +712,23 @@ export function AgencyProfilePage() {
                 </button>
                 <button
                   className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
-                  type="button"
-                  onClick={() => handleContactRequest("INTEREST")}
-                  disabled={contactStatus === "loading"}
+                type="button"
+                onClick={() => handleContactRequest("INTEREST")}
+                disabled={
+                  contactStatus !== "idle" ||
+                  isOwnListing ||
+                  (selectedListing
+                    ? hasSentContactRequest({
+                        propertyId: selectedListing.id,
+                          type: "INTEREST",
+                        })
+                      : false)
+                  }
                 >
                   Me interesa
                 </button>
-                <button
-                  className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
-                  type="button"
-                  onClick={() => handleContactRequest("VISIT")}
-                  disabled={contactStatus === "loading"}
-                >
-                  Reservar visita
-                </button>
                 {contactMessage && (
-                  <span className="text-xs text-[#9a948a]">{contactMessage}</span>
+                  <div className="w-full text-xs text-[#9a948a]">{contactMessage}</div>
                 )}
                 {similarListings.length > 0 && (
                   <div className="mt-4 w-full space-y-2 text-xs text-[#9a948a]">

@@ -5,6 +5,7 @@ export type SessionUser = {
   role: string;
   status: string;
   agencyId?: string | null;
+  avatarUrl?: string | null;
 };
 
 const TOKEN_KEY = "alquila_token";

@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapView } from "../shared/map/MapView";
+import { env } from "../shared/config/env";
 
 type OperationType = "SALE" | "RENT" | "TEMPORARY";
-type PropertyType = "HOUSE" | "APARTMENT" | "LAND" | "COMMERCIAL" | "OFFICE" | "WAREHOUSE";
+type PropertyType =
+  | "HOUSE"
+  | "APARTMENT"
+  | "LAND"
+  | "FIELD"
+  | "QUINTA"
+  | "COMMERCIAL"
+  | "OFFICE"
+  | "WAREHOUSE";
 type PoiCategory =
   | "SCHOOL"
   | "KINDER"
@@ -25,6 +34,7 @@ type MapProperty = {
   areaM2?: number;
   imageUrl?: string;
   badge?: string;
+  showMapLocation?: boolean;
   lat: number;
   lng: number;
   kind?: "PROPERTY" | "POI";
@@ -40,7 +50,9 @@ const typeLabels: Record<PropertyType, string> = {
   HOUSE: "Casa",
   APARTMENT: "Departamento",
   LAND: "Terreno",
-  COMMERCIAL: "Comercial",
+  FIELD: "Campo",
+  QUINTA: "Quinta",
+  COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
   WAREHOUSE: "Deposito",
 };
@@ -63,6 +75,8 @@ const operationColors: Record<OperationType, string> = {
 
 const propertyColors: Partial<Record<PropertyType, string>> = {
   COMMERCIAL: "#f6a44d",
+  FIELD: "#6ea06d",
+  QUINTA: "#7aa37a",
 };
 
 const getMarkerColor = (propertyType: PropertyType, operationType: OperationType) =>
@@ -78,228 +92,132 @@ const poiColors: Record<PoiCategory, string> = {
   PARK: "#7ecf7a",
 };
 
-const poiPoints: Array<Omit<MapProperty, "operationType" | "propertyType" | "priceAmount" | "priceCurrency" | "contactLabel"> & { category: PoiCategory }> = [
-  {
-    id: "poi-1",
-    title: "Escuela Primaria 7",
-    address: "Centro",
-    lat: -35.1194,
-    lng: -60.4918,
-    category: "SCHOOL",
-    kind: "POI",
-  },
-  {
-    id: "poi-2",
-    title: "Jardin Arcoiris",
-    address: "Barrio Norte",
-    lat: -35.1218,
-    lng: -60.4872,
-    category: "KINDER",
-    kind: "POI",
-  },
-  {
-    id: "poi-3",
-    title: "Bomberos Voluntarios",
-    address: "Mitre y San Martin",
-    lat: -35.1176,
-    lng: -60.4849,
-    category: "FIRE",
-    kind: "POI",
-  },
-  {
-    id: "poi-4",
-    title: "Comisaria Bragado",
-    address: "Sarmiento 520",
-    lat: -35.1159,
-    lng: -60.4968,
-    category: "POLICE",
-    kind: "POI",
-  },
-  {
-    id: "poi-5",
-    title: "Hospital Municipal",
-    address: "Av. San Martin 850",
-    lat: -35.1236,
-    lng: -60.4928,
-    category: "HEALTH",
-    kind: "POI",
-  },
-  {
-    id: "poi-6",
-    title: "Supermercado Central",
-    address: "Av. Rivadavia 420",
-    lat: -35.1168,
-    lng: -60.4882,
-    category: "SUPERMARKET",
-    kind: "POI",
-  },
-  {
-    id: "poi-7",
-    title: "Plaza San Martin",
-    address: "Centro civico",
-    lat: -35.1182,
-    lng: -60.4907,
-    category: "PARK",
-    kind: "POI",
-  },
-];
-
-const sampleProperties: MapProperty[] = [
-  {
-    id: "map-1",
-    title: "Casa con patio y galeria",
-    operationType: "SALE",
-    propertyType: "HOUSE",
-    priceAmount: 125000,
-    priceCurrency: "USD",
-    address: "Barrio Norte, Bragado",
-    contactLabel: "Dueno directo",
-    rooms: 4,
-    areaM2: 180,
-    lat: -35.1206,
-    lng: -60.4901,
-    imageUrl:
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=600&q=80",
-    badge: "Casa",
-  },
-  {
-    id: "map-2",
-    title: "Departamento luminoso",
-    operationType: "RENT",
-    propertyType: "APARTMENT",
-    priceAmount: 180000,
-    priceCurrency: "ARS",
-    address: "Centro, Bragado",
-    contactLabel: "Inmobiliaria Bragado",
-    rooms: 3,
-    areaM2: 82,
-    lat: -35.1189,
-    lng: -60.4867,
-    imageUrl:
-      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=600&q=80",
-    badge: "Depto",
-  },
-  {
-    id: "map-3",
-    title: "Casa quinta con arboleda",
-    operationType: "TEMPORARY",
-    propertyType: "HOUSE",
-    priceAmount: 95000,
-    priceCurrency: "ARS",
-    address: "Cuartel VII, Bragado",
-    contactLabel: "Dueno directo",
-    rooms: 5,
-    areaM2: 240,
-    lat: -35.1284,
-    lng: -60.5022,
-    imageUrl:
-      "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=600&q=80",
-    badge: "Temporario",
-  },
-  {
-    id: "map-4",
-    title: "Terreno con acceso rapido",
-    operationType: "SALE",
-    propertyType: "LAND",
-    priceAmount: 65000,
-    priceCurrency: "USD",
-    address: "Cuartel III, Bragado",
-    contactLabel: "Inmobiliaria Delta",
-    areaM2: 500,
-    lat: -35.1104,
-    lng: -60.4759,
-    imageUrl:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80",
-    badge: "Terreno",
-  },
-  {
-    id: "map-5",
-    title: "Local comercial con vidriera",
-    operationType: "RENT",
-    propertyType: "COMMERCIAL",
-    priceAmount: 260000,
-    priceCurrency: "ARS",
-    address: "Av. Mitre, Bragado",
-    contactLabel: "Inmobiliaria Sarmiento",
-    areaM2: 110,
-    lat: -35.1187,
-    lng: -60.4963,
-    imageUrl:
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80",
-    badge: "Local",
-  },
-  {
-    id: "map-6",
-    title: "Oficina flexible para equipos",
-    operationType: "RENT",
-    propertyType: "OFFICE",
-    priceAmount: 220000,
-    priceCurrency: "ARS",
-    address: "Zona Banco, Bragado",
-    contactLabel: "Inmobiliaria Norte",
-    areaM2: 95,
-    lat: -35.1268,
-    lng: -60.4842,
-    imageUrl:
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=600&q=80",
-    badge: "Oficina",
-  },
-  {
-    id: "map-7",
-    title: "Deposito con ingreso camion",
-    operationType: "SALE",
-    propertyType: "WAREHOUSE",
-    priceAmount: 210000,
-    priceCurrency: "USD",
-    address: "Cuartel VI, Bragado",
-    contactLabel: "Inmobiliaria Delta",
-    areaM2: 640,
-    lat: -35.1329,
-    lng: -60.4938,
-    imageUrl:
-      "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=600&q=80",
-    badge: "Deposito",
-  },
-];
+const poiPoints: Array<
+  Omit<
+    MapProperty,
+    "operationType" | "propertyType" | "priceAmount" | "priceCurrency" | "contactLabel"
+  > & { category: PoiCategory }
+> = [];
 
 const operationFilters: OperationType[] = ["SALE", "RENT", "TEMPORARY"];
 const typeFilters: PropertyType[] = [
   "HOUSE",
   "APARTMENT",
   "LAND",
+  "FIELD",
+  "QUINTA",
   "COMMERCIAL",
   "OFFICE",
   "WAREHOUSE",
 ];
 
 export function MapSearchPage() {
+  const [properties, setProperties] = useState<MapProperty[]>([]);
+  const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [listError, setListError] = useState("");
   const [activeOperations, setActiveOperations] = useState<OperationType[]>([]);
   const [activeTypes, setActiveTypes] = useState<PropertyType[]>([]);
-  const [activePoi, setActivePoi] = useState<PoiCategory[]>([
-    "SCHOOL",
-    "KINDER",
-    "FIRE",
-    "POLICE",
-    "HEALTH",
-    "SUPERMARKET",
-    "PARK",
-  ]);
+  const [activePoi, setActivePoi] = useState<PoiCategory[]>([]);
   const [legendOpen, setLegendOpen] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    sampleProperties[0]?.id ?? null
-  );
+  const [operationOpen, setOperationOpen] = useState(true);
+  const [typeOpen, setTypeOpen] = useState(true);
+  const [poiOpen, setPoiOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+    const load = async () => {
+      setListStatus("loading");
+      setListError("");
+      try {
+        const params = new URLSearchParams({
+          status: "ACTIVE",
+          page: "1",
+          pageSize: "100",
+        });
+        const response = await fetch(`${env.apiUrl}/properties?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("No pudimos cargar los inmuebles.");
+        }
+        const data = (await response.json()) as {
+          items: Array<{
+            id: string;
+            title: string;
+            operationType: OperationType;
+            propertyType: PropertyType;
+            priceAmount: number;
+            priceCurrency: "ARS" | "USD";
+            rooms?: number | null;
+            areaM2?: number | null;
+            features?: { showMapLocation?: boolean } | null;
+            agency?: { name: string } | null;
+            location?: { addressLine?: string | null; lat?: number | null; lng?: number | null } | null;
+            photos?: { url: string }[];
+          }>;
+        };
+        if (ignore) return;
+        const mapped = (data.items ?? [])
+          .map((item) => {
+            const rawLat = item.location?.lat ?? null;
+            const rawLng = item.location?.lng ?? null;
+            const lat = rawLat === null ? NaN : Number(rawLat);
+            const lng = rawLng === null ? NaN : Number(rawLng);
+            return {
+              id: item.id,
+              title: item.title,
+              operationType: item.operationType,
+              propertyType: item.propertyType,
+              priceAmount: Number(item.priceAmount),
+              priceCurrency: item.priceCurrency,
+              address: item.location?.addressLine ?? "Bragado",
+            contactLabel: item.agency?.name ?? "Dueno directo",
+            rooms: item.rooms ?? undefined,
+            areaM2: item.areaM2 ?? undefined,
+            imageUrl: item.photos?.[0]?.url,
+            badge: typeLabels[item.propertyType],
+            showMapLocation: item.features?.showMapLocation ?? true,
+            lat,
+            lng,
+          };
+        })
+          .filter(
+            (item) =>
+              Number.isFinite(item.lat) &&
+              Number.isFinite(item.lng) &&
+              item.showMapLocation !== false
+          );
+        setProperties(mapped);
+        setListStatus("idle");
+      } catch (error) {
+        if (ignore || controller.signal.aborted) return;
+        setListStatus("error");
+        setListError(
+          error instanceof Error ? error.message : "No pudimos cargar los inmuebles."
+        );
+        setProperties([]);
+      }
+    };
+    void load();
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, []);
 
   const counts = useMemo(() => {
-    const total = sampleProperties.length;
+    const total = properties.length;
     const byOperation = operationFilters.reduce((acc, op) => {
-      acc[op] = sampleProperties.filter((item) => item.operationType === op).length;
+      acc[op] = properties.filter((item) => item.operationType === op).length;
       return acc;
     }, {} as Record<OperationType, number>);
     return { total, byOperation };
-  }, []);
+  }, [properties]);
 
   const filtered = useMemo(() => {
-    let list = [...sampleProperties];
+    let list = [...properties];
     if (activeOperations.length) {
       list = list.filter((item) => activeOperations.includes(item.operationType));
     }
@@ -316,10 +234,9 @@ export function MapSearchPage() {
     return poiPoints.filter((poi) => activePoi.includes(poi.category));
   }, [activePoi]);
 
-  const propertyIdSet = useMemo(
-    () => new Set(sampleProperties.map((item) => item.id)),
-    []
-  );
+  const propertyIdSet = useMemo(() => new Set(properties.map((item) => item.id)), [
+    properties,
+  ]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -384,15 +301,43 @@ export function MapSearchPage() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
-        <section className="glass-card space-y-6 p-6">
+        <section className="glass-card space-y-6 p-6 lg:sticky lg:top-24 lg:h-fit">
           <div>
             <h3 className="text-lg text-white">Filtros</h3>
             <p className="text-xs text-[#9a948a]">Activa o desactiva para mostrar puntos.</p>
           </div>
 
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Operacion</p>
-            <div className="grid gap-2">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+              onClick={() => setOperationOpen((prev) => !prev)}
+            >
+              Operacion
+              <span
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+                  operationOpen ? "rotate-180" : "rotate-0"
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3 w-3"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+            <div
+              className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+                operationOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               {operationFilters.map((value) => (
                 <label
                   key={value}
@@ -411,8 +356,36 @@ export function MapSearchPage() {
           </div>
 
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Tipo</p>
-            <div className="grid gap-2">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+              onClick={() => setTypeOpen((prev) => !prev)}
+            >
+              Tipo
+              <span
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+                  typeOpen ? "rotate-180" : "rotate-0"
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3 w-3"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+            <div
+              className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+                typeOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               {typeFilters.map((value) => (
                 <label
                   key={value}
@@ -431,8 +404,36 @@ export function MapSearchPage() {
           </div>
 
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Servicios cerca</p>
-            <div className="grid gap-2">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+              onClick={() => setPoiOpen((prev) => !prev)}
+            >
+              Servicios cerca
+              <span
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+                  poiOpen ? "rotate-180" : "rotate-0"
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3 w-3"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+            <div
+              className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+                poiOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
               {Object.keys(poiLabels).map((value) => {
                 const key = value as PoiCategory;
                 return (
@@ -468,35 +469,51 @@ export function MapSearchPage() {
               <span>Bragado</span>
               <span>{filtered.length} puntos visibles</span>
             </div>
-            <MapView
-              points={[
-                ...filtered.map((item) => ({
-                  id: item.id,
-                  title: item.title,
-                  subtitle: `${operationLabels[item.operationType]} · ${typeLabels[item.propertyType]}`,
-                  imageUrl: item.imageUrl,
-                  badge: item.badge,
-                  color: getMarkerColor(item.propertyType, item.operationType),
-                  lat: item.lat,
-                  lng: item.lng,
-                })),
-                ...filteredPoi.map((poi) => ({
-                  id: poi.id,
-                  title: poi.title,
-                  subtitle: poiLabels[poi.category],
-                  badge: poiLabels[poi.category],
-                  color: poiColors[poi.category],
-                  lat: poi.lat,
-                  lng: poi.lng,
-                })),
-              ]}
-              selectedId={selectedId}
-              onSelect={(id) => {
-                if (propertyIdSet.has(id)) {
-                  setSelectedId(id);
-                }
-              }}
-            />
+            <div className="rounded-3xl border border-white/10 bg-night-900/60 p-3">
+              <div className="flex items-center justify-between gap-3 text-xs text-[#9a948a]">
+                <span>Mapa principal</span>
+                <span>{listStatus === "loading" ? "Cargando..." : "Actualizado"}</span>
+              </div>
+              <div className="mt-3 h-[62vh] max-h-[540px] min-h-[360px] overflow-hidden rounded-2xl border border-white/10">
+                <MapView
+                  points={[
+                    ...filtered.map((item) => ({
+                      id: item.id,
+                      title: item.title,
+                      subtitle: `${operationLabels[item.operationType]} ?? ${typeLabels[item.propertyType]}`,
+                      imageUrl: item.imageUrl,
+                      badge: item.badge,
+                      color: getMarkerColor(item.propertyType, item.operationType),
+                      lat: item.lat,
+                      lng: item.lng,
+                    })),
+                    ...filteredPoi.map((poi) => ({
+                      id: poi.id,
+                      title: poi.title,
+                      subtitle: poiLabels[poi.category],
+                      badge: poiLabels[poi.category],
+                      color: poiColors[poi.category],
+                      lat: poi.lat,
+                      lng: poi.lng,
+                    })),
+                  ]}
+                  selectedId={selectedId}
+                  onSelect={(id) => {
+                    if (propertyIdSet.has(id)) {
+                      setSelectedId(id);
+                    }
+                  }}
+                />
+              </div>
+              {listStatus === "error" && (
+                <div className="mt-3 text-xs text-[#f5b78a]">{listError}</div>
+              )}
+              {listStatus === "idle" && properties.length === 0 && (
+                <div className="mt-3 text-xs text-[#9a948a]">
+                  No hay inmuebles con geolocalizacion cargada.
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="glass-card space-y-3 p-4">
@@ -607,6 +624,14 @@ export function MapSearchPage() {
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-night-900/60 px-4 py-3 text-xs text-[#c7c2b8]">
                     Contacto: {selected.contactLabel}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                      href={`/publicacion/${selected.id}`}
+                    >
+                      Ver publicacion
+                    </a>
                   </div>
                 </div>
               ) : (

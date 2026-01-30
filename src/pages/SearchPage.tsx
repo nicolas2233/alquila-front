@@ -7,12 +7,15 @@ import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
 import { fetchJson } from "../shared/api/http";
-import { getToken } from "../shared/auth/session";
+import { getSessionUser, getToken } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
+import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
+import { useToast } from "../shared/ui/toast/ToastProvider";
 
 export function SearchPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [listings, setListings] = useState<SearchListing[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
@@ -23,9 +26,9 @@ export function SearchPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [operationType, setOperationType] = useState<"" | "SALE" | "RENT" | "TEMPORARY">("");
   const [propertyType, setPropertyType] = useState<
-    "" | "HOUSE" | "APARTMENT" | "LAND" | "COMMERCIAL" | "OFFICE" | "WAREHOUSE"
+    "" | "HOUSE" | "APARTMENT" | "LAND" | "FIELD" | "QUINTA" | "COMMERCIAL" | "OFFICE" | "WAREHOUSE"
   >("");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle">("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
@@ -35,6 +38,7 @@ export function SearchPage() {
   const [similarListings, setSimilarListings] = useState<SearchListing[]>([]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
+  const sessionUser = useMemo(() => getSessionUser(), []);
 
   const listUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -55,15 +59,10 @@ export function SearchPage() {
     const params = new URLSearchParams(location.search);
     const nextOperation = (params.get("operationType") ?? "") as typeof operationType;
     const nextProperty = (params.get("propertyType") ?? "") as typeof propertyType;
-    if (nextOperation !== operationType) {
-      setOperationType(nextOperation);
-      setPage(1);
-    }
-    if (nextProperty !== propertyType) {
-      setPropertyType(nextProperty);
-      setPage(1);
-    }
-  }, [location.search, operationType, propertyType]);
+    setOperationType(nextOperation);
+    setPropertyType(nextProperty);
+    setPage(1);
+  }, [location.search]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -174,6 +173,8 @@ export function SearchPage() {
 
   const openModal = async (listing: SearchListing) => {
     setSelectedListing(listing);
+    setContactStatus("idle");
+    setContactMessage("");
     const cached = detailCacheRef.current.get(listing.id);
     if (cached) {
       setSelectedListing(cached);
@@ -220,18 +221,47 @@ export function SearchPage() {
     return buildWhatsappLink(method.value, message);
   }, [selectedListing]);
 
+  const isOwnListing = useMemo(() => {
+    if (!selectedListing || !sessionUser) {
+      return false;
+    }
+    if (sessionUser.role === "OWNER") {
+      return selectedListing.ownerUserId === sessionUser.id;
+    }
+    if (sessionUser.role.startsWith("AGENCY")) {
+      return selectedListing.agencyId === sessionUser.agencyId;
+    }
+    return false;
+  }, [selectedListing, sessionUser]);
+
   const handleContactRequest = async (type: "INTEREST" | "VISIT") => {
     if (!selectedListing) {
+      return;
+    }
+    if (hasSentContactRequest({ propertyId: selectedListing.id, type })) {
+      setContactStatus("success");
+      setContactMessage("Ya enviaste una solicitud para esta publicacion.");
+      addToast("Ya enviaste una solicitud para esta publicacion.", "info");
+      return;
+    }
+    if (isOwnListing) {
+      setContactStatus("error");
+      setContactMessage("No puedes enviar solicitudes a tus propias publicaciones.");
+      addToast("No puedes enviar solicitudes a tus propias publicaciones.", "warning");
+      return;
+    }
+    if (contactStatus === "loading") {
       return;
     }
     const token = getToken();
     if (!token) {
       setContactStatus("error");
       setContactMessage("Inicia sesion para enviar la solicitud.");
+      addToast("Inicia sesion para enviar la solicitud.", "warning");
       return;
     }
     setContactStatus("loading");
-    setContactMessage("");
+    setContactMessage("Enviando solicitud...");
     try {
       const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/contact-requests`, {
         method: "POST",
@@ -241,10 +271,10 @@ export function SearchPage() {
         },
         body: JSON.stringify({
           type,
-          message:
-            type === "INTEREST"
-              ? "Estoy interesado en esta propiedad."
-              : "Quiero reservar una visita.",
+          message: (() => {
+            const author = sessionUser?.name ?? sessionUser?.email ?? "Un interesado";
+            return `Hola, soy ${author}. Estoy interesado en "${selectedListing.title}".`;
+          })(),
         }),
       });
       if (!response.ok) {
@@ -252,11 +282,17 @@ export function SearchPage() {
       }
       setContactStatus("success");
       setContactMessage("Solicitud enviada. Te contactaremos pronto.");
+      addToast("Solicitud enviada correctamente.", "success");
+      markContactRequestSent({ propertyId: selectedListing.id, type });
       void loadSimilar();
     } catch (error) {
       setContactStatus("error");
       setContactMessage(
         error instanceof Error ? error.message : "No pudimos enviar la solicitud."
+      );
+      addToast(
+        error instanceof Error ? error.message : "No pudimos enviar la solicitud.",
+        "error"
       );
     }
   };
@@ -280,63 +316,8 @@ export function SearchPage() {
   };
 
   const handleSaveSearch = async () => {
-    const token = getToken();
-    if (!token) {
-      setSaveStatus("error");
-      setSaveMessage("Inicia sesion para guardar busquedas.");
-      return;
-    }
-    setSaveStatus("loading");
+    setSaveStatus("idle");
     setSaveMessage("");
-    try {
-      const operationLabel =
-        operationType === "SALE"
-          ? "Venta"
-          : operationType === "RENT"
-          ? "Alquiler"
-          : operationType === "TEMPORARY"
-          ? "Temporario"
-          : "Todas";
-      const propertyLabel =
-        propertyType === "HOUSE"
-          ? "Casa"
-          : propertyType === "APARTMENT"
-          ? "Departamento"
-          : propertyType === "LAND"
-          ? "Terreno"
-          : propertyType === "COMMERCIAL"
-          ? "Comercio"
-          : propertyType === "WAREHOUSE"
-          ? "Deposito"
-          : propertyType === "OFFICE"
-          ? "Oficina"
-          : "Todos";
-      const response = await fetch(`${env.apiUrl}/saved-searches`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: `${operationLabel} · ${propertyLabel}`,
-          query: {
-            operationType: operationType || null,
-            propertyType: propertyType || null,
-          },
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("No pudimos guardar la busqueda.");
-      }
-      setSaveStatus("success");
-      setSaveMessage("Busqueda guardada.");
-      void loadSimilar();
-    } catch (error) {
-      setSaveStatus("error");
-      setSaveMessage(
-        error instanceof Error ? error.message : "No pudimos guardar la busqueda."
-      );
-    }
   };
 
   return (
@@ -381,46 +362,17 @@ export function SearchPage() {
               <option value="HOUSE">Casa</option>
               <option value="APARTMENT">Departamento</option>
               <option value="LAND">Terreno</option>
+              <option value="FIELD">Campo</option>
+              <option value="QUINTA">Quinta</option>
               <option value="COMMERCIAL">Comercio</option>
               <option value="WAREHOUSE">Deposito</option>
               <option value="OFFICE">Oficina</option>
             </select>
           </label>
-          <div className="flex flex-col justify-end gap-2 text-xs text-[#9a948a]">
-            <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-              type="button"
-              onClick={handleSaveSearch}
-              disabled={saveStatus === "loading"}
-            >
-              {saveStatus === "loading" ? "Guardando..." : "Guardar busqueda"}
-            </button>
-            {saveMessage && <span className="text-xs text-[#9a948a]">{saveMessage}</span>}
-          </div>
+          <div className="flex flex-col justify-end gap-2 text-xs text-[#9a948a]" />
         </div>
       </div>
 
-      {saveStatus === "success" && similarListings.length > 0 && (
-        <section className="glass-card space-y-3 p-5">
-          <div>
-            <h3 className="text-lg text-white">Sugeridos para tu busqueda</h3>
-            <p className="text-xs text-[#9a948a]">Resultados similares segun tus filtros.</p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {similarListings.slice(0, 3).map((item) => (
-              <button
-                key={item.id}
-                className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-left"
-                type="button"
-                onClick={() => openModal(item)}
-              >
-                <div className="text-sm text-white">{item.title}</div>
-                <div className="text-xs text-[#9a948a]">{item.address}</div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -432,14 +384,14 @@ export function SearchPage() {
             <span className="scroll-fade scroll-fade-right" aria-hidden="true" />
             <div className="elegant-scroll flex gap-4 overflow-x-auto pb-2">
               {agencies.map((agency) => {
-                const initials =
-                  agency.logo ??
-                  agency.name
-                    .split(" ")
-                    .slice(0, 2)
-                    .map((part) => part.charAt(0))
-                    .join("")
-                    .toUpperCase();
+                const isLogoImage =
+                  agency.logo?.startsWith("http") || agency.logo?.startsWith("data:");
+                const initials = agency.name
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((part) => part.charAt(0))
+                  .join("")
+                  .toUpperCase();
                 return (
                   <a
                     key={agency.id}
@@ -447,8 +399,19 @@ export function SearchPage() {
                     className="min-w-[220px] rounded-2xl border border-white/10 bg-night-900/60 p-4 transition hover:border-gold-500/40"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-500/15 text-sm font-semibold text-gold-400">
-                        {initials}
+                      <div
+                        className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gold-500/15 text-sm font-semibold text-gold-400"
+                        title={agency.name}
+                      >
+                        {isLogoImage ? (
+                          <img
+                            src={agency.logo ?? ""}
+                            alt={agency.name}
+                            className="h-12 w-12 object-cover"
+                          />
+                        ) : (
+                          agency.logo || initials
+                        )}
                       </div>
                       <div>
                         <h4 className="text-sm text-white">{agency.name}</h4>
@@ -864,39 +827,52 @@ export function SearchPage() {
           isLoading={detailStatus === "loading"}
           actions={
             <>
-              <button
-                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
-                type="button"
-                onClick={() => {
-                  if (whatsappLink) {
-                    window.open(whatsappLink, "_blank", "noopener,noreferrer");
-                  } else {
-                    setContactStatus("error");
-                    setContactMessage("No hay WhatsApp disponible en esta publicacion.");
-                  }
-                }}
-              >
+                <button
+                  className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
+                  type="button"
+                  onClick={() => {
+                    if (isOwnListing) {
+                      setContactStatus("error");
+                      setContactMessage(
+                        "No puedes contactar tus propias publicaciones."
+                      );
+                      addToast(
+                        "No puedes contactar tus propias publicaciones.",
+                        "warning"
+                      );
+                      return;
+                    }
+                    if (whatsappLink) {
+                      window.open(whatsappLink, "_blank", "noopener,noreferrer");
+                    } else {
+                      setContactStatus("error");
+                      setContactMessage("No hay WhatsApp disponible en esta publicacion.");
+                      addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
+                    }
+                  }}
+                >
                 WhatsApp
               </button>
-              <button
-                className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
-                type="button"
-                onClick={() => handleContactRequest("INTEREST")}
-                disabled={contactStatus === "loading"}
-              >
-                Me interesa
-              </button>
-              <button
-                className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
-                type="button"
-                onClick={() => handleContactRequest("VISIT")}
-                disabled={contactStatus === "loading"}
-              >
-                Reservar visita
-              </button>
-              {contactMessage && (
-                <span className="text-xs text-[#9a948a]">{contactMessage}</span>
-              )}
+                <button
+                  className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
+                  type="button"
+                  onClick={() => handleContactRequest("INTEREST")}
+                  disabled={
+                    contactStatus !== "idle" ||
+                    isOwnListing ||
+                    (selectedListing
+                      ? hasSentContactRequest({
+                          propertyId: selectedListing.id,
+                          type: "INTEREST",
+                        })
+                      : false)
+                  }
+                >
+                  Me interesa
+                </button>
+                {contactMessage && (
+                  <div className="w-full text-xs text-[#9a948a]">{contactMessage}</div>
+                )}
               {similarListings.length > 0 && (
                 <div className="mt-4 w-full space-y-2 text-xs text-[#9a948a]">
                   <div className="text-sm text-white">Publicaciones similares</div>

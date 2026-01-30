@@ -32,6 +32,8 @@ const propertyLabels: Record<string, string> = {
   HOUSE: "Casa",
   APARTMENT: "Departamento",
   LAND: "Terreno",
+  FIELD: "Campo",
+  QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
   WAREHOUSE: "Deposito",

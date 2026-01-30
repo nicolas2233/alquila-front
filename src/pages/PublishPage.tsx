@@ -1,8 +1,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
+import { geocodeAddress } from "../shared/map/geocode";
 import { env } from "../shared/config/env";
 import { getSessionUser } from "../shared/auth/session";
+import { useToast } from "../shared/ui/toast/ToastProvider";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import "leaflet/dist/leaflet.css";
@@ -80,6 +82,7 @@ function LocationPicker({
   );
 }
 export function PublishPage() {
+  const { addToast } = useToast();
   const sessionUser = getSessionUser();
   const isOwner = sessionUser?.role === "OWNER";
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
@@ -114,6 +117,10 @@ export function PublishPage() {
   const [postalCode, setPostalCode] = useState("");
   const [lat, setLat] = useState<number | undefined>(undefined);
   const [lng, setLng] = useState<number | undefined>(undefined);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [showMapLocation, setShowMapLocation] = useState(true);
+  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [geoMessage, setGeoMessage] = useState("");
   const [cadastralType, setCadastralType] = useState("PARTIDA");
   const [cadastralValue, setCadastralValue] = useState("");
   const [contactWhatsapp, setContactWhatsapp] = useState("");
@@ -136,6 +143,13 @@ export function PublishPage() {
   const [financingAvailable, setFinancingAvailable] = useState(false);
   const [financingAmount, setFinancingAmount] = useState("");
   const [financingCurrency, setFinancingCurrency] = useState("ARS");
+  const [rentGuarantees, setRentGuarantees] = useState("");
+  const [rentEntryMonths, setRentEntryMonths] = useState("");
+  const [rentContractDuration, setRentContractDuration] = useState("");
+  const [rentIndexFrequency, setRentIndexFrequency] = useState("");
+  const [rentIndexType, setRentIndexType] = useState("");
+  const [rentIndexValue, setRentIndexValue] = useState("");
+  const [rentInfoPublic, setRentInfoPublic] = useState(true);
 
   const [hasGarage, setHasGarage] = useState(false);
   const [petsAllowed, setPetsAllowed] = useState(false);
@@ -160,6 +174,8 @@ export function PublishPage() {
   const [amenityJacuzzi, setAmenityJacuzzi] = useState(false);
   const [amenitySolarium, setAmenitySolarium] = useState(false);
   const [amenityElevator, setAmenityElevator] = useState(false);
+  const [amenitySecurity, setAmenitySecurity] = useState(false);
+  const [amenityCameras, setAmenityCameras] = useState(false);
 
   const [businessFood, setBusinessFood] = useState(false);
   const [businessEvents, setBusinessEvents] = useState(false);
@@ -167,6 +183,8 @@ export function PublishPage() {
   const [businessFactory, setBusinessFactory] = useState(false);
   const [businessOffices, setBusinessOffices] = useState(false);
   const [businessClinics, setBusinessClinics] = useState(false);
+
+  const [gatedCommunity, setGatedCommunity] = useState<"" | "CLOSED" | "SEMI_CLOSED">("");
 
   const [officeMeetingRoom, setOfficeMeetingRoom] = useState(false);
   const [officeReception, setOfficeReception] = useState(false);
@@ -197,6 +215,10 @@ export function PublishPage() {
         return "Departamento";
       case "LAND":
         return "Terreno";
+      case "FIELD":
+        return "Campo";
+      case "QUINTA":
+        return "Quinta";
       case "COMMERCIAL":
         return "Negocio";
       case "OFFICE":
@@ -230,6 +252,8 @@ export function PublishPage() {
     if (amenityJacuzzi) values.push("JACUZZI");
     if (amenitySolarium) values.push("SOLARIUM");
     if (amenityElevator) values.push("ELEVATOR");
+    if (amenitySecurity) values.push("PRIVATE_SECURITY");
+    if (amenityCameras) values.push("SECURITY_CAMERAS");
     return values;
   }, [
     amenityAir,
@@ -240,6 +264,8 @@ export function PublishPage() {
     amenityJacuzzi,
     amenitySolarium,
     amenityElevator,
+    amenitySecurity,
+    amenityCameras,
   ]);
 
   const previewListing = useMemo<PropertyDetailListing>(
@@ -275,6 +301,20 @@ export function PublishPage() {
             ? `${financingAmount} ${financingCurrency}`
             : undefined,
       },
+      rentalRequirements:
+        operationType === "RENT" && rentInfoPublic
+          ? {
+              guarantees: rentGuarantees || undefined,
+              entryMonths: rentEntryMonths ? Number(rentEntryMonths) : undefined,
+              contractDurationMonths: rentContractDuration
+                ? Number(rentContractDuration)
+                : undefined,
+              indexFrequency: rentIndexFrequency || undefined,
+              indexType: rentIndexType || undefined,
+              indexValue: rentIndexValue ? Number(rentIndexValue) : undefined,
+              isPublic: rentInfoPublic,
+            }
+          : undefined,
     }),
     [
       title,
@@ -303,27 +343,101 @@ export function PublishPage() {
       financingAvailable,
       financingAmount,
       financingCurrency,
+      rentGuarantees,
+      rentEntryMonths,
+      rentContractDuration,
+      rentIndexFrequency,
+      rentIndexType,
+      rentIndexValue,
+      rentInfoPublic,
     ]
   );
-
-  const canNext = useMemo(() => {
-    if (step === 0) {
-      return title.trim() && description.trim() && priceAmount.trim();
-    }
-    if (step === 1) {
-      return addressLine.trim() && localityId.trim();
-    }
-    return true;
-  }, [step, title, description, priceAmount, addressLine, localityId]);
 
   const inputBaseClass =
     "w-full rounded-xl border bg-night-900/60 px-3 py-2 text-sm text-white";
   const inputClass = (invalid: boolean) =>
     `${inputBaseClass} ${invalid ? "border-red-400/70 focus:border-red-400" : "border-white/10"}`;
-  const requiredError = (value: string) => showErrors && !value.trim();
+  const isEmpty = (value: string) => !value.trim();
+  const minLength = (value: string, min: number) => value.trim().length < min;
+  const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
+  const digitsOnly = (value: string) => value.replace(/\D/g, "");
+  const titleValid = !minLength(title, 3);
+  const descriptionValid = !isEmpty(description);
+  const priceValid = !isEmpty(priceAmount) && Number(priceAmount) > 0;
+  const addressValid = !minLength(addressLine, 3);
+  const localityValid = !isEmpty(localityId);
+  const areaValid = isPositiveNumber(areaM2);
+
+  const titleError = showErrors && !titleValid;
+  const descriptionError = showErrors && !descriptionValid;
+  const priceError = showErrors && !priceValid;
+  const addressError = showErrors && !addressValid;
+  const localityError = showErrors && !localityValid;
+  const areaError = showErrors && !areaValid;
+
+  const roomsValid = !rooms || Number(rooms) >= 0;
+  const bathroomsValid = !bathrooms || Number(bathrooms) >= 0;
+  const bedroomsValid = !bedrooms || Number(bedrooms) >= 0;
+
+  const roomsError = showErrors && !roomsValid;
+  const bathroomsError = showErrors && !bathroomsValid;
+  const bedroomsError = showErrors && !bedroomsValid;
+
+  const whatsappDigits = digitsOnly(contactWhatsapp);
+  const phoneDigits = digitsOnly(contactPhone);
+  const contactRequired = !whatsappDigits && !phoneDigits;
+  const whatsappValid = !contactWhatsapp || whatsappDigits.length >= 6;
+  const phoneValid = !contactPhone || phoneDigits.length >= 6;
+
+  const contactRequiredError = showErrors && contactRequired;
+  const whatsappError = showErrors && !whatsappValid;
+  const phoneError = showErrors && !phoneValid;
+
+  const canNext = useMemo(() => {
+    if (step === 0) {
+      return titleValid && descriptionValid && priceValid;
+    }
+    if (step === 1) {
+      return addressValid && localityValid;
+    }
+    if (step === 2) {
+      return areaValid && roomsValid && bathroomsValid && bedroomsValid;
+    }
+    return true;
+  }, [
+    step,
+    titleValid,
+    descriptionValid,
+    priceValid,
+    addressValid,
+    localityValid,
+    areaValid,
+    roomsValid,
+    bathroomsValid,
+    bedroomsValid,
+  ]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const canSubmit =
+      titleValid &&
+      descriptionValid &&
+      priceValid &&
+      addressValid &&
+      localityValid &&
+      areaValid &&
+      roomsValid &&
+      bathroomsValid &&
+      bedroomsValid &&
+      !contactRequired &&
+      whatsappValid &&
+      phoneValid;
+
+    if (!canSubmit) {
+      setShowErrors(true);
+      addToast("Revisa los campos obligatorios antes de publicar.", "error");
+      return;
+    }
     setStatus("loading");
     setErrorMessage("");
 
@@ -349,6 +463,8 @@ export function PublishPage() {
       if (amenityJacuzzi) amenities.push("JACUZZI");
       if (amenitySolarium) amenities.push("SOLARIUM");
       if (amenityElevator) amenities.push("ELEVATOR");
+      if (amenitySecurity) amenities.push("PRIVATE_SECURITY");
+      if (amenityCameras) amenities.push("SECURITY_CAMERAS");
 
       const businessUses: string[] = [];
       if (businessFood) businessUses.push("FOOD");
@@ -375,8 +491,8 @@ export function PublishPage() {
         operationType,
         priceAmount: Number(priceAmount),
         priceCurrency,
-        rooms: rooms ? Number(rooms) : undefined,
-        bathrooms: bathrooms ? Number(bathrooms) : undefined,
+        rooms: isPositiveNumber(rooms) ? Number(rooms) : undefined,
+        bathrooms: isPositiveNumber(bathrooms) ? Number(bathrooms) : undefined,
         areaM2: areaM2 ? Number(areaM2) : undefined,
         expensesAmount: expensesAmount ? Number(expensesAmount) : undefined,
         expensesCurrency: expensesAmount ? expensesCurrency : undefined,
@@ -396,7 +512,7 @@ export function PublishPage() {
             ageYears: ageYears ? Number(ageYears) : undefined,
             coveredAreaM2: coveredAreaM2 ? Number(coveredAreaM2) : undefined,
             semiCoveredAreaM2: semiCoveredAreaM2 ? Number(semiCoveredAreaM2) : undefined,
-            bedrooms: bedrooms ? Number(bedrooms) : undefined,
+            bedrooms: isPositiveNumber(bedrooms) ? Number(bedrooms) : undefined,
             floorsCount: floorsCount ? Number(floorsCount) : undefined,
             party: party || undefined,
             neighborhood: neighborhood || undefined,
@@ -412,10 +528,26 @@ export function PublishPage() {
             floor: floor ? Number(floor) : undefined,
             unit: unit || undefined,
             facing: facing || undefined,
+            gatedCommunity: gatedCommunity || undefined,
+            rentalRequirements:
+              operationType === "RENT"
+                ? {
+                    guarantees: rentGuarantees || undefined,
+                    entryMonths: rentEntryMonths ? Number(rentEntryMonths) : undefined,
+                    contractDurationMonths: rentContractDuration
+                      ? Number(rentContractDuration)
+                      : undefined,
+                    indexFrequency: rentIndexFrequency || undefined,
+                    indexType: rentIndexType || undefined,
+                    indexValue: rentIndexValue ? Number(rentIndexValue) : undefined,
+                    isPublic: rentInfoPublic,
+                  }
+                : undefined,
             amenities: amenities.length ? amenities : undefined,
             businessUses: businessUses.length ? businessUses : undefined,
             officeFeatures: officeFeatures.length ? officeFeatures : undefined,
             warehouseFeatures: warehouseFeatures.length ? warehouseFeatures : undefined,
+            showMapLocation,
           },
         services: {
           electricity: serviceElectricity,
@@ -447,7 +579,64 @@ export function PublishPage() {
       });
 
       if (!response.ok) {
-        throw new Error("No pudimos crear la publicacion.");
+        const fallback = "No pudimos crear la publicacion.";
+        let message = fallback;
+        try {
+          const data = (await response.json()) as {
+            message?: string;
+            issues?: { path?: string; message?: string }[];
+          };
+          if (Array.isArray(data.issues) && data.issues.length > 0) {
+            const fieldLabels: Record<string, string> = {
+              title: "Titulo",
+              description: "Descripcion",
+              propertyType: "Tipo de inmueble",
+              operationType: "Operacion",
+              priceAmount: "Precio",
+              priceCurrency: "Moneda",
+              expensesAmount: "Expensas",
+              expensesCurrency: "Moneda de expensas",
+              rooms: "Ambientes",
+              bathrooms: "Banos",
+              bedrooms: "Dormitorios",
+              areaM2: "Superficie total",
+              availabilityMode: "Disponibilidad",
+              availableFrom: "Disponible desde",
+              availableTo: "Disponible hasta",
+              "location.addressLine": "Direccion",
+              "location.localityId": "Localidad",
+              "location.lat": "Latitud",
+              "location.lng": "Longitud",
+              "features.financingAmount": "Monto financiable",
+              "features.financingCurrency": "Moneda de financiacion",
+              "features.ageYears": "Antiguedad",
+              "features.coveredAreaM2": "Superficie cubierta",
+              "features.semiCoveredAreaM2": "Superficie semicubierta",
+              "features.floorsCount": "Pisos",
+              "features.floor": "Piso",
+              "features.unit": "Departamento",
+              "features.party": "Partido",
+              "features.neighborhood": "Barrio",
+              "features.postalCode": "Codigo postal",
+              "features.lotOrParcel": "Lote/Partida",
+              "features.frontageM": "Frente",
+              "features.depthM": "Fondo",
+            };
+            const details = data.issues
+              .map((issue) => {
+                const field = issue.path ? issue.path.replace(/\./g, " ") : "campo";
+                const label = issue.path ? fieldLabels[issue.path] ?? field : field;
+                return `${label}: ${issue.message ?? "invalido"}`;
+              })
+              .join(" · ");
+            message = `${data.message ?? "Validacion fallida"} (${details})`;
+          } else if (data.message) {
+            message = data.message;
+          }
+        } catch {
+          // ignore json parse errors
+        }
+        throw new Error(message);
       }
 
       const created = (await response.json()) as { id: string };
@@ -472,10 +661,15 @@ export function PublishPage() {
       }
 
       setStatus("success");
+      addToast("Publicacion creada con exito.", "success");
     } catch (error) {
       setStatus("error");
       setErrorMessage(
         error instanceof Error ? error.message : "Error al publicar."
+      );
+      addToast(
+        error instanceof Error ? error.message : "Error al publicar.",
+        "error"
       );
     }
   };
@@ -518,10 +712,15 @@ export function PublishPage() {
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Titulo
                   <input
-                    className={inputClass(requiredError(title))}
+                    className={inputClass(titleError)}
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                   />
+                  {titleError && (
+                    <span className="text-[11px] text-red-300">
+                      Obligatorio. Minimo 3 caracteres.
+                    </span>
+                  )}
                 </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
                 Operacion
@@ -545,6 +744,8 @@ export function PublishPage() {
                   <option value="HOUSE">Casa</option>
                   <option value="APARTMENT">Departamento</option>
                   <option value="LAND">Terreno</option>
+                  <option value="FIELD">Campo</option>
+                  <option value="QUINTA">Quinta</option>
                   <option value="COMMERCIAL">Comercial</option>
                   <option value="OFFICE">Oficina</option>
                   <option value="WAREHOUSE">Deposito</option>
@@ -556,7 +757,7 @@ export function PublishPage() {
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Precio
                   <input
-                    className={inputClass(requiredError(priceAmount))}
+                    className={inputClass(priceError)}
                     type="number"
                     inputMode="decimal"
                     min="0"
@@ -564,6 +765,11 @@ export function PublishPage() {
                     value={priceAmount}
                     onChange={(event) => setPriceAmount(event.target.value)}
                   />
+                  {priceError && (
+                    <span className="text-[11px] text-red-300">
+                      Obligatorio. Debe ser mayor a 0.
+                    </span>
+                  )}
                 </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
                 Moneda
@@ -582,10 +788,13 @@ export function PublishPage() {
                 Descripcion
                 <textarea
                   rows={4}
-                  className={inputClass(requiredError(description))}
+                  className={inputClass(descriptionError)}
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                 />
+                {descriptionError && (
+                  <span className="text-[11px] text-red-300">Obligatorio.</span>
+                )}
               </label>
 
               {propertyType === "APARTMENT" && (
@@ -657,24 +866,126 @@ export function PublishPage() {
             </div>
           )}
 
+          {step === 0 && operationType === "RENT" && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-white">
+                Requisitos del alquiler
+              </h4>
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Garantias solicitadas
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    placeholder="Ej: Garantia propietaria, recibo de sueldo"
+                    value={rentGuarantees}
+                    onChange={(event) => setRentGuarantees(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Meses para entrar
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="1"
+                    value={rentEntryMonths}
+                    onChange={(event) => setRentEntryMonths(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Duracion del contrato (meses)
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="1"
+                    value={rentContractDuration}
+                    onChange={(event) => setRentContractDuration(event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Indexacion cada
+                  <select
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={rentIndexFrequency}
+                    onChange={(event) => setRentIndexFrequency(event.target.value)}
+                  >
+                    <option value="">Sin definir</option>
+                    <option value="MONTHLY">Mensual</option>
+                    <option value="QUARTERLY">Trimestral</option>
+                    <option value="SEMI_ANNUAL">Semestral</option>
+                    <option value="ANNUAL">Anual</option>
+                  </select>
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Tipo de indexacion
+                  <select
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={rentIndexType}
+                    onChange={(event) => setRentIndexType(event.target.value)}
+                  >
+                    <option value="">Sin definir</option>
+                    <option value="IPC">IPC</option>
+                    <option value="UVA">UVA</option>
+                    <option value="INFLATION">Inflacion</option>
+                    <option value="OTHER">Otro</option>
+                  </select>
+                </label>
+                <label className="space-y-2 text-xs text-[#9a948a]">
+                  Porcentaje / valor
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    value={rentIndexValue}
+                    onChange={(event) => setRentIndexValue(event.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#d1a466]"
+                  checked={rentInfoPublic}
+                  onChange={(event) => setRentInfoPublic(event.target.checked)}
+                />
+                Mostrar esta informacion de forma publica
+              </label>
+            </div>
+          )}
+
         {step === 1 && (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Direccion
                   <input
-                    className={inputClass(requiredError(addressLine))}
+                    className={inputClass(addressError)}
                     value={addressLine}
                     onChange={(event) => setAddressLine(event.target.value)}
                   />
+                  {addressError && (
+                    <span className="text-[11px] text-red-300">
+                      Obligatorio. Minimo 3 caracteres.
+                    </span>
+                  )}
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Localidad
                   <input
-                    className={inputClass(requiredError(localityId))}
+                    className={inputClass(localityError)}
                     value={localityId}
                     onChange={(event) => setLocalityId(event.target.value)}
                   />
+                  {localityError && (
+                    <span className="text-[11px] text-red-300">Obligatorio.</span>
+                  )}
                 </label>
             </div>
 
@@ -694,6 +1005,22 @@ export function PublishPage() {
                   value={neighborhood}
                   onChange={(event) => setNeighborhood(event.target.value)}
                 />
+              </label>
+              <label className="space-y-2 text-xs text-[#9a948a]">
+                Barrio cerrado
+                <select
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={gatedCommunity}
+                  onChange={(event) =>
+                    setGatedCommunity(
+                      event.target.value as "" | "CLOSED" | "SEMI_CLOSED"
+                    )
+                  }
+                >
+                  <option value="">No aplica</option>
+                  <option value="CLOSED">Cerrado</option>
+                  <option value="SEMI_CLOSED">Semi cerrado</option>
+                </select>
               </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
                 Codigo postal
@@ -745,26 +1072,91 @@ export function PublishPage() {
               }}
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#9a948a]">
+                <span>Ubicacion aproximada por direccion</span>
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                  onClick={async () => {
+                    const query = (
+                      addressQuery.trim()
+                        ? addressQuery
+                        : [
+                            addressLine,
+                            neighborhood,
+                            party,
+                            localityId,
+                            "Bragado",
+                            "Buenos Aires",
+                            "Argentina",
+                          ]
+                            .filter(Boolean)
+                            .join(", ")
+                    ).trim();
+                    if (!query) {
+                      setGeoStatus("error");
+                      setGeoMessage("Completa la direccion para buscarla en el mapa.");
+                      return;
+                    }
+                    setGeoStatus("loading");
+                    setGeoMessage("");
+                    try {
+                      const result = await geocodeAddress(query);
+                      if (!result) {
+                        setGeoStatus("error");
+                        setGeoMessage("No encontramos esa direccion.");
+                        return;
+                      }
+                      setLat(result.lat);
+                      setLng(result.lng);
+                      setGeoStatus("idle");
+                      setGeoMessage(`Encontrado: ${result.displayName}`);
+                    } catch (error) {
+                      setGeoStatus("error");
+                      setGeoMessage(
+                        error instanceof Error
+                          ? error.message
+                          : "No pudimos buscar la direccion."
+                      );
+                    }
+                  }}
+                  disabled={geoStatus === "loading"}
+                >
+                  {geoStatus === "loading" ? "Buscando..." : "Buscar direccion"}
+                </button>
+              </div>
               <label className="space-y-2 text-xs text-[#9a948a]">
-                Latitud (opcional)
+                Buscar direccion (texto libre)
                 <input
                   className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={lat ?? ""}
-                  onChange={(event) =>
-                    setLat(event.target.value ? Number(event.target.value) : undefined)
-                  }
+                  value={addressQuery}
+                  onChange={(event) => setAddressQuery(event.target.value)}
+                  placeholder="Ej: San Martin 123, Bragado"
                 />
               </label>
-              <label className="space-y-2 text-xs text-[#9a948a]">
-                Longitud (opcional)
+              {geoMessage && (
+                <div
+                  className={`text-xs ${
+                    geoStatus === "error" ? "text-[#f5b78a]" : "text-[#9a948a]"
+                  }`}
+                >
+                  {geoMessage}
+                </div>
+              )}
+              {lat !== undefined && lng !== undefined && (
+                <div className="text-[11px] text-[#9a948a]">
+                  Coordenadas: {lat.toFixed(5)}, {lng.toFixed(5)}
+                </div>
+              )}
+              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
                 <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                  value={lng ?? ""}
-                  onChange={(event) =>
-                    setLng(event.target.value ? Number(event.target.value) : undefined)
-                  }
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#d1a466]"
+                  checked={showMapLocation}
+                  onChange={(event) => setShowMapLocation(event.target.checked)}
                 />
+                Mostrar ubicacion en el mapa publico
               </label>
             </div>
           </div>
@@ -782,10 +1174,15 @@ export function PublishPage() {
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Superficie total (m2)
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    className={inputClass(areaError)}
                     value={areaM2}
                     onChange={(event) => setAreaM2(event.target.value)}
                   />
+                  {areaError && (
+                    <span className="text-[11px] text-red-300">
+                      Obligatorio. Debe ser mayor a 0.
+                    </span>
+                  )}
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Superficie cubierta (m2)
@@ -806,26 +1203,41 @@ export function PublishPage() {
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Ambientes
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    className={inputClass(roomsError)}
                     value={rooms}
                     onChange={(event) => setRooms(event.target.value)}
                   />
+                  {roomsError && (
+                    <span className="text-[11px] text-red-300">
+                      Debe ser 0 o mayor.
+                    </span>
+                  )}
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Banos
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    className={inputClass(bathroomsError)}
                     value={bathrooms}
                     onChange={(event) => setBathrooms(event.target.value)}
                   />
+                  {bathroomsError && (
+                    <span className="text-[11px] text-red-300">
+                      Debe ser 0 o mayor.
+                    </span>
+                  )}
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Dormitorios
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    className={inputClass(bedroomsError)}
                     value={bedrooms}
                     onChange={(event) => setBedrooms(event.target.value)}
                   />
+                  {bedroomsError && (
+                    <span className="text-[11px] text-red-300">
+                      Debe ser 0 o mayor.
+                    </span>
+                  )}
                 </label>
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Antiguedad (anos)
@@ -929,6 +1341,24 @@ export function PublishPage() {
                     onChange={(event) => setAmenityElevator(event.target.checked)}
                   />
                   Ascensor
+                </label>
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenitySecurity}
+                    onChange={(event) => setAmenitySecurity(event.target.checked)}
+                  />
+                  Seguridad privada
+                </label>
+                <label className="flex items-center gap-3 text-xs text-[#9a948a]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#d1a466]"
+                    checked={amenityCameras}
+                    onChange={(event) => setAmenityCameras(event.target.checked)}
+                  />
+                  Camaras de seguridad
                 </label>
               </div>
             </div>
@@ -1272,18 +1702,38 @@ export function PublishPage() {
               <label className="space-y-2 text-xs text-[#9a948a]">
                 WhatsApp
                 <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  className={inputClass(contactRequiredError || whatsappError)}
                   value={contactWhatsapp}
                   onChange={(event) => setContactWhatsapp(event.target.value)}
                 />
+                {contactRequiredError && (
+                  <span className="text-[11px] text-red-300">
+                    Ingresa WhatsApp o telefono para poder contactar.
+                  </span>
+                )}
+                {whatsappError && (
+                  <span className="text-[11px] text-red-300">
+                    Debe tener al menos 6 digitos.
+                  </span>
+                )}
               </label>
               <label className="space-y-2 text-xs text-[#9a948a]">
                 Telefono
                 <input
-                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  className={inputClass(contactRequiredError || phoneError)}
                   value={contactPhone}
                   onChange={(event) => setContactPhone(event.target.value)}
                 />
+                {contactRequiredError && (
+                  <span className="text-[11px] text-red-300">
+                    Ingresa WhatsApp o telefono para poder contactar.
+                  </span>
+                )}
+                {phoneError && (
+                  <span className="text-[11px] text-red-300">
+                    Debe tener al menos 6 digitos.
+                  </span>
+                )}
               </label>
             </div>
 

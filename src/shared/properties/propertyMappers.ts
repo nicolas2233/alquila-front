@@ -5,7 +5,15 @@ export type PropertyApiListItem = {
   title: string;
   description: string;
   operationType: "SALE" | "RENT" | "TEMPORARY";
-  propertyType: "HOUSE" | "APARTMENT" | "LAND" | "COMMERCIAL" | "OFFICE" | "WAREHOUSE";
+  propertyType:
+    | "HOUSE"
+    | "APARTMENT"
+    | "LAND"
+    | "FIELD"
+    | "QUINTA"
+    | "COMMERCIAL"
+    | "OFFICE"
+    | "WAREHOUSE";
   status?: string;
   priceAmount: string | number;
   priceCurrency: "ARS" | "USD";
@@ -23,6 +31,15 @@ export type PropertyApiListItem = {
     financingAvailable?: boolean;
     financingAmount?: number | null;
     financingCurrency?: "ARS" | "USD";
+    rentalRequirements?: {
+      guarantees?: string;
+      entryMonths?: number;
+      contractDurationMonths?: number;
+      indexFrequency?: string;
+      indexType?: string;
+      indexValue?: number;
+      isPublic?: boolean;
+    } | null;
   } | null;
   services?: {
     electricity?: boolean;
@@ -35,6 +52,8 @@ export type PropertyApiListItem = {
   location: {
     addressLine: string;
     localityId: string;
+    lat?: number | null;
+    lng?: number | null;
     locality?: { name: string } | null;
   };
   photos?: { id?: string; url: string }[];
@@ -46,11 +65,15 @@ export type PropertyApiDetail = PropertyApiListItem & {
   location: {
     addressLine: string;
     localityId: string;
+    lat?: number | null;
+    lng?: number | null;
     locality?: { name: string } | null;
   };
   photos?: { id: string; url: string }[];
   agency?: { name: string } | null;
   contactMethods?: { id: string; type: "WHATSAPP" | "PHONE" | "IN_APP"; value: string }[];
+  ownerUserId?: string | null;
+  agencyId?: string | null;
 };
 
 export type SearchListing = PropertyDetailListing & {
@@ -85,6 +108,10 @@ export const propertyTypeLabel = (value: string) => {
       return "Departamento";
     case "LAND":
       return "Terreno";
+    case "FIELD":
+      return "Campo";
+    case "QUINTA":
+      return "Quinta";
     case "COMMERCIAL":
       return "Comercio";
     case "OFFICE":
@@ -149,6 +176,7 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
         : undefined,
     amenities: item.features?.amenities ?? undefined,
     services: item.services ?? undefined,
+    showMapLocation: item.features?.showMapLocation ?? true,
   };
 };
 
@@ -175,6 +203,8 @@ export const mapPropertyToDetailListing = (
     descriptionLong: item.description,
     images: images.length ? images : [fallbackImage],
     agency: item.agency?.name ?? null,
+    ownerUserId: item.ownerUserId ?? null,
+    agencyId: item.agencyId ?? null,
     propertyType: propertyTypeLabel(item.propertyType),
     amenities: item.features?.amenities ?? undefined,
     services: item.services ?? undefined,
@@ -189,6 +219,22 @@ export const mapPropertyToDetailListing = (
           ? formatPrice(item.features.financingAmount, item.features.financingCurrency ?? item.priceCurrency)
           : undefined,
     },
+    lat: item.location?.lat ?? undefined,
+    lng: item.location?.lng ?? undefined,
+    showMapLocation: item.features?.showMapLocation ?? true,
+    rentalRequirements:
+      item.features?.rentalRequirements && item.features.rentalRequirements.isPublic
+        ? {
+            guarantees: item.features.rentalRequirements.guarantees,
+            entryMonths: item.features.rentalRequirements.entryMonths ?? undefined,
+            contractDurationMonths:
+              item.features.rentalRequirements.contractDurationMonths ?? undefined,
+            indexFrequency: item.features.rentalRequirements.indexFrequency,
+            indexType: item.features.rentalRequirements.indexType,
+            indexValue: item.features.rentalRequirements.indexValue ?? undefined,
+            isPublic: item.features.rentalRequirements.isPublic,
+          }
+        : undefined,
     contactMethods: item.contactMethods?.map((method) => ({
       type: method.type,
       value: method.value,

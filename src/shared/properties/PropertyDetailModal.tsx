@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
 
 export type PropertyDetailListing = {
   id: string;
@@ -16,12 +17,23 @@ export type PropertyDetailListing = {
   descriptionLong: string;
   images: string[];
   agency?: string | null;
+  ownerUserId?: string | null;
+  agencyId?: string | null;
   propertyType?: string;
   amenities?: string[];
   expensesAmount?: string;
   financing?: {
     available: boolean;
     amount?: string;
+  };
+  rentalRequirements?: {
+    guarantees?: string;
+    entryMonths?: number;
+    contractDurationMonths?: number;
+    indexFrequency?: string;
+    indexType?: string;
+    indexValue?: number;
+    isPublic?: boolean;
   };
   contactMethods?: { type: "WHATSAPP" | "PHONE" | "IN_APP"; value: string }[];
   services?: {
@@ -32,6 +44,9 @@ export type PropertyDetailListing = {
     internet?: boolean;
     pavement?: boolean;
   };
+  lat?: number | null;
+  lng?: number | null;
+  showMapLocation?: boolean;
 };
 
 type PropertyDetailModalProps = {
@@ -53,6 +68,13 @@ export function PropertyDetailModal({
   const activeImageUrl = hasImages ? images[activeImage] : null;
   const amenities = listing.amenities ?? [];
   const services = listing.services ?? {};
+  const rentalRequirements = listing.rentalRequirements;
+  const hasMapLocation =
+    listing.showMapLocation !== false &&
+    typeof listing.lat === "number" &&
+    Number.isFinite(listing.lat) &&
+    typeof listing.lng === "number" &&
+    Number.isFinite(listing.lng);
   const serviceLabels = [
     { key: "electricity", label: "Luz" },
     { key: "gas", label: "Gas" },
@@ -70,11 +92,25 @@ export function PropertyDetailModal({
     JACUZZI: "Hidromasaje",
     SOLARIUM: "Solarium",
     ELEVATOR: "Ascensor",
+    PRIVATE_SECURITY: "Seguridad privada",
+    SECURITY_CAMERAS: "Camaras de seguridad",
+  };
+  const rentalFrequencyLabels: Record<string, string> = {
+    MONTHLY: "Mensual",
+    QUARTERLY: "Trimestral",
+    SEMI_ANNUAL: "Semestral",
+    ANNUAL: "Anual",
+  };
+  const rentalIndexLabels: Record<string, string> = {
+    IPC: "IPC",
+    UVA: "UVA",
+    INFLATION: "Inflacion",
+    OTHER: "Otro",
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-10">
-      <div className="w-full max-w-4xl rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+      <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
             <h3 className="text-xl text-white">{listing.title}</h3>
@@ -88,8 +124,8 @@ export function PropertyDetailModal({
             Cerrar
           </button>
         </div>
-        <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-4">
+        <div className="grid max-h-[calc(90vh-88px)] min-h-0 gap-6 overflow-hidden p-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="min-h-0 space-y-4">
             <div className="relative overflow-hidden rounded-2xl">
               {activeImageUrl ? (
                 <img
@@ -155,75 +191,152 @@ export function PropertyDetailModal({
                 ))}
               </div>
             )}
+            {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
           </div>
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">{listing.price}</p>
-                <span className="mt-2 inline-flex rounded-full bg-gold-500/20 px-3 py-1 text-xs font-semibold text-gold-400">
-                  {listing.operation}
-                </span>
-              </div>
-              <span className="text-sm text-[#9a948a]">{listing.areaM2} m2</span>
-            </div>
-            <p className="text-sm text-[#9a948a]">{listing.descriptionLong}</p>
-            {isLoading && (
-              <p className="text-xs text-[#9a948a] animate-pulse">
-                Cargando detalles...
-              </p>
-            )}
-            <div className="grid gap-2 text-xs text-[#9a948a]">
-              <div>Ambientes: {listing.rooms > 0 ? listing.rooms : "Sin ambientes"}</div>
-              {listing.bathrooms !== undefined && (
-                <div>Banos: {listing.bathrooms}</div>
-              )}
-              {listing.bedrooms !== undefined && (
-                <div>Dormitorios: {listing.bedrooms}</div>
-              )}
-              {listing.expensesAmount && <div>Expensas: {listing.expensesAmount}</div>}
-              {listing.financing?.available && (
+          <div className="max-h-[calc(90vh-88px)] min-h-0 space-y-4 overflow-y-auto pr-3 pb-10">
+            <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  Financia: {listing.financing.amount ? listing.financing.amount : "Si"}
+                  <p className="text-base font-semibold text-white">{listing.price}</p>
+                  <span className="mt-2 inline-flex rounded-full bg-gold-500/20 px-3 py-1 text-xs font-semibold text-gold-400">
+                    {listing.operation}
+                  </span>
+                </div>
+                <span className="text-xs text-[#9a948a]">{listing.areaM2} m2</span>
+              </div>
+              {listing.agency !== undefined && (
+                <div className="mt-3 text-xs text-[#9a948a]">
+                  {listing.agency ? `Inmobiliaria: ${listing.agency}` : "Dueno directo"}
                 </div>
               )}
-              <div>Cochera: {listing.garage ? "Si" : "No"}</div>
-              <div>Mascotas: {listing.pets ? "Si" : "No"}</div>
-              <div>Ninos: {listing.kids ? "Si" : "No"}</div>
-              {listing.agency !== undefined && (
-                <div>{listing.agency ? `Inmobiliaria: ${listing.agency}` : "Dueno directo"}</div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+              <div className="text-sm text-white">Descripcion</div>
+              <p className="mt-2 max-h-28 overflow-y-auto text-sm text-[#9a948a]">
+                {listing.descriptionLong}
+              </p>
+              {isLoading && (
+                <p className="mt-2 text-xs text-[#9a948a] animate-pulse">
+                  Cargando detalles...
+                </p>
               )}
             </div>
+
+            <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+              <div className="text-sm text-white">Detalles</div>
+              <div className="mt-3 grid gap-2 text-xs text-[#9a948a] md:grid-cols-2">
+                <div>Ambientes: {listing.rooms > 0 ? listing.rooms : "Sin ambientes"}</div>
+                {listing.bathrooms !== undefined && <div>Banos: {listing.bathrooms}</div>}
+                {listing.bedrooms !== undefined && <div>Dormitorios: {listing.bedrooms}</div>}
+                {listing.expensesAmount && <div>Expensas: {listing.expensesAmount}</div>}
+                {listing.financing?.available && (
+                  <div>
+                    Financia: {listing.financing.amount ? listing.financing.amount : "Si"}
+                  </div>
+                )}
+                <div>Cochera: {listing.garage ? "Si" : "No"}</div>
+                <div>Mascotas: {listing.pets ? "Si" : "No"}</div>
+                <div>Ninos: {listing.kids ? "Si" : "No"}</div>
+              </div>
+            </div>
+
+            {rentalRequirements && (
+              <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+                <div className="text-sm text-white">Requisitos de alquiler</div>
+                <div className="mt-3 grid gap-2 text-xs text-[#9a948a] md:grid-cols-2">
+                  {rentalRequirements.guarantees && (
+                    <div>Garantias: {rentalRequirements.guarantees}</div>
+                  )}
+                  {rentalRequirements.entryMonths !== undefined && (
+                    <div>Meses para entrar: {rentalRequirements.entryMonths}</div>
+                  )}
+                  {rentalRequirements.contractDurationMonths !== undefined && (
+                    <div>
+                      Duracion contrato: {rentalRequirements.contractDurationMonths} meses
+                    </div>
+                  )}
+                  {rentalRequirements.indexFrequency && (
+                    <div>
+                      Indexacion:{" "}
+                      {rentalFrequencyLabels[rentalRequirements.indexFrequency] ??
+                        rentalRequirements.indexFrequency}
+                    </div>
+                  )}
+                  {rentalRequirements.indexType && (
+                    <div>
+                      Indice:{" "}
+                      {rentalIndexLabels[rentalRequirements.indexType] ??
+                        rentalRequirements.indexType}
+                    </div>
+                  )}
+                  {rentalRequirements.indexValue !== undefined && (
+                    <div>Valor indice: {rentalRequirements.indexValue}</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {!isLoading && (amenities.length > 0 || Object.values(services).some(Boolean)) && (
-              <div className="space-y-2 text-xs text-[#9a948a]">
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
                 {amenities.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {amenities.map((amenity) => (
-                      <span
-                        key={amenity}
-                        className="rounded-full border border-white/10 px-3 py-1"
-                      >
-                        {amenityLabels[amenity] ?? amenity}
-                      </span>
-                    ))}
+                  <div>
+                    <div className="text-sm text-white">Amenities</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {amenities.map((amenity) => (
+                        <span
+                          key={amenity}
+                          className="rounded-full border border-white/10 px-3 py-1"
+                        >
+                          {amenityLabels[amenity] ?? amenity}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {Object.values(services).some(Boolean) && (
-                  <div className="flex flex-wrap gap-2">
-                    {serviceLabels
-                      .filter((service) => services[service.key])
-                      .map((service) => (
-                        <span
-                          key={service.key}
-                          className="rounded-full border border-white/10 px-3 py-1"
-                        >
-                          {service.label}
-                        </span>
-                      ))}
+                  <div>
+                    <div className="text-sm text-white">Servicios</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {serviceLabels
+                        .filter((service) => services[service.key])
+                        .map((service) => (
+                          <span
+                            key={service.key}
+                            className="rounded-full border border-white/10 px-3 py-1"
+                          >
+                            {service.label}
+                          </span>
+                        ))}
+                    </div>
                   </div>
                 )}
               </div>
             )}
-            {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
+            {hasMapLocation && (
+              <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+                <div className="mb-3 text-sm font-semibold text-white">Ubicacion</div>
+                <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <MapContainer
+                    center={[listing.lat as number, listing.lng as number]}
+                    zoom={15}
+                    className="h-40 w-full"
+                    scrollWheelZoom={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <CircleMarker
+                      center={[listing.lat as number, listing.lng as number]}
+                      radius={8}
+                      pathOptions={{ color: "#f4d19a", fillColor: "#d1a466", fillOpacity: 0.9 }}
+                    />
+                  </MapContainer>
+                </div>
+                <div className="mt-2 text-[11px] text-[#9a948a]">{listing.address}</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

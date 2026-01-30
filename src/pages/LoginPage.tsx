@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { saveSession } from "../shared/auth/session";
+import { useToast } from "../shared/ui/toast/ToastProvider";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -28,7 +30,14 @@ export function LoginPage() {
 
       const data = (await response.json()) as {
         token: string;
-        user: { id: string; email: string; name?: string | null; role: string; status: string };
+        user: {
+          id: string;
+          email: string;
+          name?: string | null;
+          role: string;
+          status: string;
+          avatarUrl?: string | null;
+        };
       };
 
       let sessionUser = data.user;
@@ -37,7 +46,9 @@ export function LoginPage() {
           headers: { Authorization: `Bearer ${data.token}` },
         });
         if (meResponse.ok) {
-          const meData = (await meResponse.json()) as { user: typeof sessionUser & { agencyId?: string | null } };
+          const meData = (await meResponse.json()) as {
+            user: typeof sessionUser & { agencyId?: string | null; avatarUrl?: string | null };
+          };
           sessionUser = meData.user;
         }
       } catch {
@@ -46,11 +57,17 @@ export function LoginPage() {
 
       saveSession(data.token, sessionUser);
       setStatus("idle");
-      navigate("/panel");
+      addToast("Sesion iniciada correctamente.", "success");
+      const canAccessPanel = ["OWNER", "AGENCY_ADMIN", "AGENCY_AGENT"].includes(sessionUser.role);
+      navigate(canAccessPanel ? "/panel" : "/buscar");
     } catch (error) {
       setStatus("error");
       setErrorMessage(
         error instanceof Error ? error.message : "No pudimos iniciar sesion."
+      );
+      addToast(
+        error instanceof Error ? error.message : "No pudimos iniciar sesion.",
+        "error"
       );
     }
   };

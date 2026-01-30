@@ -4,6 +4,8 @@ import { Container } from "../ui/Container";
 import { clearSession, getSessionUser, getToken } from "../auth/session";
 import type { SessionUser } from "../auth/session";
 import { env } from "../config/env";
+import { ToastProvider } from "../ui/toast/ToastProvider";
+import { FloatingChat } from "../ui/chat/FloatingChat";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? "text-gold-400" : "text-[#c7c2b8]";
@@ -55,7 +57,8 @@ export function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen">
+    <ToastProvider>
+      <div className="min-h-screen">
       <header className="sticky top-0 z-10 border-b border-gold-500/20 bg-night-900/80 backdrop-blur-xl">
         <Container>
           <div className="grid items-center gap-6 py-5 lg:grid-cols-[auto_1fr_auto]">
@@ -67,18 +70,13 @@ export function AppLayout() {
               <NavLink to="/mapa" className={navClass}>
                 Mapa
               </NavLink>
-              {user && (
+              {user && user.role === "VISITOR" && (
                 <>
-                  <NavLink to="/busquedas" className={navClass}>
-                    Mis busquedas
+                  <NavLink to="/mis-solicitudes" className={navClass}>
+                    Mis solicitudes
                   </NavLink>
-                  <NavLink to="/notificaciones" className={navClass}>
-                    Notificaciones
-                    {notificationCount > 0 && (
-                      <span className="ml-2 rounded-full bg-gold-500/30 px-2 py-0.5 text-[10px] text-gold-300">
-                        {notificationCount}
-                      </span>
-                    )}
+                  <NavLink to="/perfil" className={navClass}>
+                    Mi perfil
                   </NavLink>
                 </>
               )}
@@ -95,9 +93,44 @@ export function AppLayout() {
             </nav>
             {user ? (
               <div className="flex flex-wrap items-center gap-3 text-sm text-[#c7c2b8]">
-                <span className="rounded-full border border-white/10 px-4 py-2">
+                <span className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2">
+                  <span
+                    className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gold-500/15 text-xs text-gold-200"
+                    title={user.name ?? user.email ?? "Usuario"}
+                  >
+                    {user.avatarUrl?.startsWith("emoji:") ? (
+                      <span>{user.avatarUrl.replace("emoji:", "")}</span>
+                    ) : user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt="Avatar"
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-[10px]">
+                        {(user.name ?? user.email ?? "U")
+                          .split(" ")
+                          .map((part) => part.charAt(0))
+                          .slice(0, 2)
+                          .join("")
+                          .toUpperCase()}
+                      </span>
+                    )}
+                  </span>
                   Hola, {user.name ?? user.email}
                 </span>
+                <NavLink
+                  to="/notificaciones"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-2 text-sm text-white/90"
+                  aria-label="Notificaciones"
+                >
+                  <span aria-hidden="true">🔔</span>
+                  {notificationCount > 0 && (
+                    <span className="rounded-full bg-gold-500/30 px-2 py-0.5 text-[10px] text-gold-300">
+                      {notificationCount}
+                    </span>
+                  )}
+                </NavLink>
                 <button
                   className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/90"
                   type="button"
@@ -133,6 +166,8 @@ export function AppLayout() {
       <footer className="py-10 text-sm text-[#9a948a]">
         <Container>Alquila Bragado. Publicaciones verificadas y sin duplicados.</Container>
       </footer>
-    </div>
+      <FloatingChat user={user} token={token} />
+      </div>
+    </ToastProvider>
   );
 }
