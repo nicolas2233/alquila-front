@@ -125,9 +125,9 @@ export function DashboardPage() {
   const isOwner = sessionUser?.role === "OWNER";
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
-  const agencyId = isAgency ? sessionUser?.agencyId ?? undefined : undefined;
+  const agencyId = isAgency ? sessionUser?.agencyId : undefined;
   const roleLabel = isOwner
-    ? "Dueno directo"
+    ? "Dueño directo"
     : isAgency
     ? "Inmobiliaria"
     : "Usuario";
@@ -317,13 +317,13 @@ export function DashboardPage() {
   const loadProperties = useCallback(async () => {
     if (!sessionUser) {
       setPropertyStatus("error");
-      setPropertyError("Necesitas iniciar sesion.");
+      setPropertyError("Necesitas iniciar sesión.");
       return;
     }
 
     if (!ownerUserId && !agencyId) {
       setPropertyStatus("error");
-      setPropertyError("Solo duenos o inmobiliarias pueden ver este panel.");
+      setPropertyError("Solo dueños o inmobiliarias pueden ver este panel.");
       return;
     }
 
@@ -371,7 +371,7 @@ export function DashboardPage() {
   const loadRequests = useCallback(async () => {
     if (!sessionToken) {
       setRequestStatus("error");
-      setRequestError("Necesitas iniciar sesion.");
+      setRequestError("Necesitas iniciar sesión.");
       return;
     }
     setRequestStatus("loading");
@@ -400,7 +400,7 @@ export function DashboardPage() {
   const loadRequestDetail = useCallback(
     async (requestId: string) => {
       if (!sessionToken) {
-        addToast("Necesitas iniciar sesion.", "warning");
+        addToast("Necesitas iniciar sesión.", "warning");
         return null;
       }
       try {
@@ -438,7 +438,7 @@ export function DashboardPage() {
   const loadMyRequests = useCallback(async () => {
     if (!sessionToken) {
       setRequestStatus("error");
-      setRequestError("Necesitas iniciar sesion.");
+      setRequestError("Necesitas iniciar sesión.");
       return;
     }
     setRequestStatus("loading");
@@ -935,7 +935,7 @@ export function DashboardPage() {
   const updateRequestStatus = async (id: string, status: "NEW" | "CONTACTED" | "CLOSED") => {
     if (!sessionToken) {
       setRequestStatus("error");
-      setRequestError("Necesitas iniciar sesion.");
+      setRequestError("Necesitas iniciar sesión.");
       return;
     }
     try {
@@ -1009,7 +1009,7 @@ export function DashboardPage() {
 
   const sendRentalRequirements = async (id: string) => {
     if (!sessionToken) {
-      addToast("Necesitas iniciar sesion.", "error");
+      addToast("Necesitas iniciar sesión.", "error");
       return;
     }
     try {
@@ -1072,7 +1072,7 @@ export function DashboardPage() {
               : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
           }
         >
-          {isAgency ? "Perfil inmobiliaria" : "Perfil dueno"}
+          {isAgency ? "Perfil inmobiliaria" : "Perfil dueño"}
         </button>
         <button
           type="button"
@@ -1303,7 +1303,7 @@ export function DashboardPage() {
         <div className="glass-card space-y-4 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg text-white">Perfil de dueno</h3>
+              <h3 className="text-lg text-white">Perfil de dueño</h3>
               <p className="text-xs text-[#9a948a]">
                 Actualiza tus datos personales y de contacto.
               </p>
@@ -1422,7 +1422,7 @@ export function DashboardPage() {
               />
             </label>
             <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
-              Nueva contrasena
+              Nueva contraseña
               <input
                 type="password"
                 className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
@@ -1876,25 +1876,19 @@ export function DashboardPage() {
                 <div>
                   <div className="text-xs text-[#9a948a]">Nombre</div>
                   <div className="text-sm text-white">
-                    {selectedRequest.name ??
-                      selectedRequest.requesterUser?.name ??
-                      "Sin nombre"}
+                    {selectedRequest.name ?? selectedRequest.requesterUser?.name ?? "Sin nombre"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#9a948a]">Email</div>
                   <div className="text-sm text-white">
-                    {selectedRequest.email ??
-                      selectedRequest.requesterUser?.email ??
-                      "Sin email"}
+                    {selectedRequest.email ?? selectedRequest.requesterUser?.email ?? "Sin email"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-[#9a948a]">Telefono</div>
                   <div className="text-sm text-white">
-                    {selectedRequest.phone ??
-                      selectedRequest.requesterUser?.phone ??
-                      "Sin telefono"}
+                    {selectedRequest.phone ?? selectedRequest.requesterUser?.phone ?? "Sin telefono"}
                   </div>
                 </div>
                 <div>
@@ -2407,7 +2401,7 @@ export function DashboardPage() {
                                 checked={editKidsAllowed}
                                 onChange={(event) => setEditKidsAllowed(event.target.checked)}
                               />
-                              Ninos
+                              Niños
                             </label>
                             <label className="space-y-2 text-xs text-[#9a948a]">
                               Antiguedad (anos)

@@ -6,6 +6,7 @@ export type SessionUser = {
   status: string;
   agencyId?: string | null;
   avatarUrl?: string | null;
+  mustChangePassword?: boolean;
 };
 
 const TOKEN_KEY = "alquila_token";

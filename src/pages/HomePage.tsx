@@ -68,7 +68,7 @@ export function HomePage() {
           </h1>
           <p className="text-base text-[#c7c2b8] md:text-lg">
             Una plataforma pensada para quienes buscan, para dueños directos y para
-            inmobiliarias. Menos duplicados, mas confianza y contacto directo real.
+            inmobiliarias. Menos duplicados, m?s confianza y contacto directo real.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -131,7 +131,7 @@ export function HomePage() {
               <h3 className="text-lg text-white">{title}</h3>
               <p className="text-sm text-[#9a948a]">
                 {title === "Quienes buscan" &&
-                  "Filtros simples, fichas completas y ubicacion clara en el mapa."}
+                  "Filtros simples, fichas completas y ubicaci?n clara en el mapa."}
                 {title === "Dueños directos" &&
                   "Publica con control de datos y contacto directo real."}
                 {title === "Inmobiliarias" &&
@@ -172,7 +172,7 @@ export function HomePage() {
             }}
           />
           <div className="space-y-4 p-6">
-            <h3 className="text-lg text-white">Como funciona</h3>
+            <h3 className="text-lg text-white">C?mo funciona</h3>
             {[
               "Publica o busca sin ruido",
               "Ubicacion real en el mapa",
@@ -203,7 +203,7 @@ export function HomePage() {
             body: "Cada propiedad queda asociada a una direccion y datos claros.",
           },
           {
-            title: "Mapa y ubicacion real",
+            title: "Mapa y ubicaci?n real",
             body: "Podes ubicar la propiedad exacta o aproximada segun tu preferencia.",
           },
           {
@@ -236,7 +236,7 @@ export function HomePage() {
             <div key={plan} className="rounded-2xl border border-white/10 bg-night-900/60 p-5">
               <h3 className="text-lg text-white">{plan}</h3>
               <p className="mt-2 text-sm text-[#9a948a]">
-                {plan === "Bronce" && "Hasta 3 inmuebles. Ideal para duenos directos."}
+                {plan === "Bronce" && "Hasta 3 inmuebles. Ideal para dueños directos."}
                 {plan === "Platinum" && "Hasta 20 inmuebles. Para inmobiliarias chicas."}
                 {plan === "Gold" && "Hasta 50 inmuebles. Para equipos grandes."}
               </p>

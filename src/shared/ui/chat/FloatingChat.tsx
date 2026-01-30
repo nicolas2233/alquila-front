@@ -249,7 +249,7 @@ export function FloatingChat({
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] text-xl text-night-900 shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         onClick={() => {
           if (!canUseChat) {
-            addToast("Inicia sesion para ver tus chats.", "warning");
+            addToast("Inicia sesión para ver tus chats.", "warning");
             return;
           }
           setOpen((prev) => !prev);
@@ -305,50 +305,41 @@ export function FloatingChat({
                 </div>
               )}
               <div className="max-h-[400px] overflow-y-auto px-2 pb-3">
-                {chats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    type="button"
-                    className={`mb-2 w-full rounded-2xl border px-2 py-2 text-left text-[11px] ${
-                      selectedChat?.id === chat.id
-                        ? "border-gold-500/60 bg-night-900/80 text-white"
-                        : "border-white/10 bg-night-900/60 text-[#c7c2b8]"
-                    }`}
-                    onClick={() => setSelectedChat(chat)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Avatar
-                        label={
-                          isVisitor
-                            ? chat.property.title
-                            : chat.requesterUser?.name ??
-                              chat.name ??
-                              chat.email ??
-                              "Usuario"
-                        }
-                        avatarUrl={
-                          !isVisitor ? chat.requesterUser?.avatarUrl ?? null : null
-                        }
-                        title={
-                          isVisitor
-                            ? chat.property.title
-                            : chat.requesterUser?.name ??
-                              chat.name ??
-                              chat.email ??
-                              "Usuario"
-                        }
-                      />
-                      <div className="min-w-0">
-                        <div className="truncate text-xs text-white">
-                          {chat.property.title}
-                        </div>
-                        <div className="truncate text-[10px] text-[#9a948a]">
-                          {requestTypeLabels[chat.type] ?? chat.type}
+                {chats.map((chat) => {
+                  const contactLabel = isVisitor
+                    ? chat.property.title
+                    : chat.requesterUser?.name ?? chat.name ?? chat.email ?? "Usuario";
+                  return (
+                    <button
+                      key={chat.id}
+                      type="button"
+                      className={`mb-2 w-full rounded-2xl border px-2 py-2 text-left text-[11px] ${
+                        selectedChat?.id === chat.id
+                          ? "border-gold-500/60 bg-night-900/80 text-white"
+                          : "border-white/10 bg-night-900/60 text-[#c7c2b8]"
+                      }`}
+                      onClick={() => setSelectedChat(chat)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Avatar
+                          label={contactLabel}
+                          avatarUrl={
+                            !isVisitor ? chat.requesterUser?.avatarUrl ?? null : null
+                          }
+                          title={contactLabel}
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate text-xs text-white">
+                            {chat.property.title}
+                          </div>
+                          <div className="truncate text-[10px] text-[#9a948a]">
+                            {requestTypeLabels[chat.type] ?? chat.type}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="flex h-full flex-col">
@@ -371,7 +362,7 @@ export function FloatingChat({
                     )}
                     {messagesStatus === "idle" && messages.length === 0 && (
                       <div className="text-[11px] text-[#9a948a]">
-                        Todavia no hay mensajes.
+                        Todav?a no hay mensajes.
                       </div>
                     )}
                     <div className="space-y-2">
@@ -379,7 +370,7 @@ export function FloatingChat({
                         const isMine = message.senderUser?.id === user?.id;
                         const senderName =
                           message.senderUser?.name ??
-                          (isMine ? user?.name ?? user?.email ?? "Vos" : "Usuario");
+                          (isMine ? (user?.name ?? user?.email ?? "Vos") : "Usuario");
                         return (
                           <div
                             key={message.id}

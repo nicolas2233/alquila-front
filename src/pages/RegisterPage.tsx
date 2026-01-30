@@ -8,7 +8,7 @@ const planOptions = [
   {
     key: "bronce",
     label: "Bronce",
-    description: "Hasta 3 inmuebles. Ideal para duenos directos.",
+    description: "Hasta 3 inmuebles. Ideal para dueños directos.",
   },
   {
     key: "platinum",
@@ -25,11 +25,14 @@ const planOptions = [
 export function RegisterPage() {
   const [accountType, setAccountType] = useState<AccountType>("viewer");
   const [plan, setPlan] = useState("bronce");
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dni, setDni] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [ownerFullName, setOwnerFullName] = useState("");
+  const [contrasena, setContrasena] = useState("");
+  const [ownerFirstName, setOwnerFirstName] = useState("");
+  const [ownerLastName, setOwnerLastName] = useState("");
   const [ownerDni, setOwnerDni] = useState("");
   const [ownerTramite, setOwnerTramite] = useState("");
   const [ownerBirthDate, setOwnerBirthDate] = useState("");
@@ -43,13 +46,13 @@ export function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const passwordRemaining = Math.max(0, 8 - password.length);
-  const passwordHelper =
-    password.length === 0
-      ? "Minimo 8 caracteres."
-      : passwordRemaining > 0
-      ? `Te faltan ${passwordRemaining} caracteres.`
-      : "Password valido.";
+  const contrasenaRemaining = Math.max(0, 8 - contrasena.length);
+  const contrasenaHelper =
+    contrasena.length === 0
+      ? "Mínimo 8 caracteres."
+      : contrasenaRemaining > 0
+      ? `Te faltan ${contrasenaRemaining} caracteres.`
+      : "Contraseña válida.";
 
   const showPlan = accountType !== "viewer";
   const planChoices = useMemo(() => {
@@ -69,44 +72,50 @@ export function RegisterPage() {
     setFieldErrors({});
 
     try {
-      if (!email || !password) {
+      if (!email || !contrasena) {
         setFieldErrors({
           email: !email,
-          password: !password,
+          password: !contrasena,
         });
-        throw new Error("Email y password son obligatorios.");
+        throw new Error("Email y contraseña son obligatorios.");
       }
 
       if (!termsAccepted) {
         setFieldErrors({ termsAccepted: true });
-        throw new Error("Debes aceptar los terminos y condiciones.");
+        throw new Error("Debes aceptar los términos y condiciones.");
       }
 
-      if (password.length < 8) {
+      if (contrasena.length < 8) {
         setFieldErrors({ password: true });
-        throw new Error("El password debe tener al menos 8 caracteres.");
+        throw new Error("La contraseña debe tener al menos 8 caracteres.");
       }
 
       if (accountType === "viewer") {
-        if (!name) {
-          setFieldErrors({ name: true });
-          throw new Error("El nombre es obligatorio.");
+        if (!firstName || !lastName || !dni || !phone) {
+          setFieldErrors({
+            firstName: !firstName,
+            lastName: !lastName,
+            dni: !dni,
+            phone: !phone,
+          });
+          throw new Error("Completa todos los datos del buscador.");
         }
       }
 
       if (accountType === "owner") {
         if (!phone) {
           setFieldErrors({ phone: true });
-          throw new Error("El telefono es obligatorio para duenos.");
+          throw new Error("El tel?fono es obligatorio para dueños.");
         }
-        if (!ownerFullName || !ownerDni || !ownerTramite || !ownerBirthDate) {
+        if (!ownerFirstName || !ownerLastName || !ownerDni || !ownerTramite || !ownerBirthDate) {
           setFieldErrors({
-            ownerFullName: !ownerFullName,
+            ownerFirstName: !ownerFirstName,
+            ownerLastName: !ownerLastName,
             ownerDni: !ownerDni,
             ownerTramite: !ownerTramite,
             ownerBirthDate: !ownerBirthDate,
           });
-          throw new Error("Completa todos los datos del dueno.");
+          throw new Error("Completa todos los datos del dueño.");
         }
       }
 
@@ -133,17 +142,20 @@ export function RegisterPage() {
         endpoint = "/users";
         payload = {
           email,
-          password,
-          name,
-          ...(phone ? { phone } : {}),
+          password: contrasena,
+          firstName,
+          lastName,
+          dni,
+          phone,
         };
       } else if (accountType === "owner") {
         endpoint = "/owners";
         payload = {
           email,
-          password,
+          password: contrasena,
           phone,
-          fullName: ownerFullName,
+          firstName: ownerFirstName,
+          lastName: ownerLastName,
           dni: ownerDni,
           dniTramite: ownerTramite,
           birthDate: ownerBirthDate,
@@ -152,7 +164,7 @@ export function RegisterPage() {
         endpoint = "/agencies";
         payload = {
           email,
-          password,
+          password: contrasena,
           phone,
           name: agencyName,
           legalName: agencyLegalName,
@@ -168,7 +180,8 @@ export function RegisterPage() {
       });
 
       if (!response.ok) {
-        throw new Error("No pudimos completar el registro.");
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message ?? "No pudimos completar el registro.");
       }
 
       setStatus("success");
@@ -190,7 +203,7 @@ export function RegisterPage() {
       <div className="space-y-2">
         <h2 className="text-3xl text-white">Crear cuenta</h2>
         <p className="text-sm text-[#9a948a]">
-          Un solo registro, tres perfiles. Elegi tu tipo de cuenta y completa los datos.
+          Un solo registro, tres perfiles. Elegí tu tipo de cuenta y completá los datos.
         </p>
       </div>
 
@@ -199,15 +212,15 @@ export function RegisterPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg text-white">1. Tipo de cuenta</h3>
-            <p className="text-xs text-[#9a948a]">Definimos tu experiencia y el flujo de verificacion.</p>
+            <p className="text-xs text-[#9a948a]">Definimos tu experiencia y el flujo de verificación.</p>
           </div>
           <span className="gold-pill">Paso 1</span>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           {[
             { key: "viewer", title: "Buscador", text: "Solo explorar y guardar." },
-            { key: "owner", title: "Dueno", text: "Publica inmuebles propios." },
-            { key: "agency", title: "Inmobiliaria", text: "Equipo y multiples publicaciones." },
+            { key: "owner", title: "Dueño", text: "Publica inmuebles propios." },
+            { key: "agency", title: "Inmobiliaria", text: "Equipo y m?ltiples publicaciones." },
           ].map((item) => (
             <button
               key={item.key}
@@ -230,7 +243,7 @@ export function RegisterPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg text-white">2. Credenciales</h3>
-            <p className="text-xs text-[#9a948a]">Usa email y password para ingresar.</p>
+            <p className="text-xs text-[#9a948a]">Usá email y contraseña para ingresar.</p>
           </div>
           <span className="gold-pill">Paso 2</span>
         </div>
@@ -243,25 +256,25 @@ export function RegisterPage() {
               onChange={(event) => setEmail(event.target.value)}
             />
             <span className={emailInvalid ? "text-[11px] text-[#f5b78a]" : "text-[11px] text-[#9a948a]"}>
-              {emailInvalid ? "Email invalido." : "Ej: nombre@mail.com"}
+              {emailInvalid ? "Email inválido." : "Ej: nombre@mail.com"}
             </span>
           </label>
           <label className="space-y-2 text-xs text-[#9a948a]">
-            Password
+            Contraseña
             <input
               type="password"
               className={fieldClass(!!fieldErrors.password)}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={contrasena}
+              onChange={(event) => setContrasena(event.target.value)}
             />
             <span
               className={
-                passwordRemaining > 0
+                contrasenaRemaining > 0
                   ? "text-[11px] text-[#f5b78a]"
                   : "text-[11px] text-[#9a948a]"
               }
             >
-              {passwordHelper}
+              {contrasenaHelper}
             </span>
           </label>
         </div>
@@ -280,13 +293,29 @@ export function RegisterPage() {
             <label className="space-y-2 text-xs text-[#9a948a]">
               Nombre
               <input
-                className={fieldClass(!!fieldErrors.name)}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
+                className={fieldClass(!!fieldErrors.firstName)}
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
               />
             </label>
             <label className="space-y-2 text-xs text-[#9a948a]">
-              Telefono (opcional)
+              Apellido
+              <input
+                className={fieldClass(!!fieldErrors.lastName)}
+                value={lastName}
+                onChange={(event) => setLastName(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              DNI
+              <input
+                className={fieldClass(!!fieldErrors.dni)}
+                value={dni}
+                onChange={(event) => setDni(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Teléfono
               <input
                 className={fieldClass(!!fieldErrors.phone)}
                 value={phone}
@@ -298,7 +327,7 @@ export function RegisterPage() {
         {accountType === "owner" && (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2 text-xs text-[#9a948a]">
-              Telefono
+              Teléfono
               <input
                 className={fieldClass(!!fieldErrors.phone)}
                 value={phone}
@@ -306,11 +335,19 @@ export function RegisterPage() {
               />
             </label>
             <label className="space-y-2 text-xs text-[#9a948a]">
-              Nombre completo
+              Nombre
               <input
-                className={fieldClass(!!fieldErrors.ownerFullName)}
-                value={ownerFullName}
-                onChange={(event) => setOwnerFullName(event.target.value)}
+                className={fieldClass(!!fieldErrors.ownerFirstName)}
+                value={ownerFirstName}
+                onChange={(event) => setOwnerFirstName(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Apellido
+              <input
+                className={fieldClass(!!fieldErrors.ownerLastName)}
+                value={ownerLastName}
+                onChange={(event) => setOwnerLastName(event.target.value)}
               />
             </label>
             <label className="space-y-2 text-xs text-[#9a948a]">
@@ -343,7 +380,7 @@ export function RegisterPage() {
         {accountType === "agency" && (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2 text-xs text-[#9a948a]">
-              Telefono
+              Teléfono
               <input
                 className={fieldClass(!!fieldErrors.phone)}
                 value={phone}
@@ -391,7 +428,7 @@ export function RegisterPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">4. Plan</h3>
-              <p className="text-xs text-[#9a948a]">Elegi el plan que se adapta a tu escala.</p>
+              <p className="text-xs text-[#9a948a]">Elegí el plan que se adapta a tu escala.</p>
             </div>
             <span className="gold-pill">Paso 4</span>
           </div>
@@ -418,7 +455,7 @@ export function RegisterPage() {
       <section className="glass-card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg text-white">5. Terminos y condiciones</h3>
+            <h3 className="text-lg text-white">5. T?rminos y condiciones</h3>
             <p className="text-xs text-[#9a948a]">
               Acepta las reglas de uso para finalizar el registro.
             </p>
@@ -436,26 +473,26 @@ export function RegisterPage() {
             }}
           />
           <span>
-            Acepto los terminos y condiciones de Brupi.{" "}
+            Acepto los términos y condiciones de Brupi.{" "}
             <button
               type="button"
               className="underline text-[#d8c5a4]"
               onClick={() => setShowTerms(true)}
             >
-              Leer terminos
+              Leer términos
             </button>
           </span>
         </label>
         {fieldErrors.termsAccepted && (
           <p className="text-[11px] text-[#f5b78a]">
-            Debes aceptar los terminos y condiciones para continuar.
+            Debes aceptar los términos y condiciones para continuar.
           </p>
         )}
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-xs text-[#9a948a]">
-          Las cuentas de duenos e inmobiliarias quedan pendientes de verificacion.
+          Las cuentas de dueños e inmobiliarias quedan pendientes de verificación.
         </p>
         <button
           className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-6 py-2 text-xs font-semibold text-night-900"
@@ -472,21 +509,21 @@ export function RegisterPage() {
         <div className="glass-card space-y-2 p-4">
           <h4 className="text-sm text-white">Cuenta creada</h4>
           <p className="text-xs text-[#9a948a]">
-            Tu cuenta esta pendiente de verificacion. Te avisaremos cuando este activa.
+            Tu cuenta esta pendiente de verificación. Te avisaremos cuando este activa.
           </p>
         </div>
       )}
       {status === "success" && accountType === "viewer" && (
         <div className="glass-card space-y-2 p-4">
           <h4 className="text-sm text-white">Cuenta creada</h4>
-          <p className="text-xs text-[#9a948a]">Ya podes iniciar sesion y guardar publicaciones.</p>
+          <p className="text-xs text-[#9a948a]">Ya podes iniciar sesión y guardar publicaciones.</p>
         </div>
       )}
     </form>
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        title="Terminos y condiciones"
+        title="T?rminos y condiciones"
         subtitle="Lineamientos de uso de Brupi."
       >
         <div className="space-y-3">

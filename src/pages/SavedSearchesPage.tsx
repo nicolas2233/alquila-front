@@ -36,7 +36,7 @@ const propertyLabels: Record<string, string> = {
   QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
-  WAREHOUSE: "Deposito",
+  WAREHOUSE: "Dep?sito",
 };
 
 function buildSearchUrl(query: Record<string, unknown>) {
@@ -60,7 +60,7 @@ function describeSearch(query: Record<string, unknown>) {
     typeof query.propertyType === "string"
       ? propertyLabels[query.propertyType] ?? query.propertyType
       : "Todas";
-  return `${operation} · ${property}`;
+  return `${operation} ? ${property}`;
 }
 
 export function SavedSearchesPage() {
@@ -76,7 +76,7 @@ export function SavedSearchesPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Inicia sesion para ver tus busquedas guardadas.");
+        setMessage("Inicia sesión para ver tus b?squedas guardadas.");
         return;
       }
       setStatus("loading");
@@ -86,7 +86,7 @@ export function SavedSearchesPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {
-          throw new Error("No pudimos cargar las busquedas guardadas.");
+          throw new Error("No pudimos cargar las b?squedas guardadas.");
         }
         const data = (await response.json()) as { items: SavedSearch[] };
         setItems(data.items ?? []);
@@ -94,7 +94,7 @@ export function SavedSearchesPage() {
       } catch (error) {
         setStatus("error");
         setMessage(
-          error instanceof Error ? error.message : "No pudimos cargar las busquedas."
+          error instanceof Error ? error.message : "No pudimos cargar las b?squedas."
         );
       }
     };
@@ -111,12 +111,12 @@ export function SavedSearchesPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
-        throw new Error("No pudimos borrar la busqueda.");
+        throw new Error("No pudimos borrar la b?squeda.");
       }
       setItems((prev) => prev.filter((item) => item.id !== id));
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "No pudimos borrar la busqueda."
+        error instanceof Error ? error.message : "No pudimos borrar la b?squeda."
       );
     }
   };
@@ -170,12 +170,12 @@ export function SavedSearchesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl text-white">Mis busquedas guardadas</h2>
-        <p className="text-sm text-[#9a948a]">Volve a ejecutar una busqueda en un click.</p>
+        <h2 className="text-3xl text-white">Mis b?squedas guardadas</h2>
+        <p className="text-sm text-[#9a948a]">Volv? a ejecutar una b?squeda en un click.</p>
       </div>
 
       {status === "loading" && (
-        <p className="text-xs text-[#9a948a]">Cargando busquedas...</p>
+        <p className="text-xs text-[#9a948a]">Cargando b?squedas...</p>
       )}
       {status === "error" && (
         <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#f5b78a]">
@@ -185,7 +185,7 @@ export function SavedSearchesPage() {
 
       {status === "idle" && items.length === 0 && (
         <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
-          <p className="text-sm text-white">Todavia no guardaste busquedas.</p>
+          <p className="text-sm text-white">Todav?a no guardaste b?squedas.</p>
           <p className="mt-1">Anda a Buscar y guarda tus filtros favoritos.</p>
           <Link
             className="mt-3 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
@@ -212,7 +212,7 @@ export function SavedSearchesPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg text-white">
-                        {item.name ?? "Busqueda guardada"}
+                        {item.name ?? "Búsqueda guardada"}
                       </h3>
                       {alertCount > 0 && (
                         <span className="rounded-full bg-gold-500/20 px-2 py-0.5 text-[10px] text-gold-300">
@@ -234,7 +234,7 @@ export function SavedSearchesPage() {
                   className="mt-4 inline-flex rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
                   to={url}
                 >
-                  Ejecutar busqueda
+                  Ejecutar b?squeda
                 </Link>
                 <button
                   className="ml-2 mt-4 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"

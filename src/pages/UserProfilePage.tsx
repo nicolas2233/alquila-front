@@ -16,7 +16,7 @@ export function UserProfilePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const [contrasena, setContrasena] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
 
   useEffect(() => {
@@ -69,13 +69,13 @@ export function UserProfilePage() {
           email,
           phone: phone || undefined,
           avatarUrl: avatarUrl ? avatarUrl : null,
-          password: password || undefined,
+          password: contrasena || undefined,
         }),
       });
       if (!response.ok) {
         throw new Error("No pudimos guardar tu perfil.");
       }
-      setPassword("");
+      setContrasena("");
       setStatus("idle");
       localStorage.setItem(
         "alquila_user",
@@ -100,7 +100,7 @@ export function UserProfilePage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl text-white">Mi perfil</h2>
-        <p className="text-sm text-[#9a948a]">Actualiza tu telefono, password y avatar.</p>
+        <p className="text-sm text-[#9a948a]">Actualiza tu tel?fono, contraseña y avatar.</p>
       </div>
 
       <div className="glass-card space-y-4 p-6">
@@ -201,7 +201,7 @@ export function UserProfilePage() {
             />
           </label>
           <label className="space-y-2 text-xs text-[#9a948a]">
-            Telefono
+            Teléfono
             <input
               className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
               value={phone}
@@ -209,12 +209,12 @@ export function UserProfilePage() {
             />
           </label>
           <label className="space-y-2 text-xs text-[#9a948a]">
-            Nueva contrasena
+            Nueva contraseña
             <input
               type="password"
               className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={contrasena}
+              onChange={(event) => setContrasena(event.target.value)}
               placeholder="Dejar en blanco para no cambiar"
             />
           </label>

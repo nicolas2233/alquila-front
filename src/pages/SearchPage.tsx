@@ -172,7 +172,7 @@ export function SearchPage() {
 
   const openModal = async (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      addToast("Inicia sesión para ver la ficha completa.", "warning");
       return;
     }
     setSelectedListing(listing);
@@ -259,8 +259,8 @@ export function SearchPage() {
     const token = getToken();
     if (!token) {
       setContactStatus("error");
-      setContactMessage("Inicia sesion para enviar la solicitud.");
-      addToast("Inicia sesion para enviar la solicitud.", "warning");
+      setContactMessage("Inicia sesión para enviar la solicitud.");
+      addToast("Inicia sesión para enviar la solicitud.", "warning");
       return;
     }
     setContactStatus("loading");
@@ -303,7 +303,7 @@ export function SearchPage() {
   const handleReportProperty = async (reason: string) => {
     if (!selectedListing) return;
     if (!sessionUser) {
-      addToast("Inicia sesion para reportar.", "warning");
+      addToast("Inicia sesión para reportar.", "warning");
       throw new Error("No session");
     }
     const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
@@ -670,7 +670,7 @@ export function SearchPage() {
                     {item.agency ? (
                       <p className="text-sm font-semibold text-white">Inmobiliaria: {item.agency}</p>
                     ) : (
-                      <p className="text-sm font-semibold text-white">Dueno directo</p>
+                      <p className="text-sm font-semibold text-white">Dueño directo</p>
                     )}
                     <p className="text-sm text-[#9a948a]">{item.description}</p>
                     {item.expensesAmount && (
@@ -753,7 +753,7 @@ export function SearchPage() {
                             <circle cx="12" cy="7" r="3" />
                             <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
                           </svg>
-                          Ninos: {item.kids ? "Si" : "No"}
+                          Niños: {item.kids ? "Si" : "No"}
                         </span>
                       </div>
                     )}
@@ -827,7 +827,7 @@ export function SearchPage() {
                             <circle cx="12" cy="7" r="3" />
                             <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
                           </svg>
-                          Ninos: {item.kids ? "Si" : "No"}
+                          Niños: {item.kids ? "Si" : "No"}
                         </span>
                       </div>
                     )}

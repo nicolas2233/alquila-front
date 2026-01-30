@@ -8,6 +8,9 @@ import { ListingPage } from "../pages/ListingPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { LoginPage } from "../pages/LoginPage";
+import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "../pages/ResetPasswordPage";
+import { ChangePasswordPage } from "../pages/ChangePasswordPage";
 import { AgencyProfilePage } from "../pages/AgencyProfilePage";
 import { SavedSearchesPage } from "../pages/SavedSearchesPage";
 import { NotificationsPage } from "../pages/NotificationsPage";
@@ -39,8 +42,11 @@ export const router = createBrowserRouter([
       { path: "perfil", element: <ProtectedRoute><UserProfilePage /></ProtectedRoute> },
       { path: "registro", element: <RegisterPage /> },
       { path: "login", element: <LoginPage /> },
+      { path: "recuperar", element: <ForgotPasswordPage /> },
+      { path: "reset-password", element: <ResetPasswordPage /> },
+      { path: "change-password", element: <ProtectedRoute><ChangePasswordPage /></ProtectedRoute> },
       { path: "agencia/:slug", element: <AgencyProfilePage /> },
-      { path: "publicacion/:id", element: <ListingPage /> },
+      { path: "publicaci?n/:id", element: <ListingPage /> },
       {
         path: "admin",
         element: (

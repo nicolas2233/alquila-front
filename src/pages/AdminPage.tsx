@@ -172,7 +172,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar publicaciones.");
+          throw new Error("No pudimos cargar publicaci?nes.");
         }
         return response.json() as Promise<{ items: AdminProperty[] }>;
       })
@@ -183,7 +183,7 @@ export function AdminPage() {
       .catch((error) => {
         setPropertiesStatus("error");
         setPropertiesError(
-          error instanceof Error ? error.message : "Error al cargar publicaciones."
+          error instanceof Error ? error.message : "Error al cargar publicaci?nes."
         );
       });
   }, [token, sessionUser?.role, tab]);
@@ -391,7 +391,7 @@ export function AdminPage() {
       {tab === "properties" && (
         <section className="glass-card space-y-3 p-4">
           {propertiesStatus === "loading" && (
-            <div className="text-xs text-[#9a948a]">Cargando publicaciones...</div>
+            <div className="text-xs text-[#9a948a]">Cargando publicaci?nes...</div>
           )}
           {propertiesStatus === "error" && (
             <div className="text-xs text-[#f5b78a]">{propertiesError}</div>
@@ -445,18 +445,18 @@ export function AdminPage() {
               <div className="text-sm text-white">
                 {report.type === "USER"
                   ? `Usuario: ${report.reportedUser?.name ?? report.reportedUser?.email ?? "N/A"}`
-                  : report.property?.title ?? "Publicacion"}
+                  : report.property?.title ?? "Publicación"}
               </div>
               <div className="text-[#9a948a]">{report.reason}</div>
               <div className="text-[#9a948a]">
-                {report.type === "USER" ? "Reporte de usuario" : "Reporte de publicacion"}
+                {report.type === "USER" ? "Reporte de usuario" : "Reporte de publicación"}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-white/10 px-3 py-1 text-[#c7c2b8]">
                   {report.status}
                 </span>
                 <span className="text-[#9a948a]">
-                  Reportado por {report.reporter?.email ?? "Anonimo"}
+                  Reportado por {report.reporter?.email ?? "Anónimo"}
                 </span>
                 <select
                   className="rounded-full border border-white/20 bg-night-900/60 px-3 py-1 text-xs text-white"
@@ -489,7 +489,7 @@ export function AdminPage() {
               className="rounded-2xl border border-white/10 bg-night-900/60 p-3 text-xs"
             >
               <div className="text-sm text-white">
-                {item.user.name ?? item.user.email} - {item.type}
+                {(item.user.name ?? item.user.email ?? "Usuario")} - {item.type}
               </div>
               <div className="text-[#9a948a]">Estado: {item.status}</div>
               <div className="mt-2 text-[#9a948a]">

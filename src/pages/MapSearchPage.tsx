@@ -147,6 +147,12 @@ export function MapSearchPage() {
   const [contactMessage, setContactMessage] = useState("");
 
   useEffect(() => {
+    if (!sessionUser) {
+      setProperties([]);
+      setListStatus("idle");
+      setListError("");
+      return;
+    }
     let ignore = false;
     const controller = new AbortController();
     const load = async () => {
@@ -203,7 +209,7 @@ export function MapSearchPage() {
               address: `${item.location?.addressLine ?? "Bragado"}${
                 item.unitLabel ? ` (${item.unitLabel})` : ""
               }`,
-              contactLabel: item.agency?.name ?? "Dueno directo",
+              contactLabel: item.agency?.name ?? "Dueño directo",
               rooms: item.rooms ?? undefined,
               areaM2: item.areaM2 ?? undefined,
               imageUrl: item.photos?.[0]?.url,
@@ -237,7 +243,7 @@ export function MapSearchPage() {
       ignore = true;
       controller.abort();
     };
-  }, []);
+  }, [sessionUser]);
 
   const counts = useMemo(() => {
     const total = properties.length;
@@ -263,11 +269,11 @@ export function MapSearchPage() {
   }, [activeOperations, activeTypes, properties]);
 
   const filteredPoi = useMemo(() => {
-    if (!activePoi.length) {
+    if (!sessionUser || !activePoi.length) {
       return [];
     }
     return poiPoints.filter((poi) => activePoi.includes(poi.category));
-  }, [activePoi]);
+  }, [activePoi, sessionUser]);
 
   const buildingGroups = useMemo(() => {
     const groups = new Map<string, MapProperty[]>();
@@ -313,7 +319,7 @@ export function MapSearchPage() {
 
   const openDetail = async (id: string) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      addToast("Inicia sesi?n para ver la ficha completa.", "warning");
       return;
     }
     setDetailStatus("loading");
@@ -365,7 +371,7 @@ export function MapSearchPage() {
   const handleContactRequest = async () => {
     if (!selectedListing) return;
     if (!sessionUser || !sessionToken) {
-      addToast("Inicia sesion para enviar solicitudes.", "warning");
+      addToast("Inicia sesión para enviar solicitudes.", "warning");
       return;
     }
     if (isOwnListing) {
@@ -412,7 +418,7 @@ export function MapSearchPage() {
   const handleReportProperty = async (reason: string) => {
     if (!selectedListing) return;
     if (!sessionUser) {
-      addToast("Inicia sesion para reportar.", "warning");
+      addToast("Inicia sesión para reportar.", "warning");
       throw new Error("No session");
     }
     const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
@@ -460,7 +466,7 @@ export function MapSearchPage() {
 
   const selected = filtered.find((item) => item.id === selectedId) ?? null;
   const selectedBuildingItems = selectedBuildingId
-    ? buildingGroups.get(selectedBuildingId) ?? []
+    ? (buildingGroups.get(selectedBuildingId) ?? [])
     : [];
 
   const toggleOperation = (value: OperationType) => {
@@ -493,7 +499,7 @@ export function MapSearchPage() {
         <div>
           <h2 className="text-3xl text-white">Mapa interactivo</h2>
           <p className="text-sm text-[#9a948a]">
-            Filtra por operacion y tipo de inmueble. Los puntos cambian en tiempo real.
+            Filtra por operaci?n y tipo de inmueble. Los puntos cambian en tiempo real.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-[#9a948a]">
@@ -689,7 +695,7 @@ export function MapSearchPage() {
               <div className="mt-3 h-[45vh] max-h-[540px] min-h-[260px] overflow-hidden rounded-2xl border border-white/10 sm:h-[62vh] sm:min-h-[360px]">
                 <MapView
                   points={[
-                    ...pointsForMap,
+                    ...(sessionUser ? pointsForMap : []),
                     ...filteredPoi.map((poi) => ({
                       id: poi.id,
                       title: poi.title,
@@ -700,9 +706,7 @@ export function MapSearchPage() {
                       lng: poi.lng,
                     })),
                   ]}
-                  selectedId={
-                    selectedId ?? (selectedBuildingId ? `building:${selectedBuildingId}` : null)
-                  }
+                  selectedId={selectedBuildingId ? `building:${selectedBuildingId}` : selectedId}
                   onSelect={(id) => {
                     if (propertyIdSet.has(id)) {
                       setSelectedId(id);
@@ -719,9 +723,14 @@ export function MapSearchPage() {
               {listStatus === "error" && (
                 <div className="mt-3 text-xs text-[#f5b78a]">{listError}</div>
               )}
-              {listStatus === "idle" && properties.length === 0 && (
+              {!sessionUser && (
                 <div className="mt-3 text-xs text-[#9a948a]">
-                  No hay inmuebles con geolocalizacion cargada.
+                  Inicia sesi?n para ver los puntos en el mapa.
+                </div>
+              )}
+              {sessionUser && listStatus === "idle" && properties.length === 0 && (
+                <div className="mt-3 text-xs text-[#9a948a]">
+                  No hay inmuebles con geolocalizaci?n cargada.
                 </div>
               )}
             </div>
@@ -925,7 +934,7 @@ export function MapSearchPage() {
                 type="button"
                 onClick={() => {
                   if (!sessionUser) {
-                    addToast("Inicia sesion para contactar.", "warning");
+                    addToast("Inicia sesión para contactar.", "warning");
                     return;
                   }
                   if (isOwnListing) {

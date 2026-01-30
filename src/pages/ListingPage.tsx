@@ -59,7 +59,7 @@ export function ListingPage() {
       <div className="glass-card space-y-4 p-6">
         <h2 className="text-xl text-white">Necesitas una cuenta</h2>
         <p className="text-sm text-[#9a948a]">
-          Inicia sesion para ver la ficha completa de la propiedad.
+          Inicia sesi?n para ver la ficha completa de la propiedad.
         </p>
         <button
           className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
@@ -73,7 +73,7 @@ export function ListingPage() {
   }
 
   if (status === "loading") {
-    return <p className="text-xs text-[#9a948a]">Cargando publicacion...</p>;
+    return <p className="text-xs text-[#9a948a]">Cargando publicaci?n...</p>;
   }
   if (status === "error" || !listing) {
     return <p className="text-xs text-[#f5b78a]">{error || "No encontrada."}</p>;

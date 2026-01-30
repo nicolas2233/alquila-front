@@ -25,7 +25,7 @@ export function LoginPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Credenciales invalidas.");
+        throw new Error("Credenciales inválidas.");
       }
 
       const data = (await response.json()) as {
@@ -37,6 +37,7 @@ export function LoginPage() {
           role: string;
           status: string;
           avatarUrl?: string | null;
+          mustChangePassword?: boolean;
         };
       };
 
@@ -57,16 +58,20 @@ export function LoginPage() {
 
       saveSession(data.token, sessionUser);
       setStatus("idle");
-      addToast("Sesion iniciada correctamente.", "success");
+      addToast("Sesión iniciada correctamente.", "success");
+      if (sessionUser.mustChangePassword) {
+        navigate("/change-password");
+        return;
+      }
       const canAccessPanel = ["OWNER", "AGENCY_ADMIN", "AGENCY_AGENT"].includes(sessionUser.role);
       navigate(canAccessPanel ? "/panel" : "/buscar");
     } catch (error) {
       setStatus("error");
       setErrorMessage(
-        error instanceof Error ? error.message : "No pudimos iniciar sesion."
+        error instanceof Error ? error.message : "No pudimos iniciar sesión."
       );
       addToast(
-        error instanceof Error ? error.message : "No pudimos iniciar sesion.",
+        error instanceof Error ? error.message : "No pudimos iniciar sesión.",
         "error"
       );
     }
@@ -76,7 +81,7 @@ export function LoginPage() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl text-white">Login</h2>
-        <p className="text-sm text-[#9a948a]">Ingresa con tu email y password.</p>
+        <p className="text-sm text-[#9a948a]">Ingresá con tu email y contraseña.</p>
       </div>
 
       <form className="glass-card space-y-4 p-6" onSubmit={handleSubmit}>
@@ -89,7 +94,7 @@ export function LoginPage() {
           />
         </label>
         <label className="space-y-2 text-xs text-[#9a948a]">
-          Password
+          Contraseña
           <input
             type="password"
             className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
@@ -106,6 +111,13 @@ export function LoginPage() {
           disabled={status === "loading"}
         >
           {status === "loading" ? "Ingresando..." : "Ingresar"}
+        </button>
+        <button
+          type="button"
+          className="text-xs text-gold-400 underline"
+          onClick={() => navigate("/recuperar")}
+        >
+          Olvidé mi contraseña
         </button>
       </form>
     </div>

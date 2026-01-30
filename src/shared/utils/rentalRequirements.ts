@@ -18,31 +18,31 @@ const frequencyLabels: Record<string, string> = {
 const indexTypeLabels: Record<string, string> = {
   IPC: "IPC",
   UVA: "UVA",
-  INFLATION: "Inflacion",
+  INFLATION: "Inflación",
   OTHER: "Otro",
 };
 
 export const formatRentalRequirements = (requirements: RentalRequirements) => {
   const parts: string[] = [];
   if (requirements.guarantees) {
-    parts.push(`Garantias: ${requirements.guarantees}`);
+    parts.push(`Garantías: ${requirements.guarantees}`);
   }
   if (requirements.entryMonths !== undefined) {
     parts.push(`Meses para entrar: ${requirements.entryMonths}`);
   }
   if (requirements.contractDurationMonths !== undefined) {
-    parts.push(`Duracion: ${requirements.contractDurationMonths} meses`);
+    parts.push(`Duración: ${requirements.contractDurationMonths} meses`);
   }
   if (requirements.indexFrequency) {
     parts.push(
-      `Indexacion: ${frequencyLabels[requirements.indexFrequency] ?? requirements.indexFrequency}`
+      `Indexación: ${frequencyLabels[requirements.indexFrequency] ?? requirements.indexFrequency}`
     );
   }
   if (requirements.indexType) {
-    parts.push(`Indice: ${indexTypeLabels[requirements.indexType] ?? requirements.indexType}`);
+    parts.push(`Índice: ${indexTypeLabels[requirements.indexType] ?? requirements.indexType}`);
   }
   if (requirements.indexValue !== undefined) {
-    parts.push(`Valor indice: ${requirements.indexValue}`);
+    parts.push(`Valor Índice: ${requirements.indexValue}`);
   }
   return parts.join(" · ");
 };

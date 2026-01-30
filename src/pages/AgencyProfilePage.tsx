@@ -199,7 +199,7 @@ export function AgencyProfilePage() {
       return null;
     }
     const message = `Hola, me interesa "${selectedListing.title}". Link: ${
-      selectedListing.id ? `${window.location.origin}/publicacion/${selectedListing.id}` : ""
+      selectedListing.id ? `${window.location.origin}/publicaci?n/${selectedListing.id}` : ""
     }`;
     return buildWhatsappLink(method.value, message);
   }, [selectedListing]);
@@ -223,14 +223,14 @@ export function AgencyProfilePage() {
     }
     if (hasSentContactRequest({ propertyId: selectedListing.id, type })) {
       setContactStatus("success");
-      setContactMessage("Ya enviaste una solicitud para esta publicacion.");
-      addToast("Ya enviaste una solicitud para esta publicacion.", "info");
+      setContactMessage("Ya enviaste una solicitud para esta publicaci?n.");
+      addToast("Ya enviaste una solicitud para esta publicaci?n.", "info");
       return;
     }
     if (isOwnListing) {
       setContactStatus("error");
-      setContactMessage("No puedes enviar solicitudes a tus propias publicaciones.");
-      addToast("No puedes enviar solicitudes a tus propias publicaciones.", "warning");
+      setContactMessage("No puedes enviar solicitudes a tus propias publicaci?nes.");
+      addToast("No puedes enviar solicitudes a tus propias publicaci?nes.", "warning");
       return;
     }
     if (contactStatus === "loading") {
@@ -239,8 +239,8 @@ export function AgencyProfilePage() {
     const token = getToken();
     if (!token) {
       setContactStatus("error");
-      setContactMessage("Inicia sesion para enviar la solicitud.");
-      addToast("Inicia sesion para enviar la solicitud.", "warning");
+      setContactMessage("Inicia sesión para enviar la solicitud.");
+      addToast("Inicia sesión para enviar la solicitud.", "warning");
       return;
     }
     setContactStatus("loading");
@@ -283,7 +283,7 @@ export function AgencyProfilePage() {
   const handleReportProperty = async (reason: string) => {
     if (!selectedListing) return;
     if (!sessionUser) {
-      addToast("Inicia sesion para reportar.", "warning");
+      addToast("Inicia sesión para reportar.", "warning");
       throw new Error("No session");
     }
     const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
@@ -302,7 +302,7 @@ export function AgencyProfilePage() {
     }
     const token = getToken();
     if (!token) {
-      addToast("Inicia sesion para reportar.", "warning");
+      addToast("Inicia sesión para reportar.", "warning");
       throw new Error("No token");
     }
     const response = await fetch(
@@ -398,9 +398,8 @@ export function AgencyProfilePage() {
               {agency?.logo && (agency.logo.startsWith("http") || agency.logo.startsWith("data:")) ? (
                 <img src={agency.logo} alt={agency.name ?? "Logo"} className="h-16 w-16 object-cover" />
               ) : (
-                agency?.logo ??
-                agency?.name
-                  ?.split(" ")
+                (agency?.name ?? "I")
+                  .split(" ")
                   .slice(0, 2)
                   .map((part) => part.charAt(0))
                   .join("")
@@ -495,14 +494,14 @@ export function AgencyProfilePage() {
             </div>
           </div>
           {listingStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando publicaciones...</p>
+            <p className="text-xs text-[#9a948a]">Cargando publicaci?nes...</p>
           )}
           {listingStatus === "error" && listings.length === 0 && (
-            <p className="text-xs text-[#f5b78a]">No hay publicaciones activas.</p>
+            <p className="text-xs text-[#f5b78a]">No hay publicaci?nes activas.</p>
           )}
           {listingStatus === "idle" && listings.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
-              <p className="text-sm text-white">No hay publicaciones activas.</p>
+              <p className="text-sm text-white">No hay publicaci?nes activas.</p>
               <p className="mt-1">Explora otras opciones o publica un inmueble.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
@@ -515,7 +514,7 @@ export function AgencyProfilePage() {
                   className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
                   to="/buscar"
                 >
-                  Ver otras publicaciones
+                  Ver otras publicaci?nes
                 </Link>
               </div>
             </div>
@@ -696,7 +695,7 @@ export function AgencyProfilePage() {
                       <circle cx="12" cy="7" r="3" />
                       <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
                     </svg>
-                    Ninos: {listing.kids ? "Si" : "No"}
+                    Niños: {listing.kids ? "Si" : "No"}
                   </span>
                 </div>
               </div>
@@ -738,8 +737,8 @@ export function AgencyProfilePage() {
                 onClick={() => {
                   if (isOwnListing) {
                     setContactStatus("error");
-                    setContactMessage("No puedes contactar tus propias publicaciones.");
-                    addToast("No puedes contactar tus propias publicaciones.", "warning");
+                    setContactMessage("No puedes contactar tus propias publicaci?nes.");
+                    addToast("No puedes contactar tus propias publicaci?nes.", "warning");
                     return;
                   }
                   if (whatsappLink) {

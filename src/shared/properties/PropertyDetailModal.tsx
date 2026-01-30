@@ -117,7 +117,7 @@ export function PropertyDetailModal({
   const rentalIndexLabels: Record<string, string> = {
     IPC: "IPC",
     UVA: "UVA",
-    INFLATION: "Inflacion",
+    INFLATION: "Inflación",
     OTHER: "Otro",
   };
 
@@ -277,7 +277,7 @@ export function PropertyDetailModal({
               </div>
               {listing.agency !== undefined && (
                 <div className="mt-3 text-xs text-[#9a948a]">
-                  {listing.agency ? `Inmobiliaria: ${listing.agency}` : "Dueno directo"}
+                  {listing.agency ? `Inmobiliaria: ${listing.agency}` : "Dueño directo"}
                 </div>
               )}
             </div>
@@ -308,7 +308,7 @@ export function PropertyDetailModal({
                 )}
                 <div>Cochera: {listing.garage ? "Si" : "No"}</div>
                 <div>Mascotas: {listing.pets ? "Si" : "No"}</div>
-                <div>Ninos: {listing.kids ? "Si" : "No"}</div>
+                <div>Niños: {listing.kids ? "Si" : "No"}</div>
               </div>
             </div>
 
@@ -324,25 +324,23 @@ export function PropertyDetailModal({
                   )}
                   {rentalRequirements.contractDurationMonths !== undefined && (
                     <div>
-                      Duracion contrato: {rentalRequirements.contractDurationMonths} meses
+                      Duraci?n contrato: {rentalRequirements.contractDurationMonths} meses
                     </div>
                   )}
                   {rentalRequirements.indexFrequency && (
                     <div>
-                      Indexacion:{" "}
-                      {rentalFrequencyLabels[rentalRequirements.indexFrequency] ??
-                        rentalRequirements.indexFrequency}
+                      Indexaci?n:{" "}
+                      {rentalFrequencyLabels[rentalRequirements.indexFrequency] ?? rentalRequirements.indexFrequency}
                     </div>
                   )}
                   {rentalRequirements.indexType && (
                     <div>
-                      Indice:{" "}
-                      {rentalIndexLabels[rentalRequirements.indexType] ??
-                        rentalRequirements.indexType}
+                      ?ndice:{" "}
+                      {rentalIndexLabels[rentalRequirements.indexType] ?? rentalRequirements.indexType}
                     </div>
                   )}
                   {rentalRequirements.indexValue !== undefined && (
-                    <div>Valor indice: {rentalRequirements.indexValue}</div>
+                    <div>Valor ?ndice: {rentalRequirements.indexValue}</div>
                   )}
                 </div>
               </div>
@@ -386,7 +384,7 @@ export function PropertyDetailModal({
             )}
             {hasMapLocation && (
               <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
-                <div className="mb-3 text-sm font-semibold text-white">Ubicacion</div>
+                <div className="mb-3 text-sm font-semibold text-white">Ubicaci?n</div>
                 <div className="overflow-hidden rounded-2xl border border-white/10">
                   <MapContainer
                     center={[listing.lat as number, listing.lng as number]}

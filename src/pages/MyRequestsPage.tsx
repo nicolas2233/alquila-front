@@ -72,7 +72,7 @@ export function MyRequestsPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Necesitas iniciar sesion.");
+        setMessage("Necesitas iniciar sesión.");
         return;
       }
       setStatus("loading");
@@ -99,7 +99,7 @@ export function MyRequestsPage() {
 
   const openRequestDetail = async (requestItem: MyRequest) => {
     if (!token) {
-      addToast("Necesitas iniciar sesion.", "warning");
+      addToast("Necesitas iniciar sesión.", "warning");
       return;
     }
     setSelectedRequest(requestItem);
@@ -182,11 +182,9 @@ export function MyRequestsPage() {
                   </div>
                   <div className="text-xs text-[#9a948a]">
                     {request.property.title} -{" "}
-                    {operationLabels[request.property.operationType] ??
-                      request.property.operationType}{" "}
+                    {operationLabels[request.property.operationType] ?? request.property.operationType}{" "}
                     -{" "}
-                    {propertyLabels[request.property.propertyType] ??
-                      request.property.propertyType}
+                    {propertyLabels[request.property.propertyType] ?? request.property.propertyType}
                   </div>
                   {request.property.location?.addressLine && (
                     <div className="text-xs text-[#9a948a]">
@@ -254,11 +252,9 @@ export function MyRequestsPage() {
               <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
                 <div className="text-sm text-white">{selectedRequest.property.title}</div>
                 <div className="text-xs text-[#9a948a]">
-                  {operationLabels[selectedRequest.property.operationType] ??
-                    selectedRequest.property.operationType}{" "}
+                  {operationLabels[selectedRequest.property.operationType] ?? selectedRequest.property.operationType}{" "}
                   -{" "}
-                  {propertyLabels[selectedRequest.property.propertyType] ??
-                    selectedRequest.property.propertyType}
+                  {propertyLabels[selectedRequest.property.propertyType] ?? selectedRequest.property.propertyType}
                 </div>
                 {selectedRequest.property.location?.addressLine && (
                   <div className="text-xs text-[#9a948a]">

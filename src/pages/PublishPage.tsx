@@ -14,14 +14,14 @@ type Step = 0 | 1 | 2 | 3 | 4;
 const steps = [
   {
     title: "Datos basicos",
-    description: "Titulo, descripcion, operacion y precio.",
+    description: "T?tulo, descripci?n, operaci?n y precio.",
   },
   {
-    title: "Ubicacion",
-    description: "Direccion, localidad, partido, barrio y mapa.",
+    title: "Ubicaci?n",
+    description: "Direcci?n, localidad, partido, barrio y mapa.",
   },
   {
-    title: "Caracteristicas",
+    title: "Caracter?sticas",
     description: "Ambientes y datos segun tipo.",
   },
   {
@@ -88,7 +88,7 @@ export function PublishPage() {
   const isOwner = sessionUser?.role === "OWNER";
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
-  const agencyId = isAgency ? sessionUser?.agencyId ?? undefined : undefined;
+  const agencyId = isAgency ? sessionUser?.agencyId : undefined;
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle"
@@ -205,7 +205,7 @@ export function PublishPage() {
   const [servicePavement, setServicePavement] = useState(false);
 
   const roleLabel = isOwner
-    ? "Dueno directo"
+    ? "Dueño directo"
     : isAgency
     ? "Inmobiliaria"
     : "Usuario";
@@ -284,7 +284,7 @@ export function PublishPage() {
       garage: hasGarage,
       pets: petsAllowed,
       kids: kidsAllowed,
-      descriptionLong: description || "Sin descripcion",
+      descriptionLong: description || "Sin descripci?n",
       images: photoPreviews.map((item) => item.url),
       amenities: previewAmenities.length ? previewAmenities : undefined,
       services: {
@@ -445,11 +445,11 @@ export function PublishPage() {
 
     try {
       if (!sessionUser || !sessionToken) {
-        throw new Error("Necesitas iniciar sesion.");
+        throw new Error("Necesitas iniciar sesión.");
       }
 
       if (!isOwner && !isAgency) {
-        throw new Error("Solo duenos o inmobiliarias pueden publicar.");
+        throw new Error("Solo dueños o inmobiliarias pueden publicar.");
       }
 
       if (isAgency && !agencyId) {
@@ -585,7 +585,7 @@ export function PublishPage() {
       });
 
       if (!response.ok) {
-        const fallback = "No pudimos crear la publicacion.";
+        const fallback = "No pudimos crear la publicaci?n.";
         let message = fallback;
         try {
           const data = (await response.json()) as {
@@ -594,7 +594,7 @@ export function PublishPage() {
           };
           if (Array.isArray(data.issues) && data.issues.length > 0) {
             const fieldLabels: Record<string, string> = {
-              title: "Titulo",
+              title: "T?tulo",
               description: "Descripcion",
               propertyType: "Tipo de inmueble",
               operationType: "Operacion",
@@ -609,7 +609,7 @@ export function PublishPage() {
               availabilityMode: "Disponibilidad",
               availableFrom: "Disponible desde",
               availableTo: "Disponible hasta",
-              "location.addressLine": "Direccion",
+              "location.addressLine": "Direcci?n",
               "location.localityId": "Localidad",
               "location.lat": "Latitud",
               "location.lng": "Longitud",
@@ -630,12 +630,12 @@ export function PublishPage() {
             };
             const details = data.issues
               .map((issue) => {
-                const field = issue.path ? issue.path.replace(/\./g, " ") : "campo";
-                const label = issue.path ? fieldLabels[issue.path] ?? field : field;
-                return `${label}: ${issue.message ?? "invalido"}`;
+                const field = issue.path ?? "campo";
+                const label = fieldLabels[issue.path ?? ""] ?? field.replace(/\./g, " ");
+                return `${label}: ${issue.message ?? "inválido"}`;
               })
               .join(" · ");
-            message = `${data.message ?? "Validacion fallida"} (${details})`;
+            message = `${data.message ?? "Validación fallida"} (${details})`;
           } else if (data.message) {
             message = data.message;
           }
@@ -663,12 +663,12 @@ export function PublishPage() {
         );
 
         if (!uploadResponse.ok) {
-          throw new Error("La publicacion se creo pero fallo la carga de fotos.");
+          throw new Error("La publicaci?n se creo pero fallo la carga de fotos.");
         }
       }
 
       setStatus("success");
-      addToast("Publicacion creada con exito.", "success");
+      addToast("Publicaci?n creada con exito.", "success");
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -717,7 +717,7 @@ export function PublishPage() {
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#9a948a]">
-                  Titulo
+                  T?tulo
                   <input
                     className={inputClass(titleError)}
                     value={title}
@@ -938,7 +938,7 @@ export function PublishPage() {
                     <option value="">Sin definir</option>
                     <option value="IPC">IPC</option>
                     <option value="UVA">UVA</option>
-                    <option value="INFLATION">Inflacion</option>
+                    <option value="INFLATION">Inflaci?n</option>
                     <option value="OTHER">Otro</option>
                   </select>
                 </label>
@@ -971,7 +971,7 @@ export function PublishPage() {
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 text-xs text-[#9a948a]">
-                  Direccion
+                  Direcci?n
                   <input
                     className={inputClass(addressError)}
                     value={addressLine}
@@ -1090,7 +1090,7 @@ export function PublishPage() {
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#9a948a]">
-                <span>Ubicacion aproximada por direccion</span>
+                <span>Ubicaci?n aproximada por direccion</span>
                 <button
                   type="button"
                   className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
@@ -1139,11 +1139,11 @@ export function PublishPage() {
                   }}
                   disabled={geoStatus === "loading"}
                 >
-                  {geoStatus === "loading" ? "Buscando..." : "Buscar direccion"}
+                  {geoStatus === "loading" ? "Buscando..." : "Buscar dirección"}
                 </button>
               </div>
               <label className="space-y-2 text-xs text-[#9a948a]">
-                Buscar direccion (texto libre)
+                Buscar dirección (texto libre)
                 <input
                   className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
                   value={addressQuery}
@@ -1185,7 +1185,7 @@ export function PublishPage() {
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-white">Caracteristicas principales</h4>
+              <h4 className="text-sm font-semibold text-white">Caracter?sticas principales</h4>
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Superficie total (m2)
@@ -1408,7 +1408,7 @@ export function PublishPage() {
                       checked={kidsAllowed}
                       onChange={(event) => setKidsAllowed(event.target.checked)}
                     />
-                    Ninos
+                    Niños
                   </label>
                 </div>
               </div>
@@ -1807,7 +1807,7 @@ export function PublishPage() {
             <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
           )}
         {status === "success" && (
-          <p className="text-xs text-[#9fe0c0]">Publicacion creada correctamente.</p>
+          <p className="text-xs text-[#9fe0c0]">Publicaci?n creada correctamente.</p>
         )}
 
             <div className="flex flex-wrap items-center justify-between gap-3">
