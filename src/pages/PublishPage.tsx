@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
 import { geocodeAddress } from "../shared/map/geocode";
 import { env } from "../shared/config/env";
-import { getSessionUser } from "../shared/auth/session";
+import { getSessionUser, getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
@@ -84,6 +84,7 @@ function LocationPicker({
 export function PublishPage() {
   const { addToast } = useToast();
   const sessionUser = getSessionUser();
+  const sessionToken = getToken();
   const isOwner = sessionUser?.role === "OWNER";
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
@@ -115,6 +116,7 @@ export function PublishPage() {
   const [party, setParty] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [unitLabel, setUnitLabel] = useState("");
   const [lat, setLat] = useState<number | undefined>(undefined);
   const [lng, setLng] = useState<number | undefined>(undefined);
   const [addressQuery, setAddressQuery] = useState("");
@@ -442,7 +444,7 @@ export function PublishPage() {
     setErrorMessage("");
 
     try {
-      if (!sessionUser) {
+      if (!sessionUser || !sessionToken) {
         throw new Error("Necesitas iniciar sesion.");
       }
 
@@ -504,6 +506,7 @@ export function PublishPage() {
           lat,
           lng,
         },
+        unitLabel: unitLabel || undefined,
           features: {
             hasGarage,
             petsAllowed,
@@ -574,7 +577,10 @@ export function PublishPage() {
 
       const response = await fetch(`${env.apiUrl}/properties`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify(payload),
       });
 
@@ -651,6 +657,7 @@ export function PublishPage() {
           `${env.apiUrl}/properties/${created.id}/photos`,
           {
             method: "POST",
+            headers: { Authorization: `Bearer ${sessionToken}` },
             body: formData,
           }
         );
@@ -1028,6 +1035,15 @@ export function PublishPage() {
                   className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
                   value={postalCode}
                   onChange={(event) => setPostalCode(event.target.value)}
+                />
+              </label>
+              <label className="space-y-2 text-xs text-[#9a948a]">
+                Unidad / Lote (opcional)
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={unitLabel}
+                  onChange={(event) => setUnitLabel(event.target.value)}
+                  placeholder="Ej: Dpto 3B, Casa 2, Lote 5"
                 />
               </label>
               {propertyType === "LAND" && (

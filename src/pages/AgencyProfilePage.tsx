@@ -280,6 +280,47 @@ export function AgencyProfilePage() {
     }
   };
 
+  const handleReportProperty = async (reason: string) => {
+    if (!selectedListing) return;
+    if (!sessionUser) {
+      addToast("Inicia sesion para reportar.", "warning");
+      throw new Error("No session");
+    }
+    const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, reporterUserId: sessionUser.id }),
+    });
+    if (!response.ok) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+  };
+
+  const handleReportUser = async (reason: string) => {
+    if (!selectedListing?.ownerUserId) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+    const token = getToken();
+    if (!token) {
+      addToast("Inicia sesion para reportar.", "warning");
+      throw new Error("No token");
+    }
+    const response = await fetch(
+      `${env.apiUrl}/users/${selectedListing.ownerUserId}/report`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+  };
+
   const loadSimilar = async () => {
     const base = selectedListing;
     if (!base) {
@@ -687,6 +728,8 @@ export function AgencyProfilePage() {
             listing={selectedListing}
             onClose={closeModal}
             isLoading={detailStatus === "loading"}
+            onReportProperty={handleReportProperty}
+            onReportUser={selectedListing.ownerUserId ? handleReportUser : undefined}
             actions={
               <>
               <button

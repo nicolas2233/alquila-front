@@ -62,13 +62,13 @@ export function HomePage() {
       )}
       <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <span className="gold-pill">Portal premium local</span>
+          <span className="gold-pill">Plataforma local inmobiliaria</span>
           <h1 className="font-display text-4xl leading-tight text-white md:text-5xl">
-            Un mercado inmobiliario limpio, elegante y sin duplicados.
+            Brupi ordena las publicaciones inmobiliarias de Bragado.
           </h1>
           <p className="text-base text-[#c7c2b8] md:text-lg">
-            Bragado primero. Publicaciones con respaldo y contacto directo. Sin ruido, sin
-            intermediarios innecesarios.
+            Una plataforma pensada para quienes buscan, para dueños directos y para
+            inmobiliarias. Menos duplicados, mas confianza y contacto directo real.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -83,9 +83,12 @@ export function HomePage() {
             >
               Publicar ahora
             </Link>
-            <button className="rounded-full border border-white/20 px-5 py-2 text-sm text-[#c7c2b8]" type="button">
-              Ver planes
-            </button>
+            <Link
+              className="rounded-full border border-white/20 px-5 py-2 text-sm text-[#c7c2b8]"
+              to="/registro"
+            >
+              Crear cuenta
+            </Link>
           </div>
         </div>
         <div className="relative min-h-[360px] overflow-hidden rounded-[28px] bg-hero bg-cover bg-center shadow-card">
@@ -99,9 +102,9 @@ export function HomePage() {
 
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          { label: "24 hs", text: "Tiempo medio de respuesta" },
-          { label: "92%", text: "Contactos directos con duenos" },
-          { label: "0 duplicados", text: "Validacion catastral" },
+          { label: "Local", text: "Foco total en Bragado y sus cuarteles" },
+          { label: "Confiable", text: "Datos claros y control de duplicados" },
+          { label: "Directo", text: "Contacto rapido con dueño o inmobiliaria" },
         ].map((item) => (
           <div key={item.label} className="glass-card p-4">
             <strong className="block text-lg text-white">{item.label}</strong>
@@ -111,25 +114,28 @@ export function HomePage() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">
-        {["Dueños directos", "Inmobiliarias", "Contacto inmediato"].map((title) => (
+        {["Quienes buscan", "Dueños directos", "Inmobiliarias"].map((title) => (
           <div key={title} className="glass-card overflow-hidden">
             <div
               className="h-44 bg-cover bg-center"
               style={{
                 backgroundImage:
-                  title === "Dueños directos"
-                    ? "url('https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=800&q=80')"
-                    : title === "Inmobiliarias"
-                      ? "url('https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80')"
-                      : "url('https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=800&q=80')",
+                  title === "Quienes buscan"
+                    ? "url('https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=800&q=80')"
+                    : title === "Dueños directos"
+                      ? "url('https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=800&q=80')"
+                      : "url('https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80')",
               }}
             />
             <div className="space-y-2 p-5">
               <h3 className="text-lg text-white">{title}</h3>
               <p className="text-sm text-[#9a948a]">
-                {title === "Dueños directos" && "Se ve quien publica y si esta verificado."}
-                {title === "Inmobiliarias" && "Matricula y CUIT validados."}
-                {title === "Contacto inmediato" && "WhatsApp directo o contacto dentro de la app."}
+                {title === "Quienes buscan" &&
+                  "Filtros simples, fichas completas y ubicacion clara en el mapa."}
+                {title === "Dueños directos" &&
+                  "Publica con control de datos y contacto directo real."}
+                {title === "Inmobiliarias" &&
+                  "Panel y perfil propio para mostrar cartera y equipo."}
               </p>
             </div>
           </div>
@@ -139,19 +145,22 @@ export function HomePage() {
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="glass-card p-6">
           <span className="gold-pill">Quienes somos</span>
-          <h2 className="mt-4 text-2xl text-white">Somos un equipo local que quiere ordenar el mercado.</h2>
+          <h2 className="mt-4 text-2xl text-white">Brupi nace en Bragado para ordenar el mercado local.</h2>
           <p className="mt-4 text-sm text-[#9a948a]">
-            Nacimos en Bragado con una idea simple: menos publicaciones repetidas y mas
-            transparencia. Verificamos identidad, catastro y actividad real antes de destacar
-            una propiedad.
+            Somos un equipo local que busca transparencia y confianza. Queremos que
+            propietarios, inmobiliarias y personas que buscan tengan un espacio claro,
+            sin publicaciones repetidas y con informacion real.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button className="rounded-full border border-white/20 px-4 py-2 text-sm" type="button">
-              Nuestro proceso
-            </button>
-            <button className="rounded-full border border-accent-500/30 bg-accent-500/15 px-4 py-2 text-sm">
-              Contactanos
-            </button>
+            <Link className="rounded-full border border-white/20 px-4 py-2 text-sm" to="/registro">
+              Sumate
+            </Link>
+            <Link
+              className="rounded-full border border-accent-500/30 bg-accent-500/15 px-4 py-2 text-sm"
+              to="/buscar"
+            >
+              Ver publicaciones
+            </Link>
           </div>
         </div>
         <div className="glass-card overflow-hidden">
@@ -165,9 +174,9 @@ export function HomePage() {
           <div className="space-y-4 p-6">
             <h3 className="text-lg text-white">Como funciona</h3>
             {[
-              "Publica con respaldo",
-              "Verificacion rapida",
-              "Contacto inmediato",
+              "Publica o busca sin ruido",
+              "Ubicacion real en el mapa",
+              "Contacto directo y simple",
             ].map((step, index) => (
               <div key={step} className="flex gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500/15 text-sm font-semibold text-gold-400">
@@ -176,9 +185,9 @@ export function HomePage() {
                 <div>
                   <strong className="block text-sm text-white">{step}</strong>
                   <span className="text-xs text-[#9a948a]">
-                    {index === 0 && "DNI y datos catastrales minimos para validar."}
-                    {index === 1 && "Revisamos datos y eliminamos duplicados."}
-                    {index === 2 && "WhatsApp directo o contacto en la app."}
+                    {index === 0 && "Publicaciones claras para venta, alquiler o temporario."}
+                    {index === 1 && "Direcciones y mapa para ubicar rapido cada propiedad."}
+                    {index === 2 && "WhatsApp o solicitud desde la app sin chat complejo."}
                   </span>
                 </div>
               </div>
@@ -190,16 +199,16 @@ export function HomePage() {
       <section className="grid gap-6 md:grid-cols-3">
         {[
           {
-            title: "Catastro y dedupe inteligente",
-            body: "Usamos partida o nomenclatura para evitar que una propiedad aparezca repetida.",
+            title: "Sin publicaciones duplicadas",
+            body: "Cada propiedad queda asociada a una direccion y datos claros.",
           },
           {
-            title: "Estados reales de disponibilidad",
-            body: "Temporarios con fechas exactas y avisos de proxima disponibilidad.",
+            title: "Mapa y ubicacion real",
+            body: "Podes ubicar la propiedad exacta o aproximada segun tu preferencia.",
           },
           {
-            title: "Ranking transparente",
-            body: "Prioridad a verificados, completos y actualizados. Sin hacks ni pagos ocultos.",
+            title: "Contacto rapido",
+            body: "WhatsApp directo o solicitud desde la plataforma.",
           },
         ].map((feature, index) => (
           <div key={feature.title} className="glass-card p-5">

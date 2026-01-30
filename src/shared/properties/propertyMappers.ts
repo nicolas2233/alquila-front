@@ -57,6 +57,7 @@ export type PropertyApiListItem = {
     lng?: number | null;
     locality?: { name: string } | null;
   };
+  unitLabel?: string | null;
   photos?: { id?: string; url: string }[];
   agency?: { name: string } | null;
   updatedAt?: string;
@@ -70,6 +71,7 @@ export type PropertyApiDetail = PropertyApiListItem & {
     lng?: number | null;
     locality?: { name: string } | null;
   };
+  unitLabel?: string | null;
   photos?: { id: string; url: string }[];
   agency?: { name: string } | null;
   contactMethods?: { id: string; type: "WHATSAPP" | "PHONE" | "IN_APP"; value: string }[];
@@ -142,7 +144,10 @@ export const formatPrice = (amount: string | number, currency: string) => {
 
 export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchListing => {
   const localityName = item.location.locality?.name ?? item.location.localityId;
-  const address = `${item.location.addressLine}${localityName ? ` - ${localityName}` : ""}`;
+  const unitSuffix = item.unitLabel ? ` (${item.unitLabel})` : "";
+  const address = `${item.location.addressLine}${unitSuffix}${
+    localityName ? ` - ${localityName}` : ""
+  }`;
   const images = item.photos?.map((photo) => photo.url) ?? [];
   const image = images[0] ?? fallbackImage;
 
@@ -185,7 +190,10 @@ export const mapPropertyToDetailListing = (
   item: PropertyApiDetail
 ): PropertyDetailListing => {
   const localityName = item.location.locality?.name ?? item.location.localityId;
-  const address = `${item.location.addressLine}${localityName ? ` - ${localityName}` : ""}`;
+  const unitSuffix = item.unitLabel ? ` (${item.unitLabel})` : "";
+  const address = `${item.location.addressLine}${unitSuffix}${
+    localityName ? ` - ${localityName}` : ""
+  }`;
   const images = item.photos?.map((photo) => photo.url) ?? [];
 
   return {

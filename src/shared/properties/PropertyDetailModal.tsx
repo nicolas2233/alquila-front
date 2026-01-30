@@ -51,9 +51,12 @@ export type PropertyDetailListing = {
 
 type PropertyDetailModalProps = {
   listing: PropertyDetailListing;
-  onClose: () => void;
+  onClose?: () => void;
   actions?: React.ReactNode;
   isLoading?: boolean;
+  variant?: "modal" | "page";
+  onReportProperty?: (reason: string) => Promise<void> | void;
+  onReportUser?: (reason: string) => Promise<void> | void;
 };
 
 export function PropertyDetailModal({
@@ -61,8 +64,18 @@ export function PropertyDetailModal({
   onClose,
   actions,
   isLoading = false,
+  variant = "modal",
+  onReportProperty,
+  onReportUser,
 }: PropertyDetailModalProps) {
+  const isModal = variant !== "page";
   const [activeImage, setActiveImage] = useState(0);
+  const [reportTarget, setReportTarget] = useState<"PROPERTY" | "USER" | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportStatus, setReportStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
+  const [reportMessage, setReportMessage] = useState("");
   const images = listing.images.length ? listing.images : [];
   const hasImages = images.length > 0;
   const activeImageUrl = hasImages ? images[activeImage] : null;
@@ -108,24 +121,76 @@ export function PropertyDetailModal({
     OTHER: "Otro",
   };
 
+  const openReport = (target: "PROPERTY" | "USER") => {
+    setReportTarget(target);
+    setReportReason("");
+    setReportStatus("idle");
+    setReportMessage("");
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget) return;
+    const reason = reportReason.trim();
+    if (!reason) {
+      setReportStatus("error");
+      setReportMessage("Contanos el motivo del reporte.");
+      return;
+    }
+    const handler = reportTarget === "PROPERTY" ? onReportProperty : onReportUser;
+    if (!handler) {
+      setReportStatus("error");
+      setReportMessage("No pudimos enviar el reporte.");
+      return;
+    }
+    try {
+      setReportStatus("loading");
+      await handler(reason);
+      setReportStatus("success");
+      setReportMessage("Reporte enviado.");
+    } catch {
+      setReportStatus("error");
+      setReportMessage("No pudimos enviar el reporte.");
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
-      <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+    <div
+      className={
+        isModal
+          ? "fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-0 py-0 sm:px-4 sm:py-8"
+          : "w-full"
+      }
+    >
+      <div
+        className={
+          isModal
+            ? "w-full max-w-4xl h-screen overflow-y-auto rounded-none border border-white/10 bg-night-900/95 shadow-card sm:h-[calc(100vh-2rem)] sm:rounded-3xl md:max-h-[90vh] md:overflow-hidden"
+            : "w-full rounded-3xl border border-white/10 bg-night-900/95 shadow-card"
+        }
+      >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
             <h3 className="text-xl text-white">{listing.title}</h3>
             <p className="text-sm text-[#9a948a]">{listing.address}</p>
           </div>
-          <button
-            className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-            type="button"
-            onClick={onClose}
-          >
-            Cerrar
-          </button>
+          {isModal && onClose && (
+            <button
+              className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+              type="button"
+              onClick={onClose}
+            >
+              Cerrar
+            </button>
+          )}
         </div>
-        <div className="grid max-h-[calc(90vh-88px)] min-h-0 gap-6 overflow-hidden p-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="min-h-0 space-y-4">
+        <div
+          className={
+            isModal
+              ? "grid min-h-0 gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] md:max-h-[calc(90vh-88px)] md:overflow-hidden"
+              : "grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]"
+          }
+        >
+          <div className={isModal ? "space-y-4 md:min-h-0" : "space-y-4"}>
             <div className="relative overflow-hidden rounded-2xl">
               {activeImageUrl ? (
                 <img
@@ -193,7 +258,13 @@ export function PropertyDetailModal({
             )}
             {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
           </div>
-          <div className="max-h-[calc(90vh-88px)] min-h-0 space-y-4 overflow-y-auto pr-3 pb-10">
+          <div
+            className={
+              isModal
+                ? "space-y-4 md:max-h-[calc(90vh-88px)] md:min-h-0 md:overflow-y-auto md:pr-3 md:pb-10"
+                : "space-y-4"
+            }
+          >
             <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -335,6 +406,75 @@ export function PropertyDetailModal({
                   </MapContainer>
                 </div>
                 <div className="mt-2 text-[11px] text-[#9a948a]">{listing.address}</div>
+              </div>
+            )}
+            {(onReportProperty || onReportUser) && (
+              <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+                <div className="text-sm text-white">Reportes</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {onReportProperty && (
+                    <button
+                      type="button"
+                      className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                      onClick={() => openReport("PROPERTY")}
+                    >
+                      Reportar inmueble
+                    </button>
+                  )}
+                  {onReportUser && (
+                    <button
+                      type="button"
+                      className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                      onClick={() => openReport("USER")}
+                    >
+                      Reportar usuario
+                    </button>
+                  )}
+                </div>
+                {reportTarget && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs text-[#9a948a]">
+                      {reportTarget === "PROPERTY"
+                        ? "Describi el problema con la publicacion."
+                        : "Describi el problema con el usuario."}
+                    </div>
+                    <textarea
+                      value={reportReason}
+                      onChange={(event) => setReportReason(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-night-900/70 px-3 py-2 text-xs text-white"
+                      rows={3}
+                      placeholder="Motivo del reporte"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                        onClick={submitReport}
+                        disabled={reportStatus === "loading"}
+                      >
+                        Enviar reporte
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                        onClick={() => setReportTarget(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                    {reportMessage && (
+                      <div
+                        className={
+                          reportStatus === "success"
+                            ? "text-xs text-emerald-300"
+                            : "text-xs text-[#f5b78a]"
+                        }
+                      >
+                        {reportMessage}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

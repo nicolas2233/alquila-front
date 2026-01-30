@@ -11,6 +11,7 @@ export type MapPoint = {
   imageUrl?: string;
   badge?: string;
   color?: string;
+  count?: number;
   lat: number;
   lng: number;
 };
@@ -23,18 +24,40 @@ type MapViewProps = {
 
 const defaultCenter: LatLngExpression = [-35.1197, -60.4899];
 
-const createMarkerIcon = (color: string, isSelected: boolean) =>
+const createMarkerIcon = (color: string, isSelected: boolean, count?: number) =>
   L.divIcon({
     className: "alquila-marker",
     html: `
-      <svg width="${isSelected ? 46 : 40}" height="${isSelected ? 46 : 40}" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      ${
+        typeof count === "number" && count > 1
+          ? `<svg width="${isSelected ? 50 : 44}" height="${isSelected ? 50 : 44}" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="28" fill="${color}"/>
+        <circle cx="32" cy="32" r="20" fill="rgba(10,11,16,0.65)"/>
+        <text x="32" y="38" text-anchor="middle" font-size="18" fill="white" font-family="Arial" font-weight="700">${count}</text>
+      </svg>`
+          : `<svg width="${isSelected ? 46 : 40}" height="${isSelected ? 46 : 40}" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M32 2C19.3 2 9 12.3 9 25C9 42.9 32 62 32 62C32 62 55 42.9 55 25C55 12.3 44.7 2 32 2Z" fill="${color}"/>
         <circle cx="32" cy="26" r="10" fill="rgba(10,11,16,0.65)"/>
         <circle cx="32" cy="26" r="6" fill="rgba(255,255,255,0.92)"/>
-      </svg>
+      </svg>`
+      }
     `,
-    iconSize: isSelected ? [46, 46] : [40, 40],
-    iconAnchor: isSelected ? [23, 44] : [20, 40],
+    iconSize:
+      typeof count === "number" && count > 1
+        ? isSelected
+          ? [50, 50]
+          : [44, 44]
+        : isSelected
+        ? [46, 46]
+        : [40, 40],
+    iconAnchor:
+      typeof count === "number" && count > 1
+        ? isSelected
+          ? [25, 25]
+          : [22, 22]
+        : isSelected
+        ? [23, 44]
+        : [20, 40],
     popupAnchor: [0, -34],
   });
 
@@ -80,7 +103,11 @@ export function MapView({ points, selectedId, onSelect }: MapViewProps) {
           <Marker
             key={point.id}
             position={[point.lat, point.lng]}
-            icon={createMarkerIcon(point.color ?? "#d1a466", point.id === selectedId)}
+            icon={createMarkerIcon(
+              point.color ?? "#d1a466",
+              point.id === selectedId,
+              point.count
+            )}
             eventHandlers={{
               click: () => onSelect(point.id),
               mouseover: (event) => event.target.openPopup(),
@@ -88,24 +115,41 @@ export function MapView({ points, selectedId, onSelect }: MapViewProps) {
           >
             <Popup className="alquila-popup" closeButton={false} offset={[0, -28]}>
               <div className="map-popup-body w-52 space-y-2">
-                {point.imageUrl && (
-                  <div className="relative overflow-hidden rounded-lg">
-                    <img
-                      src={point.imageUrl}
-                      alt={point.title}
-                      className="h-24 w-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    {point.badge && (
-                      <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-wide text-white">
-                        {point.badge}
-                      </span>
+                {point.count && point.count > 1 ? (
+                  <>
+                    <div className="text-sm font-semibold text-[#171717]">
+                      {point.count} unidades en este edificio
+                    </div>
+                    {point.subtitle && (
+                      <div className="text-[11px] text-[#6b6b6b]">
+                        {point.subtitle}
+                      </div>
                     )}
-                  </div>
-                )}
-                <div className="text-sm font-semibold text-[#171717]">{point.title}</div>
-                {point.subtitle && (
-                  <div className="text-[11px] text-[#6b6b6b]">{point.subtitle}</div>
+                  </>
+                ) : (
+                  <>
+                    {point.imageUrl && (
+                      <div className="relative overflow-hidden rounded-lg">
+                        <img
+                          src={point.imageUrl}
+                          alt={point.title}
+                          className="h-24 w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                        {point.badge && (
+                          <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-wide text-white">
+                            {point.badge}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div className="text-sm font-semibold text-[#171717]">
+                      {point.title}
+                    </div>
+                    {point.subtitle && (
+                      <div className="text-[11px] text-[#6b6b6b]">{point.subtitle}</div>
+                    )}
+                  </>
                 )}
               </div>
             </Popup>

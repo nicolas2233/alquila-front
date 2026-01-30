@@ -37,6 +37,7 @@ export function SearchPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
   const sessionUser = useMemo(() => getSessionUser(), []);
+  const token = useMemo(() => getToken(), []);
 
   const listUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -170,6 +171,10 @@ export function SearchPage() {
   };
 
   const openModal = async (listing: SearchListing) => {
+    if (!sessionUser) {
+      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      return;
+    }
     setSelectedListing(listing);
     setContactStatus("idle");
     setContactMessage("");
@@ -292,6 +297,42 @@ export function SearchPage() {
         error instanceof Error ? error.message : "No pudimos enviar la solicitud.",
         "error"
       );
+    }
+  };
+
+  const handleReportProperty = async (reason: string) => {
+    if (!selectedListing) return;
+    if (!sessionUser) {
+      addToast("Inicia sesion para reportar.", "warning");
+      throw new Error("No session");
+    }
+    const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, reporterUserId: sessionUser.id }),
+    });
+    if (!response.ok) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+  };
+
+  const handleReportUser = async (reason: string) => {
+    if (!selectedListing?.ownerUserId || !token) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+    const response = await fetch(
+      `${env.apiUrl}/users/${selectedListing.ownerUserId}/report`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error("No pudimos enviar el reporte.");
     }
   };
 
@@ -819,6 +860,8 @@ export function SearchPage() {
           listing={selectedListing}
           onClose={closeModal}
           isLoading={detailStatus === "loading"}
+          onReportProperty={handleReportProperty}
+          onReportUser={selectedListing.ownerUserId ? handleReportUser : undefined}
           actions={
             <>
                 <button

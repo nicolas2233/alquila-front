@@ -1,5 +1,13 @@
+
 import { useEffect, useMemo, useState } from "react";
-import { MapView } from "../shared/map/MapView";
+import { MapView, type MapPoint } from "../shared/map/MapView";
+import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
+import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
+import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
+import { buildWhatsappLink } from "../shared/utils/whatsapp";
+import { getSessionUser, getToken } from "../shared/auth/session";
+import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
+import { useToast } from "../shared/ui/toast/ToastProvider";
 import { env } from "../shared/config/env";
 
 type OperationType = "SALE" | "RENT" | "TEMPORARY";
@@ -35,6 +43,8 @@ type MapProperty = {
   imageUrl?: string;
   badge?: string;
   showMapLocation?: boolean;
+  buildingId?: string | null;
+  unitLabel?: string | null;
   lat: number;
   lng: number;
   kind?: "PROPERTY" | "POI";
@@ -112,6 +122,9 @@ const typeFilters: PropertyType[] = [
 ];
 
 export function MapSearchPage() {
+  const { addToast } = useToast();
+  const sessionUser = useMemo(() => getSessionUser(), []);
+  const sessionToken = useMemo(() => getToken(), []);
   const [properties, setProperties] = useState<MapProperty[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
@@ -123,6 +136,15 @@ export function MapSearchPage() {
   const [typeOpen, setTypeOpen] = useState(true);
   const [poiOpen, setPoiOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [detailStatus, setDetailStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [detailError, setDetailError] = useState("");
+  const [selectedListing, setSelectedListing] =
+    useState<ReturnType<typeof mapPropertyToDetailListing> | null>(null);
+  const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success">(
+    "idle"
+  );
+  const [contactMessage, setContactMessage] = useState("");
 
   useEffect(() => {
     let ignore = false;
@@ -153,8 +175,14 @@ export function MapSearchPage() {
             rooms?: number | null;
             areaM2?: number | null;
             features?: { showMapLocation?: boolean } | null;
+            unitLabel?: string | null;
+            buildingId?: string | null;
             agency?: { name: string } | null;
-            location?: { addressLine?: string | null; lat?: number | null; lng?: number | null } | null;
+            location?: {
+              addressLine?: string | null;
+              lat?: number | null;
+              lng?: number | null;
+            } | null;
             photos?: { url: string }[];
           }>;
         };
@@ -172,17 +200,21 @@ export function MapSearchPage() {
               propertyType: item.propertyType,
               priceAmount: Number(item.priceAmount),
               priceCurrency: item.priceCurrency,
-              address: item.location?.addressLine ?? "Bragado",
-            contactLabel: item.agency?.name ?? "Dueno directo",
-            rooms: item.rooms ?? undefined,
-            areaM2: item.areaM2 ?? undefined,
-            imageUrl: item.photos?.[0]?.url,
-            badge: typeLabels[item.propertyType],
-            showMapLocation: item.features?.showMapLocation ?? true,
-            lat,
-            lng,
-          };
-        })
+              address: `${item.location?.addressLine ?? "Bragado"}${
+                item.unitLabel ? ` (${item.unitLabel})` : ""
+              }`,
+              contactLabel: item.agency?.name ?? "Dueno directo",
+              rooms: item.rooms ?? undefined,
+              areaM2: item.areaM2 ?? undefined,
+              imageUrl: item.photos?.[0]?.url,
+              badge: typeLabels[item.propertyType],
+              showMapLocation: item.features?.showMapLocation ?? true,
+              buildingId: item.buildingId ?? null,
+              unitLabel: item.unitLabel ?? null,
+              lat,
+              lng,
+            };
+          })
           .filter(
             (item) =>
               Number.isFinite(item.lat) &&
@@ -217,6 +249,9 @@ export function MapSearchPage() {
   }, [properties]);
 
   const filtered = useMemo(() => {
+    if (!activeOperations.length && !activeTypes.length) {
+      return [];
+    }
     let list = [...properties];
     if (activeOperations.length) {
       list = list.filter((item) => activeOperations.includes(item.operationType));
@@ -225,7 +260,7 @@ export function MapSearchPage() {
       list = list.filter((item) => activeTypes.includes(item.propertyType));
     }
     return list;
-  }, [activeOperations, activeTypes]);
+  }, [activeOperations, activeTypes, properties]);
 
   const filteredPoi = useMemo(() => {
     if (!activePoi.length) {
@@ -234,22 +269,199 @@ export function MapSearchPage() {
     return poiPoints.filter((poi) => activePoi.includes(poi.category));
   }, [activePoi]);
 
+  const buildingGroups = useMemo(() => {
+    const groups = new Map<string, MapProperty[]>();
+    filtered.forEach((item) => {
+      const key = item.buildingId ?? `loc:${item.lat.toFixed(5)}:${item.lng.toFixed(5)}`;
+      const list = groups.get(key) ?? [];
+      list.push(item);
+      groups.set(key, list);
+    });
+    return groups;
+  }, [filtered]);
+
+  const pointsForMap = useMemo(() => {
+    const points: MapPoint[] = [];
+    buildingGroups.forEach((group, key) => {
+      const first = group[0];
+      if (!first) return;
+      if (group.length > 1) {
+        points.push({
+          id: `building:${key}`,
+          title: first.address,
+          subtitle: `${group.length} unidades disponibles`,
+          color: "#7f8cff",
+          lat: first.lat,
+          lng: first.lng,
+          count: group.length,
+        });
+      } else {
+        points.push({
+          id: first.id,
+          title: first.title,
+          subtitle: `${operationLabels[first.operationType]} - ${typeLabels[first.propertyType]}`,
+          imageUrl: first.imageUrl,
+          badge: first.badge,
+          color: getMarkerColor(first.propertyType, first.operationType),
+          lat: first.lat,
+          lng: first.lng,
+        });
+      }
+    });
+    return points;
+  }, [buildingGroups]);
+
+  const openDetail = async (id: string) => {
+    if (!sessionUser) {
+      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      return;
+    }
+    setDetailStatus("loading");
+    setDetailError("");
+    setContactStatus("idle");
+    setContactMessage("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${id}`);
+      if (!response.ok) {
+        throw new Error("No pudimos cargar la ficha.");
+      }
+      const data = (await response.json()) as PropertyApiDetail;
+      const mapped = mapPropertyToDetailListing(data);
+      setSelectedListing(mapped);
+      setDetailStatus("idle");
+    } catch (error) {
+      setDetailStatus("error");
+      setDetailError(error instanceof Error ? error.message : "No pudimos cargar la ficha.");
+    }
+  };
+
+  const closeDetail = () => {
+    setSelectedListing(null);
+    setDetailStatus("idle");
+    setDetailError("");
+    setContactStatus("idle");
+    setContactMessage("");
+  };
+
+  const isOwnListing = useMemo(() => {
+    if (!selectedListing || !sessionUser) return false;
+    if (sessionUser.role === "OWNER") {
+      return selectedListing.ownerUserId === sessionUser.id;
+    }
+    if (sessionUser.role.startsWith("AGENCY")) {
+      return selectedListing.agencyId === sessionUser.agencyId;
+    }
+    return false;
+  }, [selectedListing, sessionUser]);
+
+  const whatsappLink = useMemo(() => {
+    if (!selectedListing?.contactMethods) return null;
+    const method = selectedListing.contactMethods.find((item) => item.type === "WHATSAPP");
+    if (!method?.value) return null;
+    const message = `Hola, me interesa "${selectedListing.title}".`;
+    return buildWhatsappLink(method.value, message);
+  }, [selectedListing]);
+
+  const handleContactRequest = async () => {
+    if (!selectedListing) return;
+    if (!sessionUser || !sessionToken) {
+      addToast("Inicia sesion para enviar solicitudes.", "warning");
+      return;
+    }
+    if (isOwnListing) {
+      addToast("No puedes contactar tus propias publicaciones.", "warning");
+      return;
+    }
+    if (hasSentContactRequest({ propertyId: selectedListing.id, type: "INTEREST" })) {
+      setContactStatus("success");
+      setContactMessage("Ya enviaste una solicitud para este inmueble.");
+      return;
+    }
+    setContactStatus("loading");
+    try {
+      const response = await fetch(
+        `${env.apiUrl}/properties/${selectedListing.id}/contact-requests`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({
+            propertyId: selectedListing.id,
+            type: "INTEREST",
+            message: `Hola! Soy ${sessionUser.name ?? "un interesado"} y me interesa "${
+              selectedListing.title
+            }".`,
+          }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error("No pudimos enviar la solicitud.");
+      }
+      setContactStatus("success");
+      setContactMessage("Solicitud enviada.");
+      markContactRequestSent({ propertyId: selectedListing.id, type: "INTEREST" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No pudimos enviar la solicitud.";
+      setContactStatus("idle");
+      setContactMessage(message);
+    }
+  };
+
+  const handleReportProperty = async (reason: string) => {
+    if (!selectedListing) return;
+    if (!sessionUser) {
+      addToast("Inicia sesion para reportar.", "warning");
+      throw new Error("No session");
+    }
+    const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, reporterUserId: sessionUser.id }),
+    });
+    if (!response.ok) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+  };
+
+  const handleReportUser = async (reason: string) => {
+    if (!selectedListing?.ownerUserId || !sessionToken) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+    const response = await fetch(
+      `${env.apiUrl}/users/${selectedListing.ownerUserId}/report`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ reason }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error("No pudimos enviar el reporte.");
+    }
+  };
+
   const propertyIdSet = useMemo(() => new Set(properties.map((item) => item.id)), [
     properties,
   ]);
 
   useEffect(() => {
-    if (!filtered.length) {
+    if (selectedId && !filtered.some((item) => item.id === selectedId)) {
       setSelectedId(null);
-      return;
     }
-    const exists = filtered.some((item) => item.id === selectedId);
-    if (!exists) {
-      setSelectedId(filtered[0].id);
+    if (selectedBuildingId && !buildingGroups.has(selectedBuildingId)) {
+      setSelectedBuildingId(null);
     }
-  }, [filtered, selectedId]);
+  }, [filtered, selectedId, selectedBuildingId, buildingGroups]);
 
   const selected = filtered.find((item) => item.id === selectedId) ?? null;
+  const selectedBuildingItems = selectedBuildingId
+    ? buildingGroups.get(selectedBuildingId) ?? []
+    : [];
 
   const toggleOperation = (value: OperationType) => {
     setActiveOperations((prev) =>
@@ -474,19 +686,10 @@ export function MapSearchPage() {
                 <span>Mapa principal</span>
                 <span>{listStatus === "loading" ? "Cargando..." : "Actualizado"}</span>
               </div>
-              <div className="mt-3 h-[62vh] max-h-[540px] min-h-[360px] overflow-hidden rounded-2xl border border-white/10">
+              <div className="mt-3 h-[45vh] max-h-[540px] min-h-[260px] overflow-hidden rounded-2xl border border-white/10 sm:h-[62vh] sm:min-h-[360px]">
                 <MapView
                   points={[
-                    ...filtered.map((item) => ({
-                      id: item.id,
-                      title: item.title,
-                      subtitle: `${operationLabels[item.operationType]} ?? ${typeLabels[item.propertyType]}`,
-                      imageUrl: item.imageUrl,
-                      badge: item.badge,
-                      color: getMarkerColor(item.propertyType, item.operationType),
-                      lat: item.lat,
-                      lng: item.lng,
-                    })),
+                    ...pointsForMap,
                     ...filteredPoi.map((poi) => ({
                       id: poi.id,
                       title: poi.title,
@@ -497,10 +700,18 @@ export function MapSearchPage() {
                       lng: poi.lng,
                     })),
                   ]}
-                  selectedId={selectedId}
+                  selectedId={
+                    selectedId ?? (selectedBuildingId ? `building:${selectedBuildingId}` : null)
+                  }
                   onSelect={(id) => {
                     if (propertyIdSet.has(id)) {
                       setSelectedId(id);
+                      setSelectedBuildingId(null);
+                      return;
+                    }
+                    if (id.startsWith("building:")) {
+                      setSelectedBuildingId(id.replace("building:", ""));
+                      setSelectedId(null);
                     }
                   }}
                 />
@@ -590,13 +801,11 @@ export function MapSearchPage() {
                     {poiLabels[poi]}
                   </span>
                 ))}
-              {!activeOperations.length &&
-                !activeTypes.length &&
-                !activePoi.length && (
-                  <span className="text-xs text-[#9a948a]">
-                    Activa filtros para mostrar la leyenda.
-                  </span>
-                )}
+              {!activeOperations.length && !activeTypes.length && !activePoi.length && (
+                <span className="text-xs text-[#9a948a]">
+                  Activa filtros para mostrar la leyenda.
+                </span>
+              )}
             </div>
           </div>
 
@@ -626,12 +835,42 @@ export function MapSearchPage() {
                     Contacto: {selected.contactLabel}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <a
+                    <button
                       className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
-                      href={`/publicacion/${selected.id}`}
+                      type="button"
+                      onClick={() => openDetail(selected.id)}
                     >
-                      Ver publicacion
-                    </a>
+                      Ver ficha
+                    </button>
+                  </div>
+                </div>
+              ) : selectedBuildingItems.length ? (
+                <div className="space-y-3 text-xs text-[#c7c2b8]">
+                  <div className="text-sm text-white">
+                    {selectedBuildingItems.length} unidades disponibles
+                  </div>
+                  <div className="space-y-2">
+                    {selectedBuildingItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/50 px-3 py-2"
+                      >
+                        <div className="space-y-1">
+                          <div className="text-sm text-white">{item.title}</div>
+                          <div className="text-[11px] text-[#9a948a]">
+                            {operationLabels[item.operationType]} - {typeLabels[item.propertyType]}
+                          </div>
+                          <div className="text-[11px] text-[#9a948a]">{item.address}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openDetail(item.id)}
+                          className="rounded-full border border-white/20 px-3 py-1 text-[11px] text-white"
+                        >
+                          Ver ficha
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : (
@@ -646,7 +885,10 @@ export function MapSearchPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSelectedId(item.id)}
+                    onClick={() => {
+                      setSelectedId(item.id);
+                      setSelectedBuildingId(null);
+                    }}
                     className={
                       item.id === selectedId
                         ? "flex w-full flex-col gap-1 rounded-2xl border border-gold-500/40 bg-night-900/60 px-4 py-3 text-left text-white"
@@ -654,7 +896,9 @@ export function MapSearchPage() {
                     }
                   >
                     <span className="text-sm text-white">{item.title}</span>
-                    <span>{operationLabels[item.operationType]} · {typeLabels[item.propertyType]}</span>
+                    <span>
+                      {operationLabels[item.operationType]} - {typeLabels[item.propertyType]}
+                    </span>
                     <span>{item.address}</span>
                   </button>
                 ))}
@@ -666,6 +910,66 @@ export function MapSearchPage() {
           </div>
         </section>
       </div>
+
+      {selectedListing && (
+        <PropertyDetailModal
+          listing={selectedListing}
+          onClose={closeDetail}
+          isLoading={detailStatus === "loading"}
+          onReportProperty={handleReportProperty}
+          onReportUser={selectedListing.ownerUserId ? handleReportUser : undefined}
+          actions={
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
+                type="button"
+                onClick={() => {
+                  if (!sessionUser) {
+                    addToast("Inicia sesion para contactar.", "warning");
+                    return;
+                  }
+                  if (isOwnListing) {
+                    addToast("No puedes contactar tus propias publicaciones.", "warning");
+                    return;
+                  }
+                  if (whatsappLink) {
+                    window.open(whatsappLink, "_blank", "noopener,noreferrer");
+                  } else {
+                    addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
+                  }
+                }}
+              >
+                WhatsApp
+              </button>
+              <button
+                className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
+                type="button"
+                onClick={handleContactRequest}
+                disabled={
+                  contactStatus === "loading" ||
+                  isOwnListing ||
+                  (selectedListing
+                    ? hasSentContactRequest({
+                        propertyId: selectedListing.id,
+                        type: "INTEREST",
+                      })
+                    : false)
+                }
+              >
+                Me interesa
+              </button>
+              {contactMessage && (
+                <div className="w-full text-xs text-[#9a948a]">{contactMessage}</div>
+              )}
+            </div>
+          }
+        />
+      )}
+      {detailStatus === "error" && detailError && (
+        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
+          {detailError}
+        </div>
+      )}
     </div>
   );
 }

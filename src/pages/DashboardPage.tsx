@@ -212,6 +212,7 @@ export function DashboardPage() {
   const [editAddressLine, setEditAddressLine] = useState("");
   const [editAddressQuery, setEditAddressQuery] = useState("");
   const [editShowMapLocation, setEditShowMapLocation] = useState(true);
+  const [editUnitLabel, setEditUnitLabel] = useState("");
   const [editGeoStatus, setEditGeoStatus] = useState<"idle" | "loading" | "error">(
     "idle"
   );
@@ -302,6 +303,11 @@ export function DashboardPage() {
   const [selectedRequest, setSelectedRequest] =
     useState<(typeof contactRequests)[number] | null>(null);
   const [requestDetailOpen, setRequestDetailOpen] = useState(false);
+  const [requestPreviewListing, setRequestPreviewListing] =
+    useState<ReturnType<typeof mapPropertyToDetailListing> | null>(null);
+  const [requestPreviewStatus, setRequestPreviewStatus] =
+    useState<"idle" | "loading" | "error">("idle");
+  const [requestPreviewError, setRequestPreviewError] = useState("");
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [highlightRequestId, setHighlightRequestId] = useState<string | null>(null);
   const [highlightFlash, setHighlightFlash] = useState(false);
@@ -710,6 +716,7 @@ export function DashboardPage() {
       setEditShowMapLocation(
         (features as { showMapLocation?: boolean }).showMapLocation ?? true
       );
+      setEditUnitLabel(String((data as { unitLabel?: string }).unitLabel ?? ""));
 
       setEditLat(
         typeof data.location?.lat === "number" ? data.location.lat.toString() : ""
@@ -740,6 +747,31 @@ export function DashboardPage() {
     setIsEditing(false);
   };
 
+  const openRequestPropertyDetail = async (propertyId: string) => {
+    setRequestPreviewStatus("loading");
+    setRequestPreviewError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${propertyId}`);
+      if (!response.ok) {
+        throw new Error("No pudimos cargar la ficha.");
+      }
+      const data = (await response.json()) as PropertyApiDetail;
+      setRequestPreviewListing(mapPropertyToDetailListing(data));
+      setRequestPreviewStatus("idle");
+    } catch (error) {
+      setRequestPreviewStatus("error");
+      setRequestPreviewError(
+        error instanceof Error ? error.message : "No pudimos cargar la ficha."
+      );
+    }
+  };
+
+  const closeRequestPropertyDetail = () => {
+    setRequestPreviewListing(null);
+    setRequestPreviewStatus("idle");
+    setRequestPreviewError("");
+  };
+
   const saveEdit = async () => {
     if (!selectedId) {
       return;
@@ -758,7 +790,10 @@ export function DashboardPage() {
 
       const response = await fetch(`${env.apiUrl}/properties/${selectedId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
         body: JSON.stringify({
           title: editTitle,
           description: editDescription,
@@ -815,6 +850,7 @@ export function DashboardPage() {
             internet: serviceInternet,
             pavement: servicePavement,
           },
+          unitLabel: editUnitLabel || undefined,
           location:
             editAddressLine || editLat || editLng
               ? {
@@ -837,6 +873,9 @@ export function DashboardPage() {
         newPhotos.forEach((file) => formData.append("files", file));
         await fetch(`${env.apiUrl}/properties/${selectedId}/photos`, {
           method: "POST",
+          headers: {
+            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          },
           body: formData,
         });
         setNewPhotos([]);
@@ -1786,14 +1825,6 @@ export function DashboardPage() {
                         </button>
                       </div>
                     )}
-                  <div className="mt-3">
-                    <a
-                      className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                      href={`/publicacion/${request.property.id}`}
-                    >
-                      Ver publicacion
-                    </a>
-                  </div>
                 </div>
               ))}
             </div>
@@ -1927,16 +1958,29 @@ export function DashboardPage() {
                   );
                 })()}
                 {selectedRequest.property.id && (
-                  <a
+                  <button
                     className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                    href={`/publicacion/${selectedRequest.property.id}`}
+                    type="button"
+                    onClick={() => openRequestPropertyDetail(selectedRequest.property.id)}
                   >
-                    Ver publicacion
-                  </a>
+                    Ver ficha
+                  </button>
                 )}
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {requestPreviewListing && (
+        <PropertyDetailModal
+          listing={requestPreviewListing}
+          onClose={closeRequestPropertyDetail}
+          isLoading={requestPreviewStatus === "loading"}
+        />
+      )}
+      {requestPreviewStatus === "error" && requestPreviewError && (
+        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
+          {requestPreviewError}
         </div>
       )}
       {selectedId && (
@@ -2188,6 +2232,15 @@ export function DashboardPage() {
                                 className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
                                 value={editPostalCode}
                                 onChange={(event) => setEditPostalCode(event.target.value)}
+                              />
+                            </label>
+                            <label className="space-y-2 text-xs text-[#9a948a]">
+                              Unidad / Lote (opcional)
+                              <input
+                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                                value={editUnitLabel}
+                                onChange={(event) => setEditUnitLabel(event.target.value)}
+                                placeholder="Ej: Dpto 3B, Casa 2, Lote 5"
                               />
                             </label>
                             <label className="space-y-2 text-xs text-[#9a948a]">

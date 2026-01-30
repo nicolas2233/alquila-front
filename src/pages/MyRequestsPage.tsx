@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { env } from "../shared/config/env";
+import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
+import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
+import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import { getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 
@@ -59,6 +62,11 @@ export function MyRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<MyRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [selectedListing, setSelectedListing] =
+    useState<ReturnType<typeof mapPropertyToDetailListing> | null>(null);
+  const [detailListingStatus, setDetailListingStatus] =
+    useState<"idle" | "loading" | "error">("idle");
+  const [detailListingError, setDetailListingError] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -96,6 +104,31 @@ export function MyRequestsPage() {
     }
     setSelectedRequest(requestItem);
     setDetailOpen(true);
+  };
+
+  const openPropertyDetail = async (propertyId: string) => {
+    setDetailListingStatus("loading");
+    setDetailListingError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${propertyId}`);
+      if (!response.ok) {
+        throw new Error("No pudimos cargar la ficha.");
+      }
+      const data = (await response.json()) as PropertyApiDetail;
+      setSelectedListing(mapPropertyToDetailListing(data));
+      setDetailListingStatus("idle");
+    } catch (error) {
+      setDetailListingStatus("error");
+      setDetailListingError(
+        error instanceof Error ? error.message : "No pudimos cargar la ficha."
+      );
+    }
+  };
+
+  const closePropertyDetail = () => {
+    setSelectedListing(null);
+    setDetailListingStatus("idle");
+    setDetailListingError("");
   };
 
   useEffect(() => {
@@ -183,12 +216,13 @@ export function MyRequestsPage() {
                 </div>
               )}
               <div className="mt-3">
-                <a
+                <button
                   className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                  href={`/publicacion/${request.property.id}`}
+                  type="button"
+                  onClick={() => openPropertyDetail(request.property.id)}
                 >
-                  Ver publicacion
-                </a>
+                  Ver ficha
+                </button>
               </div>
             </div>
           ))}
@@ -245,15 +279,29 @@ export function MyRequestsPage() {
               )}
 
               <div>
-                <a
+                <button
                   className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                  href={`/publicacion/${selectedRequest.property.id}`}
+                  type="button"
+                  onClick={() => openPropertyDetail(selectedRequest.property.id)}
                 >
-                  Ver publicacion
-                </a>
+                  Ver ficha
+                </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {selectedListing && (
+        <PropertyDetailModal
+          listing={selectedListing}
+          onClose={closePropertyDetail}
+          isLoading={detailListingStatus === "loading"}
+        />
+      )}
+      {detailListingStatus === "error" && detailListingError && (
+        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
+          {detailListingError}
         </div>
       )}
     </div>

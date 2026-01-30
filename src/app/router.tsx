@@ -13,6 +13,7 @@ import { SavedSearchesPage } from "../pages/SavedSearchesPage";
 import { NotificationsPage } from "../pages/NotificationsPage";
 import { MyRequestsPage } from "../pages/MyRequestsPage";
 import { UserProfilePage } from "../pages/UserProfilePage";
+import { AdminPage } from "../pages/AdminPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProtectedRoute } from "../shared/auth/ProtectedRoute";
 
@@ -40,6 +41,14 @@ export const router = createBrowserRouter([
       { path: "login", element: <LoginPage /> },
       { path: "agencia/:slug", element: <AgencyProfilePage /> },
       { path: "publicacion/:id", element: <ListingPage /> },
+      {
+        path: "admin",
+        element: (
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminPage />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: "panel",
         element: (

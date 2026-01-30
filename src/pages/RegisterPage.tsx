@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { env } from "../shared/config/env";
+import { LegalModal } from "../shared/ui/LegalModal";
 
 type AccountType = "viewer" | "owner" | "agency";
 
@@ -36,6 +37,8 @@ export function RegisterPage() {
   const [agencyLegalName, setAgencyLegalName] = useState("");
   const [agencyCuit, setAgencyCuit] = useState("");
   const [agencyLicense, setAgencyLicense] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
@@ -72,6 +75,11 @@ export function RegisterPage() {
           password: !password,
         });
         throw new Error("Email y password son obligatorios.");
+      }
+
+      if (!termsAccepted) {
+        setFieldErrors({ termsAccepted: true });
+        throw new Error("Debes aceptar los terminos y condiciones.");
       }
 
       if (password.length < 8) {
@@ -407,6 +415,44 @@ export function RegisterPage() {
         </section>
       )}
 
+      <section className="glass-card space-y-4 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg text-white">5. Terminos y condiciones</h3>
+            <p className="text-xs text-[#9a948a]">
+              Acepta las reglas de uso para finalizar el registro.
+            </p>
+          </div>
+          <span className="gold-pill">Paso 5</span>
+        </div>
+        <label className="flex items-start gap-3 text-xs text-[#9a948a]">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-[#d1a466]"
+            checked={termsAccepted}
+            onChange={(event) => {
+              setTermsAccepted(event.target.checked);
+              setFieldErrors((prev) => ({ ...prev, termsAccepted: false }));
+            }}
+          />
+          <span>
+            Acepto los terminos y condiciones de Brupi.{" "}
+            <button
+              type="button"
+              className="underline text-[#d8c5a4]"
+              onClick={() => setShowTerms(true)}
+            >
+              Leer terminos
+            </button>
+          </span>
+        </label>
+        {fieldErrors.termsAccepted && (
+          <p className="text-[11px] text-[#f5b78a]">
+            Debes aceptar los terminos y condiciones para continuar.
+          </p>
+        )}
+      </section>
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-xs text-[#9a948a]">
           Las cuentas de duenos e inmobiliarias quedan pendientes de verificacion.
@@ -437,6 +483,57 @@ export function RegisterPage() {
         </div>
       )}
     </form>
+      <LegalModal
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        title="Terminos y condiciones"
+        subtitle="Lineamientos de uso de Brupi."
+      >
+        <div className="space-y-3">
+          <h4 className="text-base text-white">1. Uso responsable</h4>
+          <p>
+            Brupi es una plataforma para conectar personas que buscan propiedades con
+            propietarios e inmobiliarias. No se permite publicar informacion falsa,
+            engañosa o duplicada.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-base text-white">2. Contenido y veracidad</h4>
+          <p>
+            Cada usuario es responsable de la informacion que publica. Brupi puede
+            solicitar datos para validar publicaciones, pero no garantiza la veracidad
+            total de cada anuncio.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-base text-white">3. Responsabilidad</h4>
+          <p>
+            Brupi no se hace responsable por operaciones, transacciones o acuerdos entre
+            usuarios. La plataforma actua unicamente como un canal de contacto.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-base text-white">4. No somos corredores</h4>
+          <p>
+            Brupi no es una inmobiliaria ni corredor inmobiliario. No gestionamos
+            operaciones ni cobramos comisiones por los acuerdos entre usuarios.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-base text-white">5. Buenas practicas</h4>
+          <p>
+            Esperamos un comportamiento respetuoso entre usuarios. Las cuentas con uso
+            abusivo, fraudulento o spam podran ser suspendidas.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-base text-white">6. Privacidad</h4>
+          <p>
+            Los datos personales se utilizan solo para gestionar publicaciones y
+            contactos. No compartimos informacion con terceros sin consentimiento.
+          </p>
+        </div>
+      </LegalModal>
   </div>
   );
 }
