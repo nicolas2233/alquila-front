@@ -28,8 +28,6 @@ export function SearchPage() {
   const [propertyType, setPropertyType] = useState<
     "" | "HOUSE" | "APARTMENT" | "LAND" | "FIELD" | "QUINTA" | "COMMERCIAL" | "OFFICE" | "WAREHOUSE"
   >("");
-  const [saveStatus, setSaveStatus] = useState<"idle">("idle");
-  const [saveMessage, setSaveMessage] = useState("");
   const [selectedListing, setSelectedListing] =
     useState<PropertyDetailListing | null>(null);
   const [detailStatus, setDetailStatus] = useState<"idle" | "loading">("idle");
@@ -315,10 +313,6 @@ export function SearchPage() {
     }
   };
 
-  const handleSaveSearch = async () => {
-    setSaveStatus("idle");
-    setSaveMessage("");
-  };
 
   return (
     <div className="space-y-8">

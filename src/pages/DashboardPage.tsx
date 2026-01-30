@@ -287,6 +287,15 @@ export function DashboardPage() {
         priceAmount: string;
         priceCurrency: string;
         location?: { addressLine?: string | null } | null;
+        rentalRequirements?: {
+          guarantees?: string;
+          entryMonths?: number;
+          contractDurationMonths?: number;
+          indexFrequency?: string;
+          indexType?: string;
+          indexValue?: number;
+          isPublic?: boolean;
+        } | null;
       };
     }>
   >([]);

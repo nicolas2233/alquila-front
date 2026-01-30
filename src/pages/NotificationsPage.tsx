@@ -19,7 +19,6 @@ export function NotificationsPage() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading");
   const [message, setMessage] = useState("");
-  const [total, setTotal] = useState(0);
   const token = useMemo(() => getToken(), []);
   const navigate = useNavigate();
 
@@ -44,7 +43,6 @@ export function NotificationsPage() {
           total: number;
         };
         setItems(data.items ?? []);
-        setTotal(data.total ?? data.items?.length ?? 0);
         setStatus("idle");
       } catch (error) {
         setStatus("error");

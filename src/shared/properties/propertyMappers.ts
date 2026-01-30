@@ -40,6 +40,7 @@ export type PropertyApiListItem = {
       indexValue?: number;
       isPublic?: boolean;
     } | null;
+    showMapLocation?: boolean;
   } | null;
   services?: {
     electricity?: boolean;
