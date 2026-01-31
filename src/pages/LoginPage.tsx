@@ -3,14 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { saveSession } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,6 +62,7 @@ export function LoginPage() {
 
       saveSession(data.token, sessionUser);
       setStatus("idle");
+      setIsDirty(false);
       addToast("Sesión iniciada correctamente.", "success");
       if (sessionUser.mustChangePassword) {
         navigate("/change-password");
@@ -84,7 +89,11 @@ export function LoginPage() {
         <p className="text-sm text-[#9a948a]">Ingresá con tu email y contraseña.</p>
       </div>
 
-      <form className="glass-card space-y-4 p-6" onSubmit={handleSubmit}>
+      <form
+        className="glass-card space-y-4 p-6"
+        onSubmit={handleSubmit}
+        onChange={() => setIsDirty(true)}
+      >
         <label className="space-y-2 text-xs text-[#9a948a]">
           Email
           <input
@@ -105,13 +114,22 @@ export function LoginPage() {
         {status === "error" && (
           <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
         )}
-        <button
-          className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-6 py-2 text-xs font-semibold text-night-900"
-          type="submit"
-          disabled={status === "loading"}
-        >
-          {status === "loading" ? "Ingresando..." : "Ingresar"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-6 py-2 text-xs font-semibold text-night-900"
+            type="submit"
+            disabled={status === "loading"}
+          >
+            {status === "loading" ? "Ingresando..." : "Ingresar"}
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-white/20 px-6 py-2 text-xs font-semibold text-white/90"
+            onClick={() => navigate("/registro")}
+          >
+            Crear cuenta
+          </button>
+        </div>
         <button
           type="button"
           className="text-xs text-gold-400 underline"
@@ -120,6 +138,7 @@ export function LoginPage() {
           Olvidé mi contraseña
         </button>
       </form>
+      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }

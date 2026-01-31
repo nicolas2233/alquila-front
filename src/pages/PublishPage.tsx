@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
 import { geocodeAddress } from "../shared/map/geocode";
 import { env } from "../shared/config/env";
@@ -7,6 +7,9 @@ import { getSessionUser, getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
+import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 import "leaflet/dist/leaflet.css";
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -14,14 +17,14 @@ type Step = 0 | 1 | 2 | 3 | 4;
 const steps = [
   {
     title: "Datos basicos",
-    description: "T?tulo, descripci?n, operaci?n y precio.",
+    description: "Título, descripción, operación y precio.",
   },
   {
-    title: "Ubicaci?n",
-    description: "Direcci?n, localidad, partido, barrio y mapa.",
+    title: "Ubicación",
+    description: "Dirección, localidad, partido, barrio y mapa.",
   },
   {
-    title: "Caracter?sticas",
+    title: "Características",
     description: "Ambientes y datos segun tipo.",
   },
   {
@@ -61,7 +64,7 @@ function LocationPicker({
         <MapContainer
           center={center as [number, number]}
           zoom={13}
-          className="h-[260px] w-full"
+          className="h-[200px] w-full md:h-[260px] z-0"
           scrollWheelZoom={false}
         >
           <TileLayer
@@ -82,6 +85,9 @@ function LocationPicker({
   );
 }
 export function PublishPage() {
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const { addToast } = useToast();
   const sessionUser = getSessionUser();
   const sessionToken = getToken();
@@ -97,6 +103,7 @@ export function PublishPage() {
   const [step, setStep] = useState<Step>(0);
   const [showErrors, setShowErrors] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   const [title, setTitle] = useState("");
   const [operationType, setOperationType] = useState("SALE");
@@ -125,8 +132,8 @@ export function PublishPage() {
   const [geoMessage, setGeoMessage] = useState("");
   const [cadastralType, setCadastralType] = useState("PARTIDA");
   const [cadastralValue, setCadastralValue] = useState("");
-  const [contactWhatsapp, setContactWhatsapp] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [contactWhatsapp, setContactWhatsapp] = useState(sessionUser?.phone ?? "");
+  const [contactPhone, setContactPhone] = useState(sessionUser?.phone ?? "");
   const [photos, setPhotos] = useState<File[]>([]);
 
   const photoPreviews = useMemo(
@@ -139,6 +146,19 @@ export function PublishPage() {
       photoPreviews.forEach((item) => URL.revokeObjectURL(item.url));
     };
   }, [photoPreviews]);
+
+  useEffect(() => {
+    if (showErrors || status === "error") {
+      scrollToFirstError(formRef.current);
+    }
+  }, [showErrors, status, step]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      scrollToFirstError(formRef.current);
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [step]);
 
   const [expensesAmount, setExpensesAmount] = useState("");
   const [expensesCurrency, setExpensesCurrency] = useState("ARS");
@@ -284,7 +304,7 @@ export function PublishPage() {
       garage: hasGarage,
       pets: petsAllowed,
       kids: kidsAllowed,
-      descriptionLong: description || "Sin descripci?n",
+      descriptionLong: description || "Sin descripción",
       images: photoPreviews.map((item) => item.url),
       amenities: previewAmenities.length ? previewAmenities : undefined,
       services: {
@@ -585,7 +605,7 @@ export function PublishPage() {
       });
 
       if (!response.ok) {
-        const fallback = "No pudimos crear la publicaci?n.";
+        const fallback = "No pudimos crear la publicación.";
         let message = fallback;
         try {
           const data = (await response.json()) as {
@@ -594,7 +614,7 @@ export function PublishPage() {
           };
           if (Array.isArray(data.issues) && data.issues.length > 0) {
             const fieldLabels: Record<string, string> = {
-              title: "T?tulo",
+              title: "Título",
               description: "Descripcion",
               propertyType: "Tipo de inmueble",
               operationType: "Operacion",
@@ -609,7 +629,7 @@ export function PublishPage() {
               availabilityMode: "Disponibilidad",
               availableFrom: "Disponible desde",
               availableTo: "Disponible hasta",
-              "location.addressLine": "Direcci?n",
+              "location.addressLine": "Dirección",
               "location.localityId": "Localidad",
               "location.lat": "Latitud",
               "location.lng": "Longitud",
@@ -663,12 +683,13 @@ export function PublishPage() {
         );
 
         if (!uploadResponse.ok) {
-          throw new Error("La publicaci?n se creo pero fallo la carga de fotos.");
+          throw new Error("La publicación se creo pero fallo la carga de fotos.");
         }
       }
 
       setStatus("success");
-      addToast("Publicaci?n creada con exito.", "success");
+      addToast("Publicación creada con exito.", "success");
+      setIsDirty(false);
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -682,7 +703,7 @@ export function PublishPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-safe-tabs md:pb-0">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl text-white">Publicar inmueble</h2>
@@ -693,33 +714,55 @@ export function PublishPage() {
         <span className="gold-pill">Publicas como {roleLabel}</span>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        {steps.map((item, index) => (
-          <div
-            key={item.title}
-            className={`glass-card p-4 ${step === index ? "border-gold-500/60" : ""}`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500/15 text-sm font-semibold text-gold-400">
-                {String(index + 1).padStart(2, "0")}
-              </div>
-              <div>
-                <h3 className="text-sm text-white">{item.title}</h3>
-                <p className="text-xs text-[#9a948a]">{item.description}</p>
-              </div>
+      <div className="space-y-3">
+        <div className="glass-card p-4 md:hidden">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500/15 text-sm font-semibold text-gold-400">
+              {String(step + 1).padStart(2, "0")}
+            </div>
+            <div>
+              <h3 className="text-sm text-white">{steps[step]?.title}</h3>
+              <p className="text-xs text-[#9a948a]">{steps[step]?.description}</p>
             </div>
           </div>
-        ))}
+          <div className="mt-3 text-[11px] text-[#9a948a]">
+            Paso {step + 1} de {steps.length}
+          </div>
+        </div>
+        <div className="hidden gap-4 md:grid md:grid-cols-5">
+          {steps.map((item, index) => (
+            <div
+              key={item.title}
+              className={`glass-card p-4 ${step === index ? "border-gold-500/60" : ""}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500/15 text-sm font-semibold text-gold-400">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+                <div>
+                  <h3 className="text-sm text-white">{item.title}</h3>
+                  <p className="text-xs text-[#9a948a]">{item.description}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <form className="glass-card space-y-6 p-6" onSubmit={handleSubmit}>
+      <form
+        ref={formRef}
+        className="glass-card space-y-6 p-6"
+        onSubmit={handleSubmit}
+        onChange={() => setIsDirty(true)}
+      >
         {step === 0 && (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#9a948a]">
-                  T?tulo
+                  Título
                   <input
                     className={inputClass(titleError)}
+                    data-error={titleError ? "true" : undefined}
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                   />
@@ -765,6 +808,7 @@ export function PublishPage() {
                   Precio
                   <input
                     className={inputClass(priceError)}
+                    data-error={priceError ? "true" : undefined}
                     type="number"
                     inputMode="decimal"
                     min="0"
@@ -796,6 +840,7 @@ export function PublishPage() {
                 <textarea
                   rows={4}
                   className={inputClass(descriptionError)}
+                  data-error={descriptionError ? "true" : undefined}
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                 />
@@ -938,7 +983,7 @@ export function PublishPage() {
                     <option value="">Sin definir</option>
                     <option value="IPC">IPC</option>
                     <option value="UVA">UVA</option>
-                    <option value="INFLATION">Inflaci?n</option>
+                    <option value="INFLATION">Inflación</option>
                     <option value="OTHER">Otro</option>
                   </select>
                 </label>
@@ -971,9 +1016,10 @@ export function PublishPage() {
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 text-xs text-[#9a948a]">
-                  Direcci?n
+                  Dirección
                   <input
                     className={inputClass(addressError)}
+                    data-error={addressError ? "true" : undefined}
                     value={addressLine}
                     onChange={(event) => setAddressLine(event.target.value)}
                   />
@@ -987,6 +1033,7 @@ export function PublishPage() {
                   Localidad
                   <input
                     className={inputClass(localityError)}
+                    data-error={localityError ? "true" : undefined}
                     value={localityId}
                     onChange={(event) => setLocalityId(event.target.value)}
                   />
@@ -1079,18 +1126,44 @@ export function PublishPage() {
               </div>
             )}
 
-            <LocationPicker
-              lat={lat}
-              lng={lng}
-              onChange={(nextLat, nextLng) => {
-                setLat(nextLat);
-                setLng(nextLng);
-              }}
-            />
+            <div className="rounded-2xl border border-white/10 bg-night-900/50 p-4 md:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs text-[#9a948a]">
+                  Selecciona el punto exacto en el mapa.
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                  onClick={() => setShowMapPicker(true)}
+                >
+                  Marcar en el mapa
+                </button>
+              </div>
+              {lat !== undefined && lng !== undefined ? (
+                <div className="mt-3 text-[11px] text-[#9a948a]">
+                  Coordenadas actuales: {lat.toFixed(5)}, {lng.toFixed(5)}
+                </div>
+              ) : (
+                <div className="mt-3 text-[11px] text-[#9a948a]">
+                  TodavÃ­a no marcaste la ubicaciÃ³n.
+                </div>
+              )}
+            </div>
+
+            <div className="hidden md:block">
+              <LocationPicker
+                lat={lat}
+                lng={lng}
+                onChange={(nextLat, nextLng) => {
+                  setLat(nextLat);
+                  setLng(nextLng);
+                }}
+              />
+            </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#9a948a]">
-                <span>Ubicaci?n aproximada por direccion</span>
+                <span>Ubicación aproximada por direccion</span>
                 <button
                   type="button"
                   className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
@@ -1185,12 +1258,13 @@ export function PublishPage() {
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-white">Caracter?sticas principales</h4>
+              <h4 className="text-sm font-semibold text-white">Características principales</h4>
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#9a948a]">
                   Superficie total (m2)
                   <input
                     className={inputClass(areaError)}
+                    data-error={areaError ? "true" : undefined}
                     value={areaM2}
                     onChange={(event) => setAreaM2(event.target.value)}
                   />
@@ -1220,6 +1294,7 @@ export function PublishPage() {
                   Ambientes
                   <input
                     className={inputClass(roomsError)}
+                    data-error={roomsError ? "true" : undefined}
                     value={rooms}
                     onChange={(event) => setRooms(event.target.value)}
                   />
@@ -1233,6 +1308,7 @@ export function PublishPage() {
                   Banos
                   <input
                     className={inputClass(bathroomsError)}
+                    data-error={bathroomsError ? "true" : undefined}
                     value={bathrooms}
                     onChange={(event) => setBathrooms(event.target.value)}
                   />
@@ -1246,6 +1322,7 @@ export function PublishPage() {
                   Dormitorios
                   <input
                     className={inputClass(bedroomsError)}
+                    data-error={bedroomsError ? "true" : undefined}
                     value={bedrooms}
                     onChange={(event) => setBedrooms(event.target.value)}
                   />
@@ -1719,6 +1796,7 @@ export function PublishPage() {
                 WhatsApp
                 <input
                   className={inputClass(contactRequiredError || whatsappError)}
+                  data-error={contactRequiredError || whatsappError ? "true" : undefined}
                   value={contactWhatsapp}
                   onChange={(event) => setContactWhatsapp(event.target.value)}
                 />
@@ -1737,6 +1815,7 @@ export function PublishPage() {
                 Telefono
                 <input
                   className={inputClass(contactRequiredError || phoneError)}
+                  data-error={contactRequiredError || phoneError ? "true" : undefined}
                   value={contactPhone}
                   onChange={(event) => setContactPhone(event.target.value)}
                 />
@@ -1802,12 +1881,50 @@ export function PublishPage() {
               }
             />
           )}
+          {showMapPicker && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="glass-card w-full max-w-2xl space-y-4 p-4 md:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg text-white">Marcar ubicaciÃ³n</h3>
+                    <p className="text-xs text-[#9a948a]">
+                      TocÃ¡ el mapa para guardar el punto exacto.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                    onClick={() => setShowMapPicker(false)}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <LocationPicker
+                  lat={lat}
+                  lng={lng}
+                  onChange={(nextLat, nextLng) => {
+                    setLat(nextLat);
+                    setLng(nextLng);
+                  }}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                    onClick={() => setShowMapPicker(false)}
+                  >
+                    Listo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {status === "error" && (
             <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
           )}
         {status === "success" && (
-          <p className="text-xs text-[#9fe0c0]">Publicaci?n creada correctamente.</p>
+          <p className="text-xs text-[#9fe0c0]">Publicación creada correctamente.</p>
         )}
 
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1852,6 +1969,7 @@ export function PublishPage() {
           )}
         </div>
       </form>
+      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import type { SessionUser } from "../auth/session";
 import { env } from "../config/env";
 import { ToastProvider } from "../ui/toast/ToastProvider";
 import { LegalModal } from "../ui/LegalModal";
-import { FloatingChat } from "../ui/chat/FloatingChat";
+// import { FloatingChat } from "../ui/chat/FloatingChat";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? "text-gold-400" : "text-[#c7c2b8]";
@@ -62,7 +62,7 @@ export function AppLayout() {
   return (
     <ToastProvider>
       <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-gold-500/20 bg-night-900/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 hidden border-b border-gold-500/20 bg-night-900/95 backdrop-blur-xl lg:block">
         <Container>
           <div className="grid items-center gap-4 py-4 sm:gap-6 sm:py-5 lg:grid-cols-[auto_1fr_auto]">
             <Link
@@ -81,10 +81,20 @@ export function AppLayout() {
               {user && user.role === "VISITOR" && (
                 <>
                   <NavLink to="/mis-solicitudes" className={navClass}>
-                    Mis solicitudes
+                    <span className="inline-flex items-center gap-2">
+                      Mis solicitudes
+                      {notificationCount > 0 && (
+                        <span className="h-2 w-2 rounded-full bg-gold-400" />
+                      )}
+                    </span>
                   </NavLink>
                   <NavLink to="/perfil" className={navClass}>
-                    Mi perfil
+                    <span className="inline-flex items-center gap-2">
+                      Mi perfil
+                      {notificationCount > 0 && (
+                        <span className="h-2 w-2 rounded-full bg-gold-400" />
+                      )}
+                    </span>
                   </NavLink>
                 </>
               )}
@@ -93,15 +103,15 @@ export function AppLayout() {
                   <NavLink to="/publicar" className={navClass}>
                     Publicar
                   </NavLink>
-                  <NavLink to="/panel" className={navClass}>
-                    Panel
+                  <NavLink to="/panel?tab=listings" className={navClass}>
+                    <span className="inline-flex items-center gap-2">
+                      Panel
+                      {notificationCount > 0 && (
+                        <span className="h-2 w-2 rounded-full bg-gold-400" />
+                      )}
+                    </span>
                   </NavLink>
                 </>
-              )}
-              {user && user.role === "ADMIN" && (
-                <NavLink to="/admin" className={navClass}>
-                  Admin
-                </NavLink>
               )}
             </nav>
             {user ? (
@@ -171,7 +181,7 @@ export function AppLayout() {
           </div>
         </Container>
       </header>
-      <main className="py-10 lg:py-16">
+      <main className="py-10 pb-safe-tabs lg:py-16 lg:pb-16">
         <Container>
           <Outlet />
         </Container>
@@ -217,7 +227,65 @@ export function AppLayout() {
           </div>
         </Container>
       </footer>
-      <FloatingChat user={user} token={token} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-night-900/95 backdrop-blur-xl lg:hidden">
+        <Container>
+          <nav className="flex items-center justify-between gap-2 py-3 text-[11px] text-[#c7c2b8]">
+            <NavLink to="/buscar" className={navClass}>
+              <span className="flex flex-col items-center gap-1">
+                <span aria-hidden="true">B</span>
+                Buscar
+              </span>
+            </NavLink>
+            <NavLink to="/mapa" className={navClass}>
+              <span className="flex flex-col items-center gap-1">
+                <span aria-hidden="true">M</span>
+                Mapa
+              </span>
+            </NavLink>
+            {user && user.role !== "VISITOR" && (
+              <>
+                <NavLink to="/publicar" className={navClass}>
+                  <span className="flex flex-col items-center gap-1">
+                    <span aria-hidden="true">+</span>
+                    Publicar
+                  </span>
+                </NavLink>
+                <NavLink to="/panel?tab=listings" className={navClass}>
+                  <span className="relative flex flex-col items-center gap-1">
+                    <span aria-hidden="true">P</span>
+                    Panel
+                    {notificationCount > 0 && (
+                      <span className="absolute -right-2 top-0 h-2 w-2 rounded-full bg-gold-400" />
+                    )}
+                  </span>
+                </NavLink>
+              </>
+            )}
+            {user ? (
+              <NavLink
+                to={user.role === "VISITOR" ? "/perfil" : "/panel?tab=profile"}
+                className={navClass}
+              >
+                <span className="relative flex flex-col items-center gap-1">
+                  <span aria-hidden="true">U</span>
+                  Perfil
+                  {notificationCount > 0 && (
+                    <span className="absolute -right-2 top-0 h-2 w-2 rounded-full bg-gold-400" />
+                  )}
+                </span>
+              </NavLink>
+            ) : (
+              <NavLink to="/login" className={navClass}>
+                <span className="flex flex-col items-center gap-1">
+                  <span aria-hidden="true">L</span>
+                  Login
+                </span>
+              </NavLink>
+            )}
+          </nav>
+        </Container>
+      </div>
+      {/** Chat in-app desactivado temporalmente */}
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}
@@ -301,3 +369,6 @@ export function AppLayout() {
     </ToastProvider>
   );
 }
+
+
+

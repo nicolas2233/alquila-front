@@ -172,7 +172,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar publicaci?nes.");
+          throw new Error("No pudimos cargar publicaciónes.");
         }
         return response.json() as Promise<{ items: AdminProperty[] }>;
       })
@@ -183,7 +183,7 @@ export function AdminPage() {
       .catch((error) => {
         setPropertiesStatus("error");
         setPropertiesError(
-          error instanceof Error ? error.message : "Error al cargar publicaci?nes."
+          error instanceof Error ? error.message : "Error al cargar publicaciónes."
         );
       });
   }, [token, sessionUser?.role, tab]);
@@ -391,7 +391,7 @@ export function AdminPage() {
       {tab === "properties" && (
         <section className="glass-card space-y-3 p-4">
           {propertiesStatus === "loading" && (
-            <div className="text-xs text-[#9a948a]">Cargando publicaci?nes...</div>
+            <div className="text-xs text-[#9a948a]">Cargando publicaciónes...</div>
           )}
           {propertiesStatus === "error" && (
             <div className="text-xs text-[#f5b78a]">{propertiesError}</div>

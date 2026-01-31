@@ -135,6 +135,7 @@ export function MapSearchPage() {
   const [operationOpen, setOperationOpen] = useState(true);
   const [typeOpen, setTypeOpen] = useState(true);
   const [poiOpen, setPoiOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [detailStatus, setDetailStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -493,6 +494,170 @@ export function MapSearchPage() {
     setActivePoi([]);
   };
 
+  const filtersPanel = (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg text-white">Filtros</h3>
+        <p className="text-xs text-[#9a948a]">Activa o desactiva para mostrar puntos.</p>
+      </div>
+
+      <div className="space-y-3">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+          onClick={() => setOperationOpen((prev) => !prev)}
+        >
+          Operacion
+          <span
+            className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+              operationOpen ? "rotate-180" : "rotate-0"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3 w-3"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+        <div
+          className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+            operationOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          {operationFilters.map((value) => (
+            <label
+              key={value}
+              className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
+            >
+              <span>{operationLabels[value]}</span>
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#d1a466]"
+                checked={activeOperations.includes(value)}
+                onChange={() => toggleOperation(value)}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+          onClick={() => setTypeOpen((prev) => !prev)}
+        >
+          Tipo
+          <span
+            className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+              typeOpen ? "rotate-180" : "rotate-0"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3 w-3"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+        <div
+          className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+            typeOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          {typeFilters.map((value) => (
+            <label
+              key={value}
+              className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
+            >
+              <span>{typeLabels[value]}</span>
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#d1a466]"
+                checked={activeTypes.includes(value)}
+                onChange={() => toggleType(value)}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+          onClick={() => setPoiOpen((prev) => !prev)}
+        >
+          Servicios cerca
+          <span
+            className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+              poiOpen ? "rotate-180" : "rotate-0"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3 w-3"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+        <div
+          className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+            poiOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          {Object.keys(poiLabels).map((value) => {
+            const key = value as PoiCategory;
+            return (
+              <label
+                key={key}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
+              >
+                <span>{poiLabels[key]}</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#d1a466]"
+                  checked={activePoi.includes(key)}
+                  onChange={() => togglePoi(key)}
+                />
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={clearFilters}
+        className="w-full rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+      >
+        Limpiar filtros
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -515,170 +680,19 @@ export function MapSearchPage() {
           <span className="rounded-full border border-white/10 px-3 py-1">
             Temporario: {counts.byOperation.TEMPORARY}
           </span>
+          <button
+            type="button"
+            className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8] md:hidden"
+            onClick={() => setMobileFiltersOpen(true)}
+          >
+            Filtros
+          </button>
         </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
-        <section className="glass-card space-y-6 p-6 lg:sticky lg:top-24 lg:h-fit">
-          <div>
-            <h3 className="text-lg text-white">Filtros</h3>
-            <p className="text-xs text-[#9a948a]">Activa o desactiva para mostrar puntos.</p>
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
-              onClick={() => setOperationOpen((prev) => !prev)}
-            >
-              Operacion
-              <span
-                className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
-                  operationOpen ? "rotate-180" : "rotate-0"
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-3 w-3"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </span>
-            </button>
-            <div
-              className={`grid gap-2 overflow-hidden transition-all duration-300 ${
-                operationOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-              }`}
-            >
-              {operationFilters.map((value) => (
-                <label
-                  key={value}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
-                >
-                  <span>{operationLabels[value]}</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={activeOperations.includes(value)}
-                    onChange={() => toggleOperation(value)}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
-              onClick={() => setTypeOpen((prev) => !prev)}
-            >
-              Tipo
-              <span
-                className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
-                  typeOpen ? "rotate-180" : "rotate-0"
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-3 w-3"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </span>
-            </button>
-            <div
-              className={`grid gap-2 overflow-hidden transition-all duration-300 ${
-                typeOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
-              }`}
-            >
-              {typeFilters.map((value) => (
-                <label
-                  key={value}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
-                >
-                  <span>{typeLabels[value]}</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#d1a466]"
-                    checked={activeTypes.includes(value)}
-                    onChange={() => toggleType(value)}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
-              onClick={() => setPoiOpen((prev) => !prev)}
-            >
-              Servicios cerca
-              <span
-                className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
-                  poiOpen ? "rotate-180" : "rotate-0"
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-3 w-3"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </span>
-            </button>
-            <div
-              className={`grid gap-2 overflow-hidden transition-all duration-300 ${
-                poiOpen ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
-              }`}
-            >
-              {Object.keys(poiLabels).map((value) => {
-                const key = value as PoiCategory;
-                return (
-                  <label
-                    key={key}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
-                  >
-                    <span>{poiLabels[key]}</span>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-[#d1a466]"
-                      checked={activePoi.includes(key)}
-                      onChange={() => togglePoi(key)}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="w-full rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-          >
-            Limpiar filtros
-          </button>
+        <section className="glass-card hidden space-y-6 p-6 lg:sticky lg:top-24 lg:block lg:h-fit">
+          {filtersPanel}
         </section>
 
         <section className="space-y-6">
@@ -977,6 +991,37 @@ export function MapSearchPage() {
       {detailStatus === "error" && detailError && (
         <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
           {detailError}
+        </div>
+      )}
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4 lg:hidden">
+          <div className="glass-card mx-auto flex h-full max-h-[85vh] w-full max-w-md flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div>
+                <div className="text-sm text-white">Filtros</div>
+                <div className="text-[11px] text-[#9a948a]">
+                  Ajusta para ver solo lo que te interesa.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                onClick={() => setMobileFiltersOpen(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">{filtersPanel}</div>
+            <div className="border-t border-white/10 p-4">
+              <button
+                type="button"
+                className="w-full rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                onClick={() => setMobileFiltersOpen(false)}
+              >
+                Ver resultados
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

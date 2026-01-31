@@ -324,23 +324,23 @@ export function PropertyDetailModal({
                   )}
                   {rentalRequirements.contractDurationMonths !== undefined && (
                     <div>
-                      Duraci?n contrato: {rentalRequirements.contractDurationMonths} meses
+                      Duración contrato: {rentalRequirements.contractDurationMonths} meses
                     </div>
                   )}
                   {rentalRequirements.indexFrequency && (
                     <div>
-                      Indexaci?n:{" "}
+                      Indexación:{" "}
                       {rentalFrequencyLabels[rentalRequirements.indexFrequency] ?? rentalRequirements.indexFrequency}
                     </div>
                   )}
                   {rentalRequirements.indexType && (
                     <div>
-                      ?ndice:{" "}
+                      Índice:{" "}
                       {rentalIndexLabels[rentalRequirements.indexType] ?? rentalRequirements.indexType}
                     </div>
                   )}
                   {rentalRequirements.indexValue !== undefined && (
-                    <div>Valor ?ndice: {rentalRequirements.indexValue}</div>
+                    <div>Valor Índice: {rentalRequirements.indexValue}</div>
                   )}
                 </div>
               </div>
@@ -384,7 +384,7 @@ export function PropertyDetailModal({
             )}
             {hasMapLocation && (
               <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
-                <div className="mb-3 text-sm font-semibold text-white">Ubicaci?n</div>
+                <div className="mb-3 text-sm font-semibold text-white">Ubicación</div>
                 <div className="overflow-hidden rounded-2xl border border-white/10">
                   <MapContainer
                     center={[listing.lat as number, listing.lng as number]}

@@ -46,7 +46,7 @@ export const router = createBrowserRouter([
       { path: "reset-password", element: <ResetPasswordPage /> },
       { path: "change-password", element: <ProtectedRoute><ChangePasswordPage /></ProtectedRoute> },
       { path: "agencia/:slug", element: <AgencyProfilePage /> },
-      { path: "publicaci?n/:id", element: <ListingPage /> },
+      { path: "publicación/:id", element: <ListingPage /> },
       {
         path: "admin",
         element: (

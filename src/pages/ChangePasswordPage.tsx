@@ -3,14 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getToken, clearSession } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 
 export function ChangePasswordPage() {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,6 +40,7 @@ export function ChangePasswordPage() {
       setStatus("success");
       setMessage("Contraseña actualizada. Ingresá nuevamente.");
       addToast("Contraseña actualizada.", "success");
+      setIsDirty(false);
       clearSession();
       navigate("/login");
     } catch (error) {
@@ -53,7 +58,11 @@ export function ChangePasswordPage() {
         <h2 className="text-3xl text-white">Cambiar contraseña</h2>
         <p className="text-sm text-[#9a948a]">Creá una nueva contraseña para tu cuenta.</p>
       </div>
-      <form className="glass-card space-y-4 p-6" onSubmit={handleSubmit}>
+      <form
+        className="glass-card space-y-4 p-6"
+        onSubmit={handleSubmit}
+        onChange={() => setIsDirty(true)}
+      >
         <label className="space-y-2 text-xs text-[#9a948a]">
           Nueva contraseña
           <input
@@ -85,6 +94,7 @@ export function ChangePasswordPage() {
           {status === "loading" ? "Guardando..." : "Guardar"}
         </button>
       </form>
+      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }

@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { env } from "../shared/config/env";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 
 export function ForgotPasswordPage() {
   const { addToast } = useToast();
   const [email, setEmail] = useState("");
   const [dni, setDni] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [resetLink, setResetLink] = useState<string | null>(null);
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -27,6 +31,7 @@ export function ForgotPasswordPage() {
       }
       setStatus("success");
       setMessage(data?.message ?? "Revisá tu email para continuar.");
+      setIsDirty(false);
       if (data?.resetLink) {
         setResetLink(data.resetLink);
       }
@@ -47,7 +52,11 @@ export function ForgotPasswordPage() {
           Ingresá tu email y DNI. Te enviaremos un link para cambiar tu contraseña.
         </p>
       </div>
-      <form className="glass-card space-y-4 p-6" onSubmit={handleSubmit}>
+      <form
+        className="glass-card space-y-4 p-6"
+        onSubmit={handleSubmit}
+        onChange={() => setIsDirty(true)}
+      >
         <label className="space-y-2 text-xs text-[#9a948a]">
           Email
           <input
@@ -82,6 +91,7 @@ export function ForgotPasswordPage() {
           {status === "loading" ? "Enviando..." : "Enviar"}
         </button>
       </form>
+      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }

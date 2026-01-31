@@ -71,8 +71,14 @@
   }
 
   .leaflet-container {
-    z-index: 0;
+    position: relative;
+    z-index: 0 !important;
     font-family: inherit;
+  }
+
+  .leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+    touch-action: none;
+    z-index: 0 !important;
   }
 
   .leaflet-pane,
@@ -80,7 +86,7 @@
   .leaflet-bottom,
   .leaflet-control,
   .leaflet-popup {
-    z-index: 5;
+    z-index: 0 !important;
   }
 
   .alquila-popup .leaflet-popup-content-wrapper {
@@ -102,5 +108,9 @@
 
   .map-popup-body {
     padding: 12px;
+  }
+
+  .pb-safe-tabs {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
   }
 }

@@ -199,7 +199,7 @@ export function AgencyProfilePage() {
       return null;
     }
     const message = `Hola, me interesa "${selectedListing.title}". Link: ${
-      selectedListing.id ? `${window.location.origin}/publicaci?n/${selectedListing.id}` : ""
+      selectedListing.id ? `${window.location.origin}/publicación/${selectedListing.id}` : ""
     }`;
     return buildWhatsappLink(method.value, message);
   }, [selectedListing]);
@@ -223,14 +223,14 @@ export function AgencyProfilePage() {
     }
     if (hasSentContactRequest({ propertyId: selectedListing.id, type })) {
       setContactStatus("success");
-      setContactMessage("Ya enviaste una solicitud para esta publicaci?n.");
-      addToast("Ya enviaste una solicitud para esta publicaci?n.", "info");
+      setContactMessage("Ya enviaste una solicitud para esta publicación.");
+      addToast("Ya enviaste una solicitud para esta publicación.", "info");
       return;
     }
     if (isOwnListing) {
       setContactStatus("error");
-      setContactMessage("No puedes enviar solicitudes a tus propias publicaci?nes.");
-      addToast("No puedes enviar solicitudes a tus propias publicaci?nes.", "warning");
+      setContactMessage("No puedes enviar solicitudes a tus propias publicaciónes.");
+      addToast("No puedes enviar solicitudes a tus propias publicaciónes.", "warning");
       return;
     }
     if (contactStatus === "loading") {
@@ -494,14 +494,14 @@ export function AgencyProfilePage() {
             </div>
           </div>
           {listingStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando publicaci?nes...</p>
+            <p className="text-xs text-[#9a948a]">Cargando publicaciónes...</p>
           )}
           {listingStatus === "error" && listings.length === 0 && (
-            <p className="text-xs text-[#f5b78a]">No hay publicaci?nes activas.</p>
+            <p className="text-xs text-[#f5b78a]">No hay publicaciónes activas.</p>
           )}
           {listingStatus === "idle" && listings.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
-              <p className="text-sm text-white">No hay publicaci?nes activas.</p>
+              <p className="text-sm text-white">No hay publicaciónes activas.</p>
               <p className="mt-1">Explora otras opciones o publica un inmueble.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
@@ -514,7 +514,7 @@ export function AgencyProfilePage() {
                   className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
                   to="/buscar"
                 >
-                  Ver otras publicaci?nes
+                  Ver otras publicaciónes
                 </Link>
               </div>
             </div>
@@ -737,8 +737,8 @@ export function AgencyProfilePage() {
                 onClick={() => {
                   if (isOwnListing) {
                     setContactStatus("error");
-                    setContactMessage("No puedes contactar tus propias publicaci?nes.");
-                    addToast("No puedes contactar tus propias publicaci?nes.", "warning");
+                    setContactMessage("No puedes contactar tus propias publicaciónes.");
+                    addToast("No puedes contactar tus propias publicaciónes.", "warning");
                     return;
                   }
                   if (whatsappLink) {

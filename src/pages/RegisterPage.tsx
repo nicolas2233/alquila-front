@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { env } from "../shared/config/env";
 import { LegalModal } from "../shared/ui/LegalModal";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
+import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 type AccountType = "viewer" | "owner" | "agency";
 
@@ -23,6 +26,7 @@ const planOptions = [
 ];
 
 export function RegisterPage() {
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [accountType, setAccountType] = useState<AccountType>("viewer");
   const [plan, setPlan] = useState("bronce");
   const [firstName, setFirstName] = useState("");
@@ -42,9 +46,12 @@ export function RegisterPage() {
   const [agencyLicense, setAgencyLicense] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
+  const hasFieldErrors = Object.values(fieldErrors).some(Boolean);
   const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contrasenaRemaining = Math.max(0, 8 - contrasena.length);
   const contrasenaHelper =
@@ -64,6 +71,12 @@ export function RegisterPage() {
     }
     return [];
   }, [accountType]);
+
+  useEffect(() => {
+    if (status === "error" || hasFieldErrors) {
+      scrollToFirstError(formRef.current);
+    }
+  }, [status, hasFieldErrors, accountType]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -105,7 +118,7 @@ export function RegisterPage() {
       if (accountType === "owner") {
         if (!phone) {
           setFieldErrors({ phone: true });
-          throw new Error("El tel?fono es obligatorio para dueños.");
+          throw new Error("El teléfono es obligatorio para dueños.");
         }
         if (!ownerFirstName || !ownerLastName || !ownerDni || !ownerTramite || !ownerBirthDate) {
           setFieldErrors({
@@ -185,6 +198,7 @@ export function RegisterPage() {
       }
 
       setStatus("success");
+      setIsDirty(false);
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -207,7 +221,12 @@ export function RegisterPage() {
         </p>
       </div>
 
-      <form className="space-y-10" onSubmit={handleSubmit}>
+      <form
+        ref={formRef}
+        className="space-y-10"
+        onSubmit={handleSubmit}
+        onChange={() => setIsDirty(true)}
+      >
         <section className="glass-card space-y-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -220,7 +239,7 @@ export function RegisterPage() {
           {[
             { key: "viewer", title: "Buscador", text: "Solo explorar y guardar." },
             { key: "owner", title: "Dueño", text: "Publica inmuebles propios." },
-            { key: "agency", title: "Inmobiliaria", text: "Equipo y m?ltiples publicaciones." },
+            { key: "agency", title: "Inmobiliaria", text: "Equipo y múltiples publicaciones." },
           ].map((item) => (
             <button
               key={item.key}
@@ -252,6 +271,7 @@ export function RegisterPage() {
             Email
             <input
               className={fieldClass(!!fieldErrors.email)}
+              data-error={fieldErrors.email ? "true" : undefined}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
@@ -264,6 +284,7 @@ export function RegisterPage() {
             <input
               type="password"
               className={fieldClass(!!fieldErrors.password)}
+              data-error={fieldErrors.password ? "true" : undefined}
               value={contrasena}
               onChange={(event) => setContrasena(event.target.value)}
             />
@@ -294,6 +315,7 @@ export function RegisterPage() {
               Nombre
               <input
                 className={fieldClass(!!fieldErrors.firstName)}
+                data-error={fieldErrors.firstName ? "true" : undefined}
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
               />
@@ -302,6 +324,7 @@ export function RegisterPage() {
               Apellido
               <input
                 className={fieldClass(!!fieldErrors.lastName)}
+                data-error={fieldErrors.lastName ? "true" : undefined}
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
               />
@@ -310,6 +333,7 @@ export function RegisterPage() {
               DNI
               <input
                 className={fieldClass(!!fieldErrors.dni)}
+                data-error={fieldErrors.dni ? "true" : undefined}
                 value={dni}
                 onChange={(event) => setDni(event.target.value)}
               />
@@ -318,6 +342,7 @@ export function RegisterPage() {
               Teléfono
               <input
                 className={fieldClass(!!fieldErrors.phone)}
+                data-error={fieldErrors.phone ? "true" : undefined}
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
               />
@@ -330,6 +355,7 @@ export function RegisterPage() {
               Teléfono
               <input
                 className={fieldClass(!!fieldErrors.phone)}
+                data-error={fieldErrors.phone ? "true" : undefined}
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
               />
@@ -338,6 +364,7 @@ export function RegisterPage() {
               Nombre
               <input
                 className={fieldClass(!!fieldErrors.ownerFirstName)}
+                data-error={fieldErrors.ownerFirstName ? "true" : undefined}
                 value={ownerFirstName}
                 onChange={(event) => setOwnerFirstName(event.target.value)}
               />
@@ -346,6 +373,7 @@ export function RegisterPage() {
               Apellido
               <input
                 className={fieldClass(!!fieldErrors.ownerLastName)}
+                data-error={fieldErrors.ownerLastName ? "true" : undefined}
                 value={ownerLastName}
                 onChange={(event) => setOwnerLastName(event.target.value)}
               />
@@ -354,6 +382,7 @@ export function RegisterPage() {
               DNI
               <input
                 className={fieldClass(!!fieldErrors.ownerDni)}
+                data-error={fieldErrors.ownerDni ? "true" : undefined}
                 value={ownerDni}
                 onChange={(event) => setOwnerDni(event.target.value)}
               />
@@ -362,6 +391,7 @@ export function RegisterPage() {
               Nro de tramite
               <input
                 className={fieldClass(!!fieldErrors.ownerTramite)}
+                data-error={fieldErrors.ownerTramite ? "true" : undefined}
                 value={ownerTramite}
                 onChange={(event) => setOwnerTramite(event.target.value)}
               />
@@ -371,6 +401,7 @@ export function RegisterPage() {
               <input
                 type="date"
                 className={fieldClass(!!fieldErrors.ownerBirthDate)}
+                data-error={fieldErrors.ownerBirthDate ? "true" : undefined}
                 value={ownerBirthDate}
                 onChange={(event) => setOwnerBirthDate(event.target.value)}
               />
@@ -383,6 +414,7 @@ export function RegisterPage() {
               Teléfono
               <input
                 className={fieldClass(!!fieldErrors.phone)}
+                data-error={fieldErrors.phone ? "true" : undefined}
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
               />
@@ -391,6 +423,7 @@ export function RegisterPage() {
               Nombre comercial
               <input
                 className={fieldClass(!!fieldErrors.agencyName)}
+                data-error={fieldErrors.agencyName ? "true" : undefined}
                 value={agencyName}
                 onChange={(event) => setAgencyName(event.target.value)}
               />
@@ -399,6 +432,7 @@ export function RegisterPage() {
               Razon social
               <input
                 className={fieldClass(!!fieldErrors.agencyLegalName)}
+                data-error={fieldErrors.agencyLegalName ? "true" : undefined}
                 value={agencyLegalName}
                 onChange={(event) => setAgencyLegalName(event.target.value)}
               />
@@ -407,6 +441,7 @@ export function RegisterPage() {
               CUIT
               <input
                 className={fieldClass(!!fieldErrors.agencyCuit)}
+                data-error={fieldErrors.agencyCuit ? "true" : undefined}
                 value={agencyCuit}
                 onChange={(event) => setAgencyCuit(event.target.value)}
               />
@@ -415,6 +450,7 @@ export function RegisterPage() {
               Matricula
               <input
                 className={fieldClass(!!fieldErrors.agencyLicense)}
+                data-error={fieldErrors.agencyLicense ? "true" : undefined}
                 value={agencyLicense}
                 onChange={(event) => setAgencyLicense(event.target.value)}
               />
@@ -455,7 +491,7 @@ export function RegisterPage() {
       <section className="glass-card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg text-white">5. T?rminos y condiciones</h3>
+            <h3 className="text-lg text-white">5. Términos y condiciones</h3>
             <p className="text-xs text-[#9a948a]">
               Acepta las reglas de uso para finalizar el registro.
             </p>
@@ -520,10 +556,11 @@ export function RegisterPage() {
         </div>
       )}
     </form>
+    <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        title="T?rminos y condiciones"
+        title="Términos y condiciones"
         subtitle="Lineamientos de uso de Brupi."
       >
         <div className="space-y-3">

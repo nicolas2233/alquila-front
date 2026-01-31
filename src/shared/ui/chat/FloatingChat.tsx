@@ -362,7 +362,7 @@ export function FloatingChat({
                     )}
                     {messagesStatus === "idle" && messages.length === 0 && (
                       <div className="text-[11px] text-[#9a948a]">
-                        Todav?a no hay mensajes.
+                        Todavía no hay mensajes.
                       </div>
                     )}
                     <div className="space-y-2">

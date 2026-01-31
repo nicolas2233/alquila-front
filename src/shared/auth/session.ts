@@ -5,6 +5,7 @@ export type SessionUser = {
   role: string;
   status: string;
   agencyId?: string | null;
+  phone?: string | null;
   avatarUrl?: string | null;
   mustChangePassword?: boolean;
 };

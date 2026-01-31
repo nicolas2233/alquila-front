@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
 import { geocodeAddress } from "../shared/map/geocode";
 import { useLocation } from "react-router-dom";
@@ -13,6 +13,9 @@ import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { formatRentalRequirements } from "../shared/utils/rentalRequirements";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
+import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Borrador",
@@ -164,8 +167,12 @@ export function DashboardPage() {
   const [ownerPassword, setOwnerPassword] = useState("");
   const [ownerAvatarUrl, setOwnerAvatarUrl] = useState("");
   const [activeSection, setActiveSection] = useState<PanelSection>("profile");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<PropertyApiDetail | null>(null);
+  const editFormRef = useRef<HTMLDivElement | null>(null);
   const [detailStatus, setDetailStatus] = useState<"idle" | "loading" | "error">(
     "idle"
   );
@@ -496,6 +503,11 @@ export function DashboardPage() {
     }
   }, [agencyId]);
 
+  const handleSelectSection = useCallback((section: PanelSection) => {
+    setActiveSection(section);
+    setSidebarOpen(false);
+  }, []);
+
   useEffect(() => {
     if (activeSection === "listings") {
       void loadProperties();
@@ -520,6 +532,16 @@ export function DashboardPage() {
     const params = new URLSearchParams(location.search);
     const tab = params.get("tab");
     const requestId = params.get("requestId");
+    if (tab === "profile") {
+      setActiveSection("profile");
+      setPendingRequestId(null);
+      return;
+    }
+    if (tab === "listings") {
+      setActiveSection("listings");
+      setPendingRequestId(null);
+      return;
+    }
     if (tab === "my-requests") {
       setActiveSection("my-requests");
       setPendingRequestId(null);
@@ -566,6 +588,14 @@ export function DashboardPage() {
     const timeout = setTimeout(() => setHighlightRequestId(null), 5000);
     return () => clearTimeout(timeout);
   }, [highlightRequestId]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handle = window.setTimeout(() => {
+      scrollToFirstError(editFormRef.current);
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [isEditing, selectedItem?.id]);
 
   useEffect(() => {
     if (!highlightRequestId) return;
@@ -884,6 +914,7 @@ export function DashboardPage() {
       await openDetail({ id: selectedId } as PropertyApiListItem);
       setIsEditing(false);
       addToast("Cambios guardados.", "success");
+      setIsDirty(false);
     } catch (error) {
       setDetailStatus("error");
       setDetailError("No pudimos guardar los cambios.");
@@ -923,6 +954,7 @@ export function DashboardPage() {
 
       setAgencyStatus("idle");
       addToast("Perfil actualizado.", "success");
+      setIsDirty(false);
     } catch (error) {
       setAgencyStatus("error");
       setAgencyError(
@@ -998,6 +1030,7 @@ export function DashboardPage() {
         );
       }
       addToast("Perfil actualizado.", "success");
+      setIsDirty(false);
     } catch (error) {
       setOwnerStatus("error");
       setOwnerError(
@@ -1060,12 +1093,32 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-      <aside className="glass-card h-fit space-y-2 p-4 text-sm text-[#c7c2b8]">
-        <div className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Panel</div>
+    <div className="relative" onChange={() => setIsDirty(true)}>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <aside
+          className={`glass-card fixed left-4 top-20 z-50 h-[calc(100vh-6rem)] w-[220px] space-y-2 overflow-y-auto p-4 text-sm text-[#c7c2b8] transition-transform lg:static lg:z-auto lg:h-fit lg:translate-x-0 lg:overflow-visible ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-[calc(100%+2rem)]"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Panel</div>
+            <button
+              type="button"
+              className="rounded-full border border-white/20 px-2 py-1 text-[10px] text-[#c7c2b8] lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              Cerrar
+            </button>
+          </div>
         <button
           type="button"
-          onClick={() => setActiveSection("profile")}
+          onClick={() => handleSelectSection("profile")}
           className={
             activeSection === "profile"
               ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
@@ -1076,7 +1129,7 @@ export function DashboardPage() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveSection("listings")}
+          onClick={() => handleSelectSection("listings")}
           className={
             activeSection === "listings"
               ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
@@ -1087,7 +1140,7 @@ export function DashboardPage() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveSection("requests")}
+          onClick={() => handleSelectSection("requests")}
           className={
             activeSection === "requests"
               ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
@@ -1099,7 +1152,7 @@ export function DashboardPage() {
         {sessionUser?.role === "VISITOR" && (
           <button
             type="button"
-            onClick={() => setActiveSection("my-requests")}
+            onClick={() => handleSelectSection("my-requests")}
             className={
               activeSection === "my-requests"
                 ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
@@ -1117,6 +1170,13 @@ export function DashboardPage() {
           <h2 className="text-3xl text-white">Panel de publicaciones</h2>
           <p className="text-sm text-[#9a948a]">Controla estados, disponibilidad y contactos.</p>
         </div>
+        <button
+          type="button"
+          className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8] lg:hidden"
+          onClick={() => setSidebarOpen(true)}
+        >
+          Menú
+        </button>
       </div>
 
       <div className="glass-card space-y-3 p-6 text-sm text-[#c7c2b8]">
@@ -1978,12 +2038,12 @@ export function DashboardPage() {
         </div>
       )}
       {selectedId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-            <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
-              <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-                <div>
-                  <h3 className="text-xl text-white">
-                    {selectedItem?.title ?? "Detalle de inmueble"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+              <div>
+                <h3 className="text-xl text-white">
+                  {selectedItem?.title ?? "Detalle de inmueble"}
                 </h3>
                 {selectedItem?.status && (
                   <div className="mt-2 inline-flex items-center gap-2 text-xs text-[#c7c2b8]">
@@ -2004,7 +2064,8 @@ export function DashboardPage() {
                 Cerrar
               </button>
             </div>
-              <div className="max-h-[calc(92vh-120px)] overflow-y-auto space-y-6 p-6">
+
+            <div className="max-h-[calc(92vh-120px)] overflow-y-auto space-y-6 p-6">
               {detailStatus === "loading" && (
                 <p className="text-xs text-[#9a948a]">Cargando detalle...</p>
               )}
@@ -2025,18 +2086,18 @@ export function DashboardPage() {
                       >
                         {isEditing ? "Cancelar" : "Editar"}
                       </button>
-                        <button
-                          className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                          type="button"
-                          onClick={() => setShowPublicModal(true)}
-                        >
-                          Ver publico
-                        </button>
-                      </div>
+                      <button
+                        className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                        type="button"
+                        onClick={() => setShowPublicModal(true)}
+                      >
+                        Ver publico
+                      </button>
                     </div>
+                  </div>
 
                   {isEditing ? (
-                    <div className="space-y-4">
+                    <div ref={editFormRef} className="space-y-4">
                           <div className="grid gap-4 md:grid-cols-2">
                             <label className="space-y-2 text-xs text-[#9a948a]">
                               Titulo
@@ -2682,23 +2743,23 @@ export function DashboardPage() {
                             </div>
                           )}
                         </div>
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
-                          type="button"
-                          onClick={saveEdit}
-                        >
-                          Guardar cambios
-                        </button>
-                        <button
-                          className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                          type="button"
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Cancelar
-                        </button>
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                            type="button"
+                            onClick={saveEdit}
+                          >
+                            Guardar cambios
+                          </button>
+                          <button
+                            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                            type="button"
+                            onClick={() => setIsEditing(false)}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       </div>
-                    </div>
                   ) : (
                     <div className="space-y-3 text-sm text-[#9a948a]">
                       <div>{selectedItem.description}</div>
@@ -2727,7 +2788,9 @@ export function DashboardPage() {
           }
         />
       )}
+      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
       </div>
+    </div>
     </div>
   );
 }

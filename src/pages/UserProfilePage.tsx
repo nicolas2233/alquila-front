@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 
 export function UserProfilePage() {
   const navigate = useNavigate();
@@ -18,6 +20,8 @@ export function UserProfilePage() {
   const [phone, setPhone] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   useEffect(() => {
     if (!sessionUser) return;
@@ -87,6 +91,7 @@ export function UserProfilePage() {
         })
       );
       addToast("Perfil actualizado.", "success");
+      setIsDirty(false);
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -97,10 +102,10 @@ export function UserProfilePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onChange={() => setIsDirty(true)}>
       <div>
         <h2 className="text-3xl text-white">Mi perfil</h2>
-        <p className="text-sm text-[#9a948a]">Actualiza tu tel?fono, contraseña y avatar.</p>
+        <p className="text-sm text-[#9a948a]">Actualiza tu teléfono, contraseña y avatar.</p>
       </div>
 
       <div className="glass-card space-y-4 p-6">
@@ -220,6 +225,7 @@ export function UserProfilePage() {
           </label>
         </div>
       </div>
+      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }
