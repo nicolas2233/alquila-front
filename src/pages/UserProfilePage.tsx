@@ -135,7 +135,13 @@ export function UserProfilePage() {
               {avatarUrl?.startsWith("emoji:") ? (
                 <span>{avatarUrl.replace("emoji:", "")}</span>
               ) : avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="h-14 w-14 rounded-full object-cover" />
+                <img
+                  loading="lazy"
+                  decoding="async"
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="h-14 w-14 rounded-full object-cover"
+                />
               ) : (
                 <span className="text-sm">
                   {(name || email || "U")

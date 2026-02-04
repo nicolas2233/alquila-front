@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 export type PropertyDetailListing = {
   id: string;

@@ -3,18 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { saveSession } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
-import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
-import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -29,7 +25,10 @@ export function LoginPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Credenciales inválidas.");
+        const errorData = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(errorData?.message ?? "No pudimos iniciar sesion.");
       }
 
       const data = (await response.json()) as {
@@ -43,6 +42,7 @@ export function LoginPage() {
           avatarUrl?: string | null;
           mustChangePassword?: boolean;
         };
+        message?: string;
       };
 
       let sessionUser = data.user;
@@ -62,23 +62,33 @@ export function LoginPage() {
 
       saveSession(data.token, sessionUser);
       setStatus("idle");
-      setIsDirty(false);
-      addToast("Sesión iniciada correctamente.", "success");
-      if (sessionUser.mustChangePassword) {
-        navigate("/change-password");
+      addToast("Sesion iniciada correctamente.", "success");
+      if (data.message) {
+        addToast(data.message, "warning");
+      }
+
+      const nextRoute = sessionUser.mustChangePassword
+        ? "/change-password"
+        : ["OWNER", "AGENCY_ADMIN", "AGENCY_AGENT"].includes(sessionUser.role)
+        ? "/panel"
+        : "/buscar";
+      setTimeout(() => {
+        navigate(nextRoute);
+      }, 0);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No pudimos iniciar sesion.";
+      setStatus("error");
+      setErrorMessage(message);
+      if (message.toLowerCase().includes("no existe una cuenta")) {
+        addToast(message, "error", 4500, "Crear cuenta", () => navigate("/registro"));
         return;
       }
-      const canAccessPanel = ["OWNER", "AGENCY_ADMIN", "AGENCY_AGENT"].includes(sessionUser.role);
-      navigate(canAccessPanel ? "/panel" : "/buscar");
-    } catch (error) {
-      setStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "No pudimos iniciar sesión."
-      );
-      addToast(
-        error instanceof Error ? error.message : "No pudimos iniciar sesión.",
-        "error"
-      );
+      if (message.toLowerCase().includes("contrasena incorrecta")) {
+        addToast(message, "error", 4500, "Recuperar cuenta", () => navigate("/recuperar"));
+        return;
+      }
+      addToast(message, "error");
     }
   };
 
@@ -86,13 +96,12 @@ export function LoginPage() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl text-white">Login</h2>
-        <p className="text-sm text-[#9a948a]">Ingresá con tu email y contraseña.</p>
+        <p className="text-sm text-[#9a948a]">Ingresa con tu email y contrasena.</p>
       </div>
 
       <form
         className="glass-card space-y-4 p-6"
         onSubmit={handleSubmit}
-        onChange={() => setIsDirty(true)}
       >
         <label className="space-y-2 text-xs text-[#9a948a]">
           Email
@@ -103,7 +112,7 @@ export function LoginPage() {
           />
         </label>
         <label className="space-y-2 text-xs text-[#9a948a]">
-          Contraseña
+          Contrasena
           <input
             type="password"
             className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
@@ -111,9 +120,7 @@ export function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        {status === "error" && (
-          <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
-        )}
+        {status === "error" && <p className="text-xs text-[#f5b78a]">{errorMessage}</p>}
         <div className="flex flex-wrap gap-3">
           <button
             className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-6 py-2 text-xs font-semibold text-night-900"
@@ -135,10 +142,9 @@ export function LoginPage() {
           className="text-xs text-gold-400 underline"
           onClick={() => navigate("/recuperar")}
         >
-          Olvidé mi contraseña
+          Olvide mi contrasena
         </button>
       </form>
-      <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }

@@ -166,6 +166,8 @@ export function DashboardPage() {
   const [ownerAddress, setOwnerAddress] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
   const [ownerAvatarUrl, setOwnerAvatarUrl] = useState("");
+  const [ownerDniTramite, setOwnerDniTramite] = useState("");
+  const [ownerBirthDate, setOwnerBirthDate] = useState("");
   const [activeSection, setActiveSection] = useState<PanelSection>("profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -178,6 +180,7 @@ export function DashboardPage() {
   );
   const [detailError, setDetailError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [editStep, setEditStep] = useState<1 | 2 | 3 | 4>(1);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPrice, setEditPrice] = useState("");
@@ -641,12 +644,22 @@ export function DashboardPage() {
           phone?: string | null;
           address?: string | null;
           avatarUrl?: string | null;
+          ownerProfile?: {
+            dniTramite?: string | null;
+            birthDate?: string | null;
+          } | null;
         };
         setOwnerName(data.name ?? "");
         setOwnerEmail(data.email ?? "");
         setOwnerPhone(data.phone ?? "");
         setOwnerAddress(data.address ?? "");
         setOwnerAvatarUrl(data.avatarUrl ?? "");
+        setOwnerDniTramite(data.ownerProfile?.dniTramite ?? "");
+        setOwnerBirthDate(
+          data.ownerProfile?.birthDate
+            ? new Date(data.ownerProfile.birthDate).toISOString().slice(0, 10)
+            : ""
+        );
         setOwnerStatus("idle");
       } catch (error) {
         setOwnerStatus("error");
@@ -678,6 +691,7 @@ export function DashboardPage() {
     setSelectedId(item.id);
     setSelectedItem(null);
     setIsEditing(false);
+    setEditStep(1);
     setDetailStatus("loading");
     setDetailError("");
 
@@ -775,6 +789,33 @@ export function DashboardPage() {
     setSelectedId(null);
     setSelectedItem(null);
     setIsEditing(false);
+    setEditStep(1);
+  };
+
+  const openEditFromList = async (item: PropertyApiListItem) => {
+    await openDetail(item);
+    setEditStep(1);
+    setIsEditing(true);
+  };
+
+  const openPublicFromList = async (item: PropertyApiListItem) => {
+    setDetailStatus("loading");
+    setDetailError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${item.id}`);
+      if (!response.ok) {
+        throw new Error("No pudimos cargar la propiedad.");
+      }
+      const data = (await response.json()) as PropertyApiDetail;
+      setSelectedItem(data);
+      setShowPublicModal(true);
+      setDetailStatus("idle");
+    } catch (error) {
+      setDetailStatus("error");
+      setDetailError(
+        error instanceof Error ? error.message : "Error al cargar la propiedad."
+      );
+    }
   };
 
   const openRequestPropertyDetail = async (propertyId: string) => {
@@ -913,6 +954,7 @@ export function DashboardPage() {
       await loadProperties();
       await openDetail({ id: selectedId } as PropertyApiListItem);
       setIsEditing(false);
+      setEditStep(1);
       addToast("Cambios guardados.", "success");
       setIsDirty(false);
     } catch (error) {
@@ -1010,6 +1052,8 @@ export function DashboardPage() {
           address: ownerAddress || undefined,
           avatarUrl: ownerAvatarUrl ? ownerAvatarUrl : null,
           password: ownerPassword || undefined,
+          ownerDniTramite: ownerDniTramite || undefined,
+          ownerBirthDate: ownerBirthDate || undefined,
         }),
       });
       if (!response.ok) {
@@ -1172,10 +1216,25 @@ export function DashboardPage() {
         </div>
         <button
           type="button"
-          className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8] lg:hidden"
+          className="inline-flex items-center gap-2 rounded-full border border-gold-400/50 bg-gold-500/20 px-4 py-2 text-xs font-semibold text-gold-100 shadow-[0_0_0_1px_rgba(209,164,102,0.25)] lg:hidden"
           onClick={() => setSidebarOpen(true)}
         >
-          Menú
+          <svg
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+          Menu
         </button>
       </div>
 
@@ -1481,6 +1540,23 @@ export function DashboardPage() {
                 onChange={(event) => setOwnerAddress(event.target.value)}
               />
             </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Nro de tramite
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                value={ownerDniTramite}
+                onChange={(event) => setOwnerDniTramite(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#9a948a]">
+              Fecha de nacimiento
+              <input
+                type="date"
+                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                value={ownerBirthDate}
+                onChange={(event) => setOwnerBirthDate(event.target.value)}
+              />
+            </label>
             <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
               Nueva contraseña
               <input
@@ -1609,9 +1685,16 @@ export function DashboardPage() {
                     <button
                       className="rounded-full border border-white/20 px-3 py-1 text-xs"
                       type="button"
-                      onClick={() => openDetail(item)}
+                      onClick={() => openEditFromList(item)}
                     >
-                      Ver
+                      Editar
+                    </button>
+                    <button
+                      className="rounded-full border border-white/20 px-3 py-1 text-xs"
+                      type="button"
+                      onClick={() => openPublicFromList(item)}
+                    >
+                      Ver publico
                     </button>
                   </div>
                 </div>
@@ -2082,7 +2165,10 @@ export function DashboardPage() {
                       <button
                         className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
                         type="button"
-                        onClick={() => setIsEditing((prev) => !prev)}
+                        onClick={() => {
+                          setIsEditing((prev) => !prev);
+                          setEditStep(1);
+                        }}
                       >
                         {isEditing ? "Cancelar" : "Editar"}
                       </button>
@@ -2098,6 +2184,29 @@ export function DashboardPage() {
 
                   {isEditing ? (
                     <div ref={editFormRef} className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { id: 1 as const, label: "1. Basico" },
+                            { id: 2 as const, label: "2. Ubicacion" },
+                            { id: 3 as const, label: "3. Caracteristicas" },
+                            { id: 4 as const, label: "4. Fotos" },
+                          ].map((step) => (
+                            <button
+                              key={step.id}
+                              type="button"
+                              onClick={() => setEditStep(step.id)}
+                              className={
+                                editStep === step.id
+                                  ? "rounded-full border border-gold-400/40 bg-gold-500/20 px-3 py-1 text-xs text-gold-100"
+                                  : "rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                              }
+                            >
+                              {step.label}
+                            </button>
+                          ))}
+                        </div>
+                        {editStep === 1 && (
+                        <>
                           <div className="grid gap-4 md:grid-cols-2">
                             <label className="space-y-2 text-xs text-[#9a948a]">
                               Titulo
@@ -2252,7 +2361,10 @@ export function DashboardPage() {
                             onChange={(event) => setEditDescription(event.target.value)}
                           />
                         </label>
+                        </>
+                        )}
 
+                        {editStep === 2 && (
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-white">Ubicacion y datos</h4>
                           <div className="grid gap-4 md:grid-cols-3">
@@ -2424,7 +2536,10 @@ export function DashboardPage() {
                             </div>
                           </div>
                         </div>
+                        )}
 
+                        {editStep === 3 && (
+                        <>
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-white">Convivencia</h4>
                           <div className="grid gap-3 md:grid-cols-3">
@@ -2689,7 +2804,11 @@ export function DashboardPage() {
                             ))}
                           </div>
                         </div>
+                        </>
+                        )}
 
+                        {editStep === 4 && (
+                        <>
                         <div className="space-y-3">
                           <label className="text-xs text-[#9a948a]">Fotos actuales</label>
                           {selectedItem.photos && selectedItem.photos.length > 0 ? (
@@ -2743,6 +2862,31 @@ export function DashboardPage() {
                             </div>
                           )}
                         </div>
+                        </>
+                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                              type="button"
+                              onClick={() =>
+                                setEditStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4) : prev))
+                              }
+                              disabled={editStep === 1}
+                            >
+                              Paso anterior
+                            </button>
+                            <button
+                              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                              type="button"
+                              onClick={() =>
+                                setEditStep((prev) => (prev < 4 ? ((prev + 1) as 1 | 2 | 3 | 4) : prev))
+                              }
+                              disabled={editStep === 4}
+                            >
+                              Paso siguiente
+                            </button>
+                          </div>
                         <div className="flex flex-wrap gap-3">
                           <button
                             className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
@@ -2754,10 +2898,14 @@ export function DashboardPage() {
                           <button
                             className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
                             type="button"
-                            onClick={() => setIsEditing(false)}
+                            onClick={() => {
+                              setIsEditing(false);
+                              setEditStep(1);
+                            }}
                           >
                             Cancelar
                           </button>
+                        </div>
                         </div>
                       </div>
                   ) : (

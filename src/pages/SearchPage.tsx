@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, lazy } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
+import { LazySection } from "../shared/ui/LazySection";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
@@ -11,6 +11,12 @@ import { getSessionUser, getToken } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+
+const PropertyDetailModal = lazy(() =>
+  import("../shared/properties/PropertyDetailModal").then((m) => ({
+    default: m.PropertyDetailModal,
+  }))
+);
 
 export function SearchPage() {
   const location = useLocation();
@@ -619,6 +625,7 @@ export function SearchPage() {
                       }
                       src={item.image}
                       alt={item.title}
+                      sizes="(min-width: 1024px) 320px, (min-width: 768px) 45vw, 90vw"
                       loading="lazy"
                       decoding="async"
                     />
@@ -856,14 +863,15 @@ export function SearchPage() {
       </section>
 
       {selectedListing && (
-        <PropertyDetailModal
-          listing={selectedListing}
-          onClose={closeModal}
-          isLoading={detailStatus === "loading"}
-          onReportProperty={handleReportProperty}
-          onReportUser={selectedListing.ownerUserId ? handleReportUser : undefined}
-          actions={
-            <>
+        <LazySection fallback={<div className="h-12" />}>
+          <PropertyDetailModal
+            listing={selectedListing}
+            onClose={closeModal}
+            isLoading={detailStatus === "loading"}
+            onReportProperty={handleReportProperty}
+            onReportUser={selectedListing.ownerUserId ? handleReportUser : undefined}
+            actions={
+              <>
                 <button
                   className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
                   type="button"
@@ -883,13 +891,18 @@ export function SearchPage() {
                       window.open(whatsappLink, "_blank", "noopener,noreferrer");
                     } else {
                       setContactStatus("error");
-                      setContactMessage("No hay WhatsApp disponible en esta publicacion.");
-                      addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
+                      setContactMessage(
+                        "No hay WhatsApp disponible en esta publicacion."
+                      );
+                      addToast(
+                        "No hay WhatsApp disponible en esta publicacion.",
+                        "warning"
+                      );
                     }
                   }}
                 >
-                WhatsApp
-              </button>
+                  WhatsApp
+                </button>
                 <button
                   className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
                   type="button"
@@ -908,29 +921,34 @@ export function SearchPage() {
                   Me interesa
                 </button>
                 {contactMessage && (
-                  <div className="w-full text-xs text-[#9a948a]">{contactMessage}</div>
-                )}
-              {similarListings.length > 0 && (
-                <div className="mt-4 w-full space-y-2 text-xs text-[#9a948a]">
-                  <div className="text-sm text-white">Publicaciones similares</div>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {similarListings.slice(0, 2).map((item) => (
-                      <button
-                        key={item.id}
-                        className="rounded-xl border border-white/10 bg-night-900/60 p-3 text-left"
-                        type="button"
-                        onClick={() => openModal(item)}
-                      >
-                        <div className="text-sm text-white">{item.title}</div>
-                        <div className="text-xs text-[#9a948a]">{item.address}</div>
-                      </button>
-                    ))}
+                  <div className="w-full text-xs text-[#9a948a]">
+                    {contactMessage}
                   </div>
-                </div>
-              )}
-            </>
-          }
-        />
+                )}
+                {similarListings.length > 0 && (
+                  <div className="mt-4 w-full space-y-2 text-xs text-[#9a948a]">
+                    <div className="text-sm text-white">Publicaciones similares</div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {similarListings.slice(0, 2).map((item) => (
+                        <button
+                          key={item.id}
+                          className="rounded-xl border border-white/10 bg-night-900/60 p-3 text-left"
+                          type="button"
+                          onClick={() => openModal(item)}
+                        >
+                          <div className="text-sm text-white">{item.title}</div>
+                          <div className="text-xs text-[#9a948a]">
+                            {item.address}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            }
+          />
+        </LazySection>
       )}
     </div>
   );

@@ -7,10 +7,18 @@ type Toast = {
   type: ToastType;
   message: string;
   duration: number;
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 type ToastContextValue = {
-  addToast: (message: string, type?: ToastType, duration?: number) => void;
+  addToast: (
+    message: string,
+    type?: ToastType,
+    duration?: number,
+    actionLabel?: string,
+    onAction?: () => void
+  ) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -37,9 +45,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addToast = useCallback(
-    (message: string, type: ToastType = "info", duration = 2800) => {
+    (
+      message: string,
+      type: ToastType = "info",
+      duration = 2800,
+      actionLabel?: string,
+      onAction?: () => void
+    ) => {
       const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const toast: Toast = { id, type, message, duration };
+      const toast: Toast = { id, type, message, duration, actionLabel, onAction };
       setItems((prev) => [...prev, toast]);
       window.setTimeout(() => removeToast(id), duration);
     },
@@ -61,6 +75,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               {toastIcons[item.type]}
             </span>
             {item.message}
+            {item.actionLabel && item.onAction && (
+              <button
+                type="button"
+                className="ml-3 rounded-full border border-black/20 px-2 py-0.5 text-[11px] font-semibold text-[#1f1f1f]"
+                onClick={() => {
+                  item.onAction?.();
+                  removeToast(item.id);
+                }}
+              >
+                {item.actionLabel}
+              </button>
+            )}
           </div>
         ))}
       </div>

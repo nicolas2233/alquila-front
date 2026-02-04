@@ -396,7 +396,13 @@ export function AgencyProfilePage() {
               title={agency?.name ?? "Inmobiliaria"}
             >
               {agency?.logo && (agency.logo.startsWith("http") || agency.logo.startsWith("data:")) ? (
-                <img src={agency.logo} alt={agency.name ?? "Logo"} className="h-16 w-16 object-cover" />
+                <img
+                  loading="lazy"
+                  decoding="async"
+                  src={agency.logo}
+                  alt={agency.name ?? "Logo"}
+                  className="h-16 w-16 object-cover"
+                />
               ) : (
                 (agency?.name ?? "I")
                   .split(" ")
@@ -574,6 +580,7 @@ export function AgencyProfilePage() {
                   }
                   src={listing.image}
                   alt={listing.title}
+                  sizes="(min-width: 1024px) 320px, (min-width: 768px) 45vw, 90vw"
                   loading="lazy"
                   decoding="async"
                 />

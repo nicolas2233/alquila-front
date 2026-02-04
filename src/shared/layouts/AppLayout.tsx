@@ -232,13 +232,17 @@ export function AppLayout() {
           <nav className="flex items-center justify-between gap-2 py-3 text-[11px] text-[#c7c2b8]">
             <NavLink to="/buscar" className={navClass}>
               <span className="flex flex-col items-center gap-1">
-                <span aria-hidden="true">B</span>
+                <span aria-hidden="true" className="text-base leading-none">
+                  {"\u{1F50D}"}
+                </span>
                 Buscar
               </span>
             </NavLink>
             <NavLink to="/mapa" className={navClass}>
               <span className="flex flex-col items-center gap-1">
-                <span aria-hidden="true">M</span>
+                <span aria-hidden="true" className="text-base leading-none">
+                  {"\u{1F5FA}"}
+                </span>
                 Mapa
               </span>
             </NavLink>
@@ -246,13 +250,17 @@ export function AppLayout() {
               <>
                 <NavLink to="/publicar" className={navClass}>
                   <span className="flex flex-col items-center gap-1">
-                    <span aria-hidden="true">+</span>
+                    <span aria-hidden="true" className="text-base leading-none">
+                      {"\u{2795}"}
+                    </span>
                     Publicar
                   </span>
                 </NavLink>
                 <NavLink to="/panel?tab=listings" className={navClass}>
                   <span className="relative flex flex-col items-center gap-1">
-                    <span aria-hidden="true">P</span>
+                    <span aria-hidden="true" className="text-base leading-none">
+                      {"\u{1F4CB}"}
+                    </span>
                     Panel
                     {notificationCount > 0 && (
                       <span className="absolute -right-2 top-0 h-2 w-2 rounded-full bg-gold-400" />
@@ -262,22 +270,40 @@ export function AppLayout() {
               </>
             )}
             {user ? (
-              <NavLink
-                to={user.role === "VISITOR" ? "/perfil" : "/panel?tab=profile"}
-                className={navClass}
-              >
-                <span className="relative flex flex-col items-center gap-1">
-                  <span aria-hidden="true">U</span>
-                  Perfil
-                  {notificationCount > 0 && (
-                    <span className="absolute -right-2 top-0 h-2 w-2 rounded-full bg-gold-400" />
-                  )}
-                </span>
-              </NavLink>
+              <>
+                <NavLink
+                  to={user.role === "VISITOR" ? "/perfil" : "/panel?tab=profile"}
+                  className={navClass}
+                >
+                  <span className="relative flex flex-col items-center gap-1">
+                    <span aria-hidden="true" className="text-base leading-none">
+                      {"\u{1F464}"}
+                    </span>
+                    Perfil
+                    {notificationCount > 0 && (
+                      <span className="absolute -right-2 top-0 h-2 w-2 rounded-full bg-gold-400" />
+                    )}
+                  </span>
+                </NavLink>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-[#c7c2b8]"
+                >
+                  <span className="flex flex-col items-center gap-1">
+                    <span aria-hidden="true" className="text-base leading-none">
+                      {"\u{1F6AA}"}
+                    </span>
+                    Salir
+                  </span>
+                </button>
+              </>
             ) : (
               <NavLink to="/login" className={navClass}>
                 <span className="flex flex-col items-center gap-1">
-                  <span aria-hidden="true">L</span>
+                  <span aria-hidden="true" className="text-base leading-none">
+                    {"\u{1F511}"}
+                  </span>
                   Login
                 </span>
               </NavLink>

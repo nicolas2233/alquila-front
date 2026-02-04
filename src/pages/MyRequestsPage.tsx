@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy } from "react";
 import { useLocation } from "react-router-dom";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
-import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
+import { LazySection } from "../shared/ui/LazySection";
 import { getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+
+const PropertyDetailModal = lazy(() =>
+  import("../shared/properties/PropertyDetailModal").then((m) => ({
+    default: m.PropertyDetailModal,
+  }))
+);
 
 type MyRequest = {
   id: string;
@@ -289,11 +295,13 @@ export function MyRequestsPage() {
       )}
 
       {selectedListing && (
-        <PropertyDetailModal
-          listing={selectedListing}
-          onClose={closePropertyDetail}
-          isLoading={detailListingStatus === "loading"}
-        />
+        <LazySection fallback={<div className="h-12" />}>
+          <PropertyDetailModal
+            listing={selectedListing}
+            onClose={closePropertyDetail}
+            isLoading={detailListingStatus === "loading"}
+          />
+        </LazySection>
       )}
       {detailListingStatus === "error" && detailListingError && (
         <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { env } from "../shared/config/env";
 import { LegalModal } from "../shared/ui/LegalModal";
-import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
-import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 type AccountType = "viewer" | "owner" | "agency";
@@ -38,7 +36,6 @@ export function RegisterPage() {
   const [ownerFirstName, setOwnerFirstName] = useState("");
   const [ownerLastName, setOwnerLastName] = useState("");
   const [ownerDni, setOwnerDni] = useState("");
-  const [ownerTramite, setOwnerTramite] = useState("");
   const [ownerBirthDate, setOwnerBirthDate] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [agencyLegalName, setAgencyLegalName] = useState("");
@@ -46,11 +43,9 @@ export function RegisterPage() {
   const [agencyLicense, setAgencyLicense] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
-  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const hasFieldErrors = Object.values(fieldErrors).some(Boolean);
   const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contrasenaRemaining = Math.max(0, 8 - contrasena.length);
@@ -120,12 +115,11 @@ export function RegisterPage() {
           setFieldErrors({ phone: true });
           throw new Error("El teléfono es obligatorio para dueños.");
         }
-        if (!ownerFirstName || !ownerLastName || !ownerDni || !ownerTramite || !ownerBirthDate) {
+        if (!ownerFirstName || !ownerLastName || !ownerDni || !ownerBirthDate) {
           setFieldErrors({
             ownerFirstName: !ownerFirstName,
             ownerLastName: !ownerLastName,
             ownerDni: !ownerDni,
-            ownerTramite: !ownerTramite,
             ownerBirthDate: !ownerBirthDate,
           });
           throw new Error("Completa todos los datos del dueño.");
@@ -170,7 +164,6 @@ export function RegisterPage() {
           firstName: ownerFirstName,
           lastName: ownerLastName,
           dni: ownerDni,
-          dniTramite: ownerTramite,
           birthDate: ownerBirthDate,
         };
       } else {
@@ -198,7 +191,6 @@ export function RegisterPage() {
       }
 
       setStatus("success");
-      setIsDirty(false);
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -225,7 +217,6 @@ export function RegisterPage() {
         ref={formRef}
         className="space-y-10"
         onSubmit={handleSubmit}
-        onChange={() => setIsDirty(true)}
       >
         <section className="glass-card space-y-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -388,15 +379,6 @@ export function RegisterPage() {
               />
             </label>
             <label className="space-y-2 text-xs text-[#9a948a]">
-              Nro de tramite
-              <input
-                className={fieldClass(!!fieldErrors.ownerTramite)}
-                data-error={fieldErrors.ownerTramite ? "true" : undefined}
-                value={ownerTramite}
-                onChange={(event) => setOwnerTramite(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
               Fecha de nacimiento
               <input
                 type="date"
@@ -556,7 +538,6 @@ export function RegisterPage() {
         </div>
       )}
     </form>
-    <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}

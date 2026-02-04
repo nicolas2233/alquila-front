@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
-import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
+import { LazySection } from "../shared/ui/LazySection";
 import { getSessionUser, getToken } from "../shared/auth/session";
+
+const PropertyDetailModal = lazy(() =>
+  import("../shared/properties/PropertyDetailModal").then((m) => ({
+    default: m.PropertyDetailModal,
+  }))
+);
 
 export function ListingPage() {
   const { id } = useParams();
@@ -108,11 +114,12 @@ export function ListingPage() {
   };
 
   return (
-    <PropertyDetailModal
-      listing={listing}
-      variant="page"
-      onReportProperty={handleReportProperty}
-      onReportUser={listing.ownerUserId ? handleReportUser : undefined}
+    <LazySection fallback={<div className="h-12" />}>
+      <PropertyDetailModal
+        listing={listing}
+        variant="page"
+        onReportProperty={handleReportProperty}
+        onReportUser={listing.ownerUserId ? handleReportUser : undefined}
       actions={
         <div className="flex flex-wrap gap-3">
           {contactMethods?.map((contact) => {
@@ -151,6 +158,7 @@ export function ListingPage() {
           })}
         </div>
       }
-    />
+      />
+    </LazySection>
   );
 }
