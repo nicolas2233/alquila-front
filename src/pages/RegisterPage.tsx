@@ -5,6 +5,40 @@ import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 type AccountType = "viewer" | "owner" | "agency";
 
+function extractApiErrorMessage(payload: unknown): string {
+  if (!payload || typeof payload !== "object") {
+    return "No pudimos completar el registro.";
+  }
+  const data = payload as {
+    message?: unknown;
+    issues?: Array<{ message?: string; path?: string }>;
+  };
+
+  if (typeof data.message === "string" && data.message.trim()) {
+    return data.message;
+  }
+
+  if (Array.isArray(data.message) && data.message.length > 0) {
+    const first = data.message[0] as { message?: string } | string;
+    if (typeof first === "string") return first;
+    if (first && typeof first === "object" && typeof first.message === "string") {
+      return first.message;
+    }
+  }
+
+  if (Array.isArray(data.issues) && data.issues.length > 0) {
+    const first = data.issues[0];
+    if (first?.path) {
+      return `${first.path}: ${first.message ?? "dato invalido"}`;
+    }
+    if (first?.message) {
+      return first.message;
+    }
+  }
+
+  return "No pudimos completar el registro.";
+}
+
 const planOptions = [
   {
     key: "bronce",
@@ -78,6 +112,7 @@ export function RegisterPage() {
     setStatus("loading");
     setErrorMessage("");
     setFieldErrors({});
+    const normalizedEmail = email.trim().toLowerCase();
 
     try {
       if (!email || !contrasena) {
@@ -148,7 +183,7 @@ export function RegisterPage() {
       if (accountType === "viewer") {
         endpoint = "/users";
         payload = {
-          email,
+          email: normalizedEmail,
           password: contrasena,
           firstName,
           lastName,
@@ -158,7 +193,7 @@ export function RegisterPage() {
       } else if (accountType === "owner") {
         endpoint = "/owners";
         payload = {
-          email,
+          email: normalizedEmail,
           password: contrasena,
           phone,
           firstName: ownerFirstName,
@@ -169,7 +204,7 @@ export function RegisterPage() {
       } else {
         endpoint = "/agencies";
         payload = {
-          email,
+          email: normalizedEmail,
           password: contrasena,
           phone,
           name: agencyName,
@@ -187,7 +222,7 @@ export function RegisterPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.message ?? "No pudimos completar el registro.");
+        throw new Error(extractApiErrorMessage(data));
       }
 
       setStatus("success");

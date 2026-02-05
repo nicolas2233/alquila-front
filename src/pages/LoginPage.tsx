@@ -16,12 +16,13 @@ export function LoginPage() {
     event.preventDefault();
     setStatus("loading");
     setErrorMessage("");
+    const normalizedEmail = email.trim().toLowerCase();
 
     try {
       const response = await fetch(`${env.apiUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       if (!response.ok) {
