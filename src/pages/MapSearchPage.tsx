@@ -8,6 +8,7 @@ import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { trackEvent } from "../shared/analytics/posthog";
 import { env } from "../shared/config/env";
 
 type OperationType = "SALE" | "RENT" | "TEMPORARY";
@@ -48,6 +49,17 @@ type MapProperty = {
   lat: number;
   lng: number;
   kind?: "PROPERTY" | "POI";
+};
+
+type PoiItem = {
+  id: string;
+  title: string;
+  category: PoiCategory;
+  lat: number;
+  lng: number;
+  address?: string | null;
+  description?: string | null;
+  isActive?: boolean;
 };
 
 const operationLabels: Record<OperationType, string> = {
@@ -102,13 +114,6 @@ const poiColors: Record<PoiCategory, string> = {
   PARK: "#7ecf7a",
 };
 
-const poiPoints: Array<
-  Omit<
-    MapProperty,
-    "operationType" | "propertyType" | "priceAmount" | "priceCurrency" | "contactLabel"
-  > & { category: PoiCategory }
-> = [];
-
 const operationFilters: OperationType[] = ["SALE", "RENT", "TEMPORARY"];
 const typeFilters: PropertyType[] = [
   "HOUSE",
@@ -128,6 +133,9 @@ export function MapSearchPage() {
   const [properties, setProperties] = useState<MapProperty[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
+  const [poiItems, setPoiItems] = useState<PoiItem[]>([]);
+  const [poiStatus, setPoiStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [poiError, setPoiError] = useState("");
   const [activeOperations, setActiveOperations] = useState<OperationType[]>([]);
   const [activeTypes, setActiveTypes] = useState<PropertyType[]>([]);
   const [activePoi, setActivePoi] = useState<PoiCategory[]>([]);
@@ -246,6 +254,44 @@ export function MapSearchPage() {
     };
   }, [sessionUser]);
 
+  useEffect(() => {
+    if (!sessionUser) {
+      setPoiItems([]);
+      setPoiStatus("idle");
+      setPoiError("");
+      return;
+    }
+    let ignore = false;
+    const controller = new AbortController();
+    const load = async () => {
+      setPoiStatus("loading");
+      setPoiError("");
+      try {
+        const response = await fetch(`${env.apiUrl}/pois?active=true`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("No pudimos cargar los puntos de interes.");
+        }
+        const data = (await response.json()) as { items: PoiItem[] };
+        if (ignore) return;
+        setPoiItems(data.items ?? []);
+        setPoiStatus("idle");
+      } catch (error) {
+        if (ignore || controller.signal.aborted) return;
+        setPoiStatus("error");
+        setPoiError(
+          error instanceof Error ? error.message : "No pudimos cargar los puntos de interes."
+        );
+      }
+    };
+    void load();
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [sessionUser]);
+
   const filtered = useMemo(() => {
     if (!activeOperations.length && !activeTypes.length) {
       return [];
@@ -264,8 +310,8 @@ export function MapSearchPage() {
     if (!sessionUser || !activePoi.length) {
       return [];
     }
-    return poiPoints.filter((poi) => activePoi.includes(poi.category));
-  }, [activePoi, sessionUser]);
+    return poiItems.filter((poi) => activePoi.includes(poi.category));
+  }, [activePoi, sessionUser, poiItems]);
 
   const buildingGroups = useMemo(() => {
     const groups = new Map<string, MapProperty[]>();
@@ -326,6 +372,11 @@ export function MapSearchPage() {
       const data = (await response.json()) as PropertyApiDetail;
       const mapped = mapPropertyToDetailListing(data);
       setSelectedListing(mapped);
+      trackEvent("view_listing", {
+        propertyId: data.id,
+        operation: data.operationType,
+        propertyType: data.propertyType,
+      });
       setDetailStatus("idle");
     } catch (error) {
       setDetailStatus("error");
@@ -399,6 +450,12 @@ export function MapSearchPage() {
       }
       setContactStatus("success");
       setContactMessage("Solicitud enviada.");
+      trackEvent("contact_request", {
+        propertyId: selectedListing.id,
+        type: "INTEREST",
+        operation: selectedListing.operation,
+        propertyType: selectedListing.propertyType,
+      });
       markContactRequestSent({ propertyId: selectedListing.id, type: "INTEREST" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "No pudimos enviar la solicitud.";
@@ -704,7 +761,8 @@ export function MapSearchPage() {
                 <MapView
                   points={[
                     ...(sessionUser ? pointsForMap : []),
-                    ...filteredPoi.map((poi) => ({
+                    ...(sessionUser
+                      ? filteredPoi.map((poi) => ({
                       id: poi.id,
                       title: poi.title,
                       subtitle: poiLabels[poi.category],
@@ -712,7 +770,8 @@ export function MapSearchPage() {
                       color: poiColors[poi.category],
                       lat: poi.lat,
                       lng: poi.lng,
-                    })),
+                    }))
+                      : []),
                   ]}
                   selectedId={selectedBuildingId ? `building:${selectedBuildingId}` : selectedId}
                   onSelect={(id) => {
@@ -730,6 +789,9 @@ export function MapSearchPage() {
               </div>
               {listStatus === "error" && (
                 <div className="mt-3 text-xs text-[#f5b78a]">{listError}</div>
+              )}
+              {poiStatus === "error" && (
+                <div className="mt-2 text-xs text-[#f5b78a]">{poiError}</div>
               )}
               {!sessionUser && (
                 <div className="mt-3 text-xs text-[#9a948a]">

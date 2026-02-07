@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { LegalModal } from "../shared/ui/LegalModal";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
+import { useToast } from "../shared/ui/toast/ToastProvider";
+import { trackEvent } from "../shared/analytics/posthog";
 
 type AccountType = "viewer" | "owner" | "agency";
 
@@ -58,6 +61,8 @@ const planOptions = [
 ];
 
 export function RegisterPage() {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
   const formRef = useRef<HTMLFormElement | null>(null);
   const [accountType, setAccountType] = useState<AccountType>("viewer");
   const [plan, setPlan] = useState("bronce");
@@ -226,11 +231,15 @@ export function RegisterPage() {
       }
 
       setStatus("success");
+      window.setTimeout(() => {
+        trackEvent("sign_up", { accountType, plan: showPlan ? plan : undefined });
+        navigate("/login?registered=1");
+      }, 500);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en el registro.";
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Error en el registro."
-      );
+      setErrorMessage(message);
+      addToast(message, "error");
     }
   };
 

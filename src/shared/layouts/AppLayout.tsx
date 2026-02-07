@@ -6,6 +6,7 @@ import type { SessionUser } from "../auth/session";
 import { env } from "../config/env";
 import { ToastProvider } from "../ui/toast/ToastProvider";
 import { LegalModal } from "../ui/LegalModal";
+import { identifyUser, trackPageView } from "../analytics/posthog";
 // import { FloatingChat } from "../ui/chat/FloatingChat";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -23,6 +24,14 @@ export function AppLayout() {
   useEffect(() => {
     setUser(getSessionUser());
     setToken(getToken());
+  }, [location.pathname]);
+
+  useEffect(() => {
+    identifyUser(user);
+  }, [user]);
+
+  useEffect(() => {
+    trackPageView(location.pathname);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -98,7 +107,12 @@ export function AppLayout() {
                   </NavLink>
                 </>
               )}
-              {user && user.role !== "VISITOR" && (
+              {user && user.role === "ADMIN" && (
+                <NavLink to="/admin" className={navClass}>
+                  Admin
+                </NavLink>
+              )}
+              {user && user.role !== "VISITOR" && user.role !== "ADMIN" && (
                 <>
                   <NavLink to="/publicar" className={navClass}>
                     Publicar
@@ -246,7 +260,17 @@ export function AppLayout() {
                 Mapa
               </span>
             </NavLink>
-            {user && user.role !== "VISITOR" && (
+            {user && user.role === "ADMIN" && (
+              <NavLink to="/admin" className={navClass}>
+                <span className="flex flex-col items-center gap-1">
+                  <span aria-hidden="true" className="text-base leading-none">
+                    {"\u{1F6E1}"}
+                  </span>
+                  Admin
+                </span>
+              </NavLink>
+            )}
+            {user && user.role !== "VISITOR" && user.role !== "ADMIN" && (
               <>
                 <NavLink to="/publicar" className={navClass}>
                   <span className="flex flex-col items-center gap-1">

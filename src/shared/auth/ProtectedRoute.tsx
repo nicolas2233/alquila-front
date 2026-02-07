@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { getSessionUser, getToken } from "./session";
+import { getRoleFromToken, getSessionUser, getToken } from "./session";
 
 type ProtectedRouteProps = {
   children: ReactElement;
@@ -16,7 +16,13 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  if (allowedRoles && (!user || !allowedRoles.includes(user.role))) {
+  const tokenRole = getRoleFromToken(token);
+  const effectiveRole = user?.role ?? tokenRole ?? null;
+
+  if (allowedRoles && (!effectiveRole || !allowedRoles.includes(effectiveRole))) {
+    if (effectiveRole === "ADMIN") {
+      return <Navigate to="/admin" replace />;
+    }
     return <Navigate to="/buscar" replace />;
   }
 

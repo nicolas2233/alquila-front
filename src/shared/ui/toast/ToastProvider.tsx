@@ -65,11 +65,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed top-6 left-1/2 z-[60] flex -translate-x-1/2 flex-col gap-2">
+      <div className="pointer-events-none fixed inset-x-2 top-2 z-[120] flex flex-col items-center gap-2 pt-[env(safe-area-inset-top)] sm:inset-x-auto sm:left-1/2 sm:top-6 sm:-translate-x-1/2">
         {items.map((item) => (
           <div
             key={item.id}
-            className={`pointer-events-auto rounded-2xl border px-4 py-2 text-xs shadow-card ${toastStyles[item.type]}`}
+            className={`pointer-events-auto w-full max-w-sm rounded-2xl border px-4 py-2 text-xs shadow-card ${toastStyles[item.type]}`}
           >
             <span className="mr-2" aria-hidden="true">
               {toastIcons[item.type]}

@@ -27,6 +27,20 @@ export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+export function getRoleFromToken(token?: string | null): string | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(payload);
+    const json = JSON.parse(decoded) as { role?: string };
+    return json.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function getSessionUser(): SessionUser | null {
   const raw = localStorage.getItem(USER_KEY);
   if (!raw) {

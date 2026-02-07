@@ -1,16 +1,26 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { saveSession } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { trackEvent } from "../shared/analytics/posthog";
 
 export function LoginPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("registered") === "1") {
+      addToast("Cuenta creada. Ahora inicia sesion.", "success");
+      navigate("/login", { replace: true });
+    }
+  }, [location.search, addToast, navigate]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,9 +77,12 @@ export function LoginPage() {
       if (data.message) {
         addToast(data.message, "warning");
       }
+      trackEvent("login", { role: sessionUser.role });
 
       const nextRoute = sessionUser.mustChangePassword
         ? "/change-password"
+        : sessionUser.role === "ADMIN"
+        ? "/admin"
         : ["OWNER", "AGENCY_ADMIN", "AGENCY_AGENT"].includes(sessionUser.role)
         ? "/panel"
         : "/buscar";

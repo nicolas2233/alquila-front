@@ -174,12 +174,16 @@ export function DashboardPage() {
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<PropertyApiDetail | null>(null);
+  const detailContentRef = useRef<HTMLDivElement | null>(null);
   const editFormRef = useRef<HTMLDivElement | null>(null);
   const [detailStatus, setDetailStatus] = useState<"idle" | "loading" | "error">(
     "idle"
   );
   const [detailError, setDetailError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [editSaveStatus, setEditSaveStatus] = useState<"idle" | "saving" | "error">(
+    "idle"
+  );
   const [editStep, setEditStep] = useState<1 | 2 | 3 | 4>(1);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -601,6 +605,35 @@ export function DashboardPage() {
   }, [isEditing, selectedItem?.id]);
 
   useEffect(() => {
+    if (!isEditing) return;
+    const container = detailContentRef.current;
+    const form = editFormRef.current;
+    if (!container || !form) return;
+    const handle = window.setTimeout(() => {
+      const targetTop = Math.max(form.offsetTop - 12, 0);
+      container.scrollTo({ top: targetTop, behavior: "smooth" });
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [editStep, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const form = editFormRef.current;
+    if (!form) return;
+    const handle = window.setTimeout(() => {
+      const stepSection = form.querySelector(
+        `[data-edit-step="${editStep}"]`
+      ) as HTMLElement | null;
+      if (!stepSection) return;
+      const field = stepSection.querySelector(
+        "input:not([type='hidden']), select, textarea"
+      ) as HTMLElement | null;
+      field?.focus();
+    }, 120);
+    return () => window.clearTimeout(handle);
+  }, [editStep, isEditing]);
+
+  useEffect(() => {
     if (!highlightRequestId) return;
     const timeout = setTimeout(() => setHighlightPulse(true), 120);
     return () => clearTimeout(timeout);
@@ -848,6 +881,8 @@ export function DashboardPage() {
       return;
     }
 
+    setDetailError("");
+    setEditSaveStatus("saving");
     try {
       if (editPrice && Number.isNaN(Number(editPrice))) {
         throw new Error("El precio debe ser un numero valido.");
@@ -961,6 +996,9 @@ export function DashboardPage() {
       setDetailStatus("error");
       setDetailError("No pudimos guardar los cambios.");
       addToast("No pudimos guardar los cambios.", "error");
+      setEditSaveStatus("error");
+    } finally {
+      setEditSaveStatus("idle");
     }
   };
 
@@ -2148,7 +2186,10 @@ export function DashboardPage() {
               </button>
             </div>
 
-            <div className="max-h-[calc(92vh-120px)] overflow-y-auto space-y-6 p-6">
+            <div
+              ref={detailContentRef}
+              className="max-h-[calc(92vh-120px)] overflow-y-auto space-y-6 p-6"
+            >
               {detailStatus === "loading" && (
                 <p className="text-xs text-[#9a948a]">Cargando detalle...</p>
               )}
@@ -2184,29 +2225,57 @@ export function DashboardPage() {
 
                   {isEditing ? (
                     <div ref={editFormRef} className="space-y-4">
-                        <div className="flex flex-wrap gap-2">
-                          {[
-                            { id: 1 as const, label: "1. Basico" },
-                            { id: 2 as const, label: "2. Ubicacion" },
-                            { id: 3 as const, label: "3. Caracteristicas" },
-                            { id: 4 as const, label: "4. Fotos" },
-                          ].map((step) => (
-                            <button
-                              key={step.id}
-                              type="button"
-                              onClick={() => setEditStep(step.id)}
-                              className={
-                                editStep === step.id
-                                  ? "rounded-full border border-gold-400/40 bg-gold-500/20 px-3 py-1 text-xs text-gold-100"
-                                  : "rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                              }
-                            >
-                              {step.label}
-                            </button>
-                          ))}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] uppercase tracking-[0.18em] text-gold-300/90">
+                              Editando paso {editStep} de 4
+                            </span>
+                            <span className="text-xs text-[#9a948a]">
+                              {editStep === 1 && "Basico"}
+                              {editStep === 2 && "Ubicacion"}
+                              {editStep === 3 && "Caracteristicas"}
+                              {editStep === 4 && "Fotos"}
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] transition-all duration-300"
+                              style={{ width: `${(editStep / 4) * 100}%` }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {[
+                              { id: 1 as const, label: "Basico" },
+                              { id: 2 as const, label: "Ubicacion" },
+                              { id: 3 as const, label: "Caracteristicas" },
+                              { id: 4 as const, label: "Fotos" },
+                            ].map((step) => {
+                              const isActive = editStep === step.id;
+                              const isCompleted = editStep > step.id;
+                              return (
+                                <button
+                                  key={step.id}
+                                  type="button"
+                                  onClick={() => setEditStep(step.id)}
+                                  className={
+                                    isActive
+                                      ? "rounded-xl border border-gold-400/40 bg-gold-500/20 px-3 py-2 text-left text-xs text-gold-100 shadow-[0_0_0_1px_rgba(209,164,102,0.35)]"
+                                      : isCompleted
+                                      ? "rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-left text-xs text-emerald-100"
+                                      : "rounded-xl border border-white/15 bg-night-900/30 px-3 py-2 text-left text-xs text-[#c7c2b8]"
+                                  }
+                                >
+                                  <div className="text-[10px] uppercase tracking-wide opacity-80">
+                                    {isCompleted ? "Completado" : isActive ? "Actual" : `Paso ${step.id}`}
+                                  </div>
+                                  <div className="mt-1 font-medium">{step.label}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                         {editStep === 1 && (
-                        <>
+                        <div data-edit-step="1" className="space-y-4">
                           <div className="grid gap-4 md:grid-cols-2">
                             <label className="space-y-2 text-xs text-[#9a948a]">
                               Titulo
@@ -2352,20 +2421,20 @@ export function DashboardPage() {
                           </select>
                           </label>
                         </div>
-                        <label className="space-y-2 text-xs text-[#9a948a]">
-                          Descripcion
-                          <textarea
-                            rows={4}
-                            className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                            value={editDescription}
-                            onChange={(event) => setEditDescription(event.target.value)}
-                          />
-                        </label>
-                        </>
+                          <label className="space-y-2 text-xs text-[#9a948a]">
+                            Descripcion
+                            <textarea
+                              rows={4}
+                              className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                              value={editDescription}
+                              onChange={(event) => setEditDescription(event.target.value)}
+                            />
+                          </label>
+                        </div>
                         )}
 
                         {editStep === 2 && (
-                        <div className="space-y-3">
+                        <div data-edit-step="2" className="space-y-3">
                           <h4 className="text-sm font-semibold text-white">Ubicacion y datos</h4>
                           <div className="grid gap-4 md:grid-cols-3">
                             <label className="space-y-2 text-xs text-[#9a948a] md:col-span-3">
@@ -2539,7 +2608,7 @@ export function DashboardPage() {
                         )}
 
                         {editStep === 3 && (
-                        <>
+                        <div data-edit-step="3" className="space-y-4">
                         <div className="space-y-3">
                           <h4 className="text-sm font-semibold text-white">Convivencia</h4>
                           <div className="grid gap-3 md:grid-cols-3">
@@ -2804,11 +2873,11 @@ export function DashboardPage() {
                             ))}
                           </div>
                         </div>
-                        </>
+                        </div>
                         )}
 
                         {editStep === 4 && (
-                        <>
+                        <div data-edit-step="4" className="space-y-4">
                         <div className="space-y-3">
                           <label className="text-xs text-[#9a948a]">Fotos actuales</label>
                           {selectedItem.photos && selectedItem.photos.length > 0 ? (
@@ -2862,7 +2931,7 @@ export function DashboardPage() {
                             </div>
                           )}
                         </div>
-                        </>
+                        </div>
                         )}
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex flex-wrap gap-2">
@@ -2889,11 +2958,19 @@ export function DashboardPage() {
                           </div>
                         <div className="flex flex-wrap gap-3">
                           <button
-                            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900 disabled:cursor-not-allowed disabled:opacity-70"
                             type="button"
                             onClick={saveEdit}
+                            disabled={editSaveStatus === "saving"}
                           >
-                            Guardar cambios
+                            {editSaveStatus === "saving" ? (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="h-3 w-3 animate-spin rounded-full border border-night-900/40 border-t-night-900" />
+                                Guardando...
+                              </span>
+                            ) : (
+                              "Guardar cambios"
+                            )}
                           </button>
                           <button
                             className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"

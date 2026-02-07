@@ -11,6 +11,7 @@ import { getSessionUser, getToken } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { trackEvent } from "../shared/analytics/posthog";
 
 const PropertyDetailModal = lazy(() =>
   import("../shared/properties/PropertyDetailModal").then((m) => ({
@@ -202,6 +203,11 @@ export function SearchPage() {
       const mapped = mapPropertyToDetailListing(data);
       detailCacheRef.current.set(listing.id, mapped);
       setSelectedListing(mapped);
+      trackEvent("view_listing", {
+        propertyId: listing.id,
+        operation: listing.operation,
+        propertyType: listing.propertyType,
+      });
     } catch {
       // keep initial listing preview
     } finally {
@@ -292,6 +298,12 @@ export function SearchPage() {
       setContactStatus("success");
       setContactMessage("Solicitud enviada. Te contactaremos pronto.");
       addToast("Solicitud enviada correctamente.", "success");
+      trackEvent("contact_request", {
+        propertyId: selectedListing.id,
+        type,
+        operation: selectedListing.operation,
+        propertyType: selectedListing.propertyType,
+      });
       markContactRequestSent({ propertyId: selectedListing.id, type });
       void loadSimilar();
     } catch (error) {
