@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 
 export function EditLocationPicker({
   lat,
@@ -39,7 +38,7 @@ export function EditLocationPicker({
           <CircleMarker
             center={[lat, lng]}
             radius={8}
-            pathOptions={{ color: "#f4d19a", fillColor: "#d1a466", fillOpacity: 0.9 }}
+            pathOptions={{ color: "#f4d19a", fillColor: "#AF8C5C", fillOpacity: 0.9 }}
           />
         )}
       </MapContainer>

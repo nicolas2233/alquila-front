@@ -24,13 +24,21 @@ export type PropertyApiListItem = {
   areaM2?: number | null;
   features?: {
     hasGarage?: boolean;
+    garageSpots?: number;
+    garageType?: "COVERED" | "OPEN";
     petsAllowed?: boolean;
     kidsAllowed?: boolean;
+    hasPatio?: boolean;
+    patioType?: "GRASS" | "FLOOR" | "CEMENT";
+    hasLaundry?: boolean;
+    coveredAreaM2?: number;
+    semiCoveredAreaM2?: number;
     bedrooms?: number;
     amenities?: string[];
     financingAvailable?: boolean;
     financingAmount?: number | null;
     financingCurrency?: "ARS" | "USD";
+    summaryHighlights?: string[];
     rentalRequirements?: {
       guarantees?: string;
       entryMonths?: number;
@@ -59,7 +67,8 @@ export type PropertyApiListItem = {
   };
   unitLabel?: string | null;
   photos?: { id?: string; url: string }[];
-  agency?: { name: string } | null;
+  agency?: { name: string; logo?: string | null } | null;
+  ownerDisplayName?: string | null;
   updatedAt?: string;
 };
 
@@ -73,7 +82,7 @@ export type PropertyApiDetail = PropertyApiListItem & {
   };
   unitLabel?: string | null;
   photos?: { id: string; url: string }[];
-  agency?: { name: string } | null;
+  agency?: { name: string; logo?: string | null } | null;
   contactMethods?: { id: string; type: "WHATSAPP" | "PHONE" | "IN_APP"; value: string }[];
   ownerUserId?: string | null;
   agencyId?: string | null;
@@ -84,6 +93,8 @@ export type SearchListing = PropertyDetailListing & {
   description: string;
   image: string;
   agency?: string | null;
+  ownerDisplayName?: string | null;
+  agencyLogo?: string | null;
   financingLabel?: string;
 };
 
@@ -158,14 +169,23 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
     price: formatPrice(item.priceAmount, item.priceCurrency),
     rooms: item.rooms ?? 0,
     areaM2: item.areaM2 ?? 0,
+    coveredAreaM2: item.features?.coveredAreaM2 ?? undefined,
+    summaryHighlights: item.features?.summaryHighlights ?? undefined,
     bathrooms: item.bathrooms ?? undefined,
     bedrooms: item.features?.bedrooms ?? undefined,
     garage: item.features?.hasGarage ?? false,
+    garageSpots: item.features?.garageSpots ?? undefined,
+    garageType: item.features?.garageType ?? undefined,
     pets: item.features?.petsAllowed ?? false,
     kids: item.features?.kidsAllowed ?? false,
+    hasPatio: item.features?.hasPatio ?? false,
+    patioType: item.features?.patioType ?? undefined,
+    laundry: item.features?.hasLaundry ?? false,
     operation: operationLabel(item.operationType),
     propertyType: propertyTypeLabel(item.propertyType),
     agency: item.agency?.name ?? null,
+    ownerDisplayName: item.ownerDisplayName ?? null,
+    agencyLogo: item.agency?.logo ?? null,
     images: images.length ? images : [image],
     description: item.description,
     descriptionLong: item.description,
@@ -203,15 +223,24 @@ export const mapPropertyToDetailListing = (
     price: formatPrice(item.priceAmount, item.priceCurrency),
     operation: operationLabel(item.operationType),
     areaM2: item.areaM2 ?? 0,
+    coveredAreaM2: item.features?.coveredAreaM2 ?? undefined,
+    summaryHighlights: item.features?.summaryHighlights ?? undefined,
     rooms: item.rooms ?? 0,
     bathrooms: item.bathrooms ?? undefined,
     bedrooms: item.features?.bedrooms ?? undefined,
     garage: item.features?.hasGarage ?? false,
+    garageSpots: item.features?.garageSpots ?? undefined,
+    garageType: item.features?.garageType ?? undefined,
     pets: item.features?.petsAllowed ?? false,
     kids: item.features?.kidsAllowed ?? false,
+    hasPatio: item.features?.hasPatio ?? false,
+    patioType: item.features?.patioType ?? undefined,
+    laundry: item.features?.hasLaundry ?? false,
     descriptionLong: item.description,
     images: images.length ? images : [fallbackImage],
     agency: item.agency?.name ?? null,
+    ownerDisplayName: item.ownerDisplayName ?? null,
+    agencyLogo: item.agency?.logo ?? null,
     ownerUserId: item.ownerUserId ?? null,
     agencyId: item.agencyId ?? null,
     propertyType: propertyTypeLabel(item.propertyType),

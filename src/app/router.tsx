@@ -65,6 +65,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "publicar/:id/editar",
+        element: withSuspense(
+          <ProtectedRoute allowedRoles={["OWNER", "AGENCY_ADMIN", "AGENCY_AGENT"]}>
+            <PublishPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "busquedas",
         element: withSuspense(
           <ProtectedRoute>
@@ -109,6 +117,7 @@ export const router = createBrowserRouter([
         ),
       },
       { path: "agencia/:slug", element: withSuspense(<AgencyProfilePage />) },
+      { path: "publicacion/:id", element: withSuspense(<ListingPage />) },
       { path: "publicación/:id", element: withSuspense(<ListingPage />) },
       {
         path: "admin",

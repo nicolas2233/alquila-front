@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SessionUser } from "../../auth/session";
 import { env } from "../../config/env";
 import { useToast } from "../toast/ToastProvider";
@@ -246,7 +246,7 @@ export function FloatingChat({
     <>
       <button
         type="button"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] text-xl text-night-900 shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-xl text-night-900 shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         onClick={() => {
           if (!canUseChat) {
             addToast("Inicia sesión para ver tus chats.", "warning");
@@ -260,7 +260,7 @@ export function FloatingChat({
       </button>
 
       {open && (
-        <div className="fixed bottom-20 right-4 z-40 w-[92vw] max-w-[640px] overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card sm:bottom-24 sm:right-6">
+        <div className="fixed bottom-20 right-4 z-40 w-[92vw] max-w-[640px] overflow-hidden rounded-3xl border border-white/10 bg-night-900/82 shadow-card sm:bottom-24 sm:right-6">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm text-white">
             <div className="flex items-center gap-2">
               <Avatar
@@ -273,7 +273,7 @@ export function FloatingChat({
             </div>
             <button
               type="button"
-              className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+              className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
               onClick={() => setOpen(false)}
             >
               Cerrar
@@ -281,7 +281,7 @@ export function FloatingChat({
           </div>
           <div className="grid h-[70vh] max-h-[420px] grid-cols-[120px_1fr] sm:h-[380px] sm:grid-cols-[180px_1fr]">
             <div className="border-r border-white/10">
-              <div className="flex items-center justify-between px-3 py-2 text-[11px] text-[#9a948a]">
+              <div className="flex items-center justify-between px-3 py-2 text-[11px] text-[#D1C7BD]">
                 <span>Conversaciones</span>
                 <div className="flex items-center gap-2">
                   <button
@@ -294,13 +294,13 @@ export function FloatingChat({
                 </div>
               </div>
               {chatStatus === "loading" && (
-                <div className="px-3 py-2 text-[11px] text-[#9a948a]">Cargando...</div>
+                <div className="px-3 py-2 text-[11px] text-[#D1C7BD]">Cargando...</div>
               )}
               {chatStatus === "error" && (
-                <div className="px-3 py-2 text-[11px] text-[#f5b78a]">{chatError}</div>
+                <div className="px-3 py-2 text-[11px] text-[#AF8C5C]">{chatError}</div>
               )}
               {chatStatus === "idle" && chats.length === 0 && (
-                <div className="px-3 py-2 text-[11px] text-[#9a948a]">
+                <div className="px-3 py-2 text-[11px] text-[#D1C7BD]">
                   Sin conversaciones.
                 </div>
               )}
@@ -315,8 +315,8 @@ export function FloatingChat({
                       type="button"
                       className={`mb-2 w-full rounded-2xl border px-2 py-2 text-left text-[11px] ${
                         selectedChat?.id === chat.id
-                          ? "border-gold-500/60 bg-night-900/80 text-white"
-                          : "border-white/10 bg-night-900/60 text-[#c7c2b8]"
+                          ? "border-gold-500/60 bg-night-900/68 text-white"
+                          : "border-white/10 bg-night-900/48 text-[#E7E2DD]"
                       }`}
                       onClick={() => setSelectedChat(chat)}
                     >
@@ -332,7 +332,7 @@ export function FloatingChat({
                           <div className="truncate text-xs text-white">
                             {chat.property.title}
                           </div>
-                          <div className="truncate text-[10px] text-[#9a948a]">
+                          <div className="truncate text-[10px] text-[#D1C7BD]">
                             {requestTypeLabels[chat.type] ?? chat.type}
                           </div>
                         </div>
@@ -345,23 +345,23 @@ export function FloatingChat({
             <div className="flex h-full flex-col">
               {selectedChat ? (
                 <>
-                  <div className="border-b border-white/10 px-4 py-3 text-xs text-[#9a948a]">
+                  <div className="border-b border-white/10 px-4 py-3 text-xs text-[#D1C7BD]">
                     <div className="text-sm text-white">{selectedChat.property.title}</div>
                     <div className="text-[11px]">
                       {requestTypeLabels[selectedChat.type] ?? selectedChat.type}
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto px-4 py-3 text-xs text-[#c7c2b8]">
+                  <div className="flex-1 overflow-y-auto px-4 py-3 text-xs text-[#E7E2DD]">
                     {messagesStatus === "loading" && (
-                      <div className="text-[11px] text-[#9a948a]">
+                      <div className="text-[11px] text-[#D1C7BD]">
                         Cargando historial...
                       </div>
                     )}
                     {messagesStatus === "error" && (
-                      <div className="text-[11px] text-[#f5b78a]">{messagesError}</div>
+                      <div className="text-[11px] text-[#AF8C5C]">{messagesError}</div>
                     )}
                     {messagesStatus === "idle" && messages.length === 0 && (
-                      <div className="text-[11px] text-[#9a948a]">
+                      <div className="text-[11px] text-[#D1C7BD]">
                         Todavía no hay mensajes.
                       </div>
                     )}
@@ -392,7 +392,7 @@ export function FloatingChat({
                               <div
                                 className={`max-w-[82%] rounded-2xl px-3 py-2 text-xs ${
                                   isMine
-                                    ? "bg-gradient-to-r from-[#b88b50] to-[#e0c08a] text-night-900"
+                                    ? "bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-night-900"
                                     : "border border-white/10 bg-night-950/70 text-white"
                                 }`}
                               >
@@ -409,19 +409,19 @@ export function FloatingChat({
                       <div ref={messagesEndRef} />
                     </div>
                   </div>
-                  <div className="border-t border-white/10 bg-night-900/95 px-3 py-3">
+                  <div className="border-t border-white/10 bg-night-900/82 px-3 py-3">
                     {replyError && (
-                      <div className="mb-2 text-[11px] text-[#f5b78a]">{replyError}</div>
+                      <div className="mb-2 text-[11px] text-[#AF8C5C]">{replyError}</div>
                     )}
                     <div className="flex items-end gap-2">
                       <textarea
-                        className="min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                        className="min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                         placeholder="Escribe un mensaje..."
                         value={replyMessage}
                         onChange={(event) => setReplyMessage(event.target.value)}
                       />
                       <button
-                        className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-3 py-2 text-[11px] font-semibold text-night-900 disabled:opacity-60"
+                        className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-3 py-2 text-[11px] font-semibold text-night-900 disabled:opacity-60"
                         type="button"
                         onClick={() => void sendReply()}
                         disabled={replyStatus === "sending"}
@@ -432,7 +432,7 @@ export function FloatingChat({
                   </div>
                 </>
               ) : (
-                <div className="flex h-full items-center justify-center text-[11px] text-[#9a948a]">
+                <div className="flex h-full items-center justify-center text-[11px] text-[#D1C7BD]">
                   Selecciona un chat.
                 </div>
               )}
@@ -443,3 +443,5 @@ export function FloatingChat({
     </>
   );
 }
+
+

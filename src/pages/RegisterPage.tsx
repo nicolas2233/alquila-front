@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { LegalModal } from "../shared/ui/LegalModal";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
@@ -7,19 +7,17 @@ import { useToast } from "../shared/ui/toast/ToastProvider";
 import { trackEvent } from "../shared/analytics/posthog";
 
 type AccountType = "viewer" | "owner" | "agency";
+type PlanKey = "free" | "bronce" | "platinum" | "gold";
 
 function extractApiErrorMessage(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
-    return "No pudimos completar el registro.";
-  }
+  if (!payload || typeof payload !== "object") return "No pudimos completar el registro.";
+
   const data = payload as {
     message?: unknown;
     issues?: Array<{ message?: string; path?: string }>;
   };
 
-  if (typeof data.message === "string" && data.message.trim()) {
-    return data.message;
-  }
+  if (typeof data.message === "string" && data.message.trim()) return data.message;
 
   if (Array.isArray(data.message) && data.message.length > 0) {
     const first = data.message[0] as { message?: string } | string;
@@ -31,12 +29,8 @@ function extractApiErrorMessage(payload: unknown): string {
 
   if (Array.isArray(data.issues) && data.issues.length > 0) {
     const first = data.issues[0];
-    if (first?.path) {
-      return `${first.path}: ${first.message ?? "dato invalido"}`;
-    }
-    if (first?.message) {
-      return first.message;
-    }
+    if (first?.path) return `${first.path}: ${first.message ?? "dato invalido"}`;
+    if (first?.message) return first.message;
   }
 
   return "No pudimos completar el registro.";
@@ -44,28 +38,77 @@ function extractApiErrorMessage(payload: unknown): string {
 
 const planOptions = [
   {
+    key: "free",
+    label: "Free",
+    price: "$0",
+    description: "Ideal para empezar y explorar.",
+    promo: "",
+    perks: ["Busqueda", "Guardados", "Alertas"],
+  },
+  {
     key: "bronce",
     label: "Bronce",
-    description: "Hasta 3 inmuebles. Ideal para dueños directos.",
+    price: "$9",
+    description: "Hasta 3 inmuebles. Ideal para duenos directos.",
+    promo: "Primer mes gratis",
+    perks: ["Hasta 3 inmuebles", "Panel de gestion", "Contacto directo"],
   },
   {
     key: "platinum",
     label: "Platinum",
+    price: "$19",
     description: "Hasta 20 inmuebles. Para inmobiliarias chicas.",
+    promo: "Primer mes gratis",
+    perks: ["Hasta 20 inmuebles", "Perfil de agencia", "Mayor visibilidad"],
   },
   {
     key: "gold",
     label: "Gold",
+    price: "$49",
     description: "Hasta 50 inmuebles. Para equipos grandes.",
+    promo: "Primer mes gratis",
+    perks: ["Hasta 50 inmuebles", "Soporte prioritario", "Posicionamiento"],
+  },
+];
+
+const accountTypeOptions: Array<{
+  key: AccountType;
+  title: string;
+  text: string;
+  image: string;
+}> = [
+  {
+    key: "viewer",
+    title: "Buscador",
+    text: "Explora y consulta propiedades.",
+    image:
+      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=480&q=70",
+  },
+  {
+    key: "owner",
+    title: "Dueno directo",
+    text: "Publica inmuebles propios.",
+    image:
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=480&q=70",
+  },
+  {
+    key: "agency",
+    title: "Inmobiliaria",
+    text: "Gestiona cartera y equipo.",
+    image:
+      "https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=480&q=70",
   },
 ];
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
+  const locationState = location.state as { from?: string } | null;
   const formRef = useRef<HTMLFormElement | null>(null);
+
   const [accountType, setAccountType] = useState<AccountType>("viewer");
-  const [plan, setPlan] = useState("bronce");
+  const [plan, setPlan] = useState<PlanKey>("free");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dni, setDni] = useState("");
@@ -85,32 +128,42 @@ export function RegisterPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  const [switchingToLogin, setSwitchingToLogin] = useState(false);
+  const [isEntering, setIsEntering] = useState(() => locationState?.from !== "login");
+
   const hasFieldErrors = Object.values(fieldErrors).some(Boolean);
   const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contrasenaRemaining = Math.max(0, 8 - contrasena.length);
-  const contrasenaHelper =
-    contrasena.length === 0
-      ? "Mínimo 8 caracteres."
-      : contrasenaRemaining > 0
-      ? `Te faltan ${contrasenaRemaining} caracteres.`
-      : "Contraseña válida.";
 
-  const showPlan = accountType !== "viewer";
-  const planChoices = useMemo(() => {
-    if (accountType === "owner") {
-      return planOptions.filter((item) => item.key === "bronce");
-    }
-    if (accountType === "agency") {
-      return planOptions.filter((item) => item.key !== "bronce");
-    }
-    return [];
+  const planChoices = useMemo(() => planOptions, []);
+  const availablePlans = useMemo<PlanKey[]>(() => {
+    if (accountType === "viewer") return ["free"];
+    if (accountType === "owner") return ["bronce"];
+    return ["platinum", "gold"];
   }, [accountType]);
 
   useEffect(() => {
-    if (status === "error" || hasFieldErrors) {
-      scrollToFirstError(formRef.current);
+    if (locationState?.from === "login") {
+      const frame = window.requestAnimationFrame(() => setIsEntering(true));
+      return () => window.cancelAnimationFrame(frame);
     }
+  }, [locationState?.from]);
+
+  useEffect(() => {
+    if (!availablePlans.includes(plan)) {
+      setPlan(availablePlans[0]);
+    }
+  }, [availablePlans, plan]);
+
+  useEffect(() => {
+    if (status === "error" || hasFieldErrors) scrollToFirstError(formRef.current);
   }, [status, hasFieldErrors, accountType]);
+
+  const handleGoLogin = () => {
+    if (switchingToLogin) return;
+    setSwitchingToLogin(true);
+    window.setTimeout(() => navigate("/login", { state: { from: "register" } }), 260);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -121,21 +174,18 @@ export function RegisterPage() {
 
     try {
       if (!email || !contrasena) {
-        setFieldErrors({
-          email: !email,
-          password: !contrasena,
-        });
-        throw new Error("Email y contraseña son obligatorios.");
+        setFieldErrors({ email: !email, password: !contrasena });
+        throw new Error("Email y contrasena son obligatorios.");
       }
 
       if (!termsAccepted) {
         setFieldErrors({ termsAccepted: true });
-        throw new Error("Debes aceptar los términos y condiciones.");
+        throw new Error("Debes aceptar los terminos y condiciones.");
       }
 
       if (contrasena.length < 8) {
         setFieldErrors({ password: true });
-        throw new Error("La contraseña debe tener al menos 8 caracteres.");
+        throw new Error("La contrasena debe tener al menos 8 caracteres.");
       }
 
       if (accountType === "viewer") {
@@ -153,7 +203,7 @@ export function RegisterPage() {
       if (accountType === "owner") {
         if (!phone) {
           setFieldErrors({ phone: true });
-          throw new Error("El teléfono es obligatorio para dueños.");
+          throw new Error("El telefono es obligatorio para duenos.");
         }
         if (!ownerFirstName || !ownerLastName || !ownerDni || !ownerBirthDate) {
           setFieldErrors({
@@ -162,7 +212,7 @@ export function RegisterPage() {
             ownerDni: !ownerDni,
             ownerBirthDate: !ownerBirthDate,
           });
-          throw new Error("Completa todos los datos del dueño.");
+          throw new Error("Completa todos los datos del dueno.");
         }
       }
 
@@ -231,9 +281,10 @@ export function RegisterPage() {
       }
 
       setStatus("success");
+      addToast("Cuenta creada correctamente.", "success");
       window.setTimeout(() => {
-        trackEvent("sign_up", { accountType, plan: showPlan ? plan : undefined });
-        navigate("/login?registered=1");
+        trackEvent("sign_up", { accountType, plan });
+        navigate("/login?registered=1", { state: { from: "register" } });
       }, 500);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error en el registro.";
@@ -245,394 +296,410 @@ export function RegisterPage() {
 
   const fieldClass = (hasError: boolean) =>
     hasError
-      ? "w-full rounded-xl border border-red-500/70 bg-night-900/60 px-3 py-2 text-sm text-white"
-      : "w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white";
+      ? "w-full rounded-xl border border-red-500/70 bg-night-900/40 px-3 py-2.5 text-sm text-white outline-none"
+      : "w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-gold-400/60";
 
   return (
-    <div className="space-y-10">
-      <div className="space-y-2">
-        <h2 className="text-3xl text-white">Crear cuenta</h2>
-        <p className="text-sm text-[#9a948a]">
-          Un solo registro, tres perfiles. Elegí tu tipo de cuenta y completá los datos.
-        </p>
-      </div>
+    <div
+      className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-night-900/48 shadow-card transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        switchingToLogin ? "opacity-0 translate-y-2 scale-[0.98] blur-[1px]" : "opacity-100"
+      }`}
+    >
+      <div className="absolute -left-20 -top-24 h-72 w-72 rounded-full bg-gold-500/20 blur-3xl" />
+      <div className="absolute -bottom-24 -right-16 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
 
-      <form
-        ref={formRef}
-        className="space-y-10"
-        onSubmit={handleSubmit}
-      >
-        <section className="glass-card space-y-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg text-white">1. Tipo de cuenta</h3>
-            <p className="text-xs text-[#9a948a]">Definimos tu experiencia y el flujo de verificación.</p>
-          </div>
-          <span className="gold-pill">Paso 1</span>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {[
-            { key: "viewer", title: "Buscador", text: "Solo explorar y guardar." },
-            { key: "owner", title: "Dueño", text: "Publica inmuebles propios." },
-            { key: "agency", title: "Inmobiliaria", text: "Equipo y múltiples publicaciones." },
-          ].map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setAccountType(item.key as AccountType)}
-              className={
-                accountType === item.key
-                  ? "rounded-2xl border border-gold-500/40 bg-night-900/60 p-4 text-left shadow-soft"
-                  : "rounded-2xl border border-white/10 bg-night-800/70 p-4 text-left"
-              }
-            >
-              <h4 className="text-base text-white">{item.title}</h4>
-              <p className="mt-2 text-xs text-[#9a948a]">{item.text}</p>
-            </button>
-          ))}
-        </div>
-      </section>
+      <div className="relative grid min-h-[520px] lg:grid-cols-[0.95fr_1.05fr]">
+        <aside
+          className={`hidden border-r border-white/10 bg-gradient-to-br from-[#2f2b27] via-[#3d3833] to-[#2a2622] p-6 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:flex lg:flex-col lg:gap-4 ${
+            isEntering ? "translate-x-0 opacity-100 blur-0" : "-translate-x-7 opacity-0 blur-sm"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={handleGoLogin}
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+          >
+            <span aria-hidden="true">{"\u2190"}</span>
+            Iniciar sesion
+          </button>
 
-      <section className="glass-card space-y-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg text-white">2. Credenciales</h3>
-            <p className="text-xs text-[#9a948a]">Usá email y contraseña para ingresar.</p>
-          </div>
-          <span className="gold-pill">Paso 2</span>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2 text-xs text-[#9a948a]">
-            Email
-            <input
-              className={fieldClass(!!fieldErrors.email)}
-              data-error={fieldErrors.email ? "true" : undefined}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <span className={emailInvalid ? "text-[11px] text-[#f5b78a]" : "text-[11px] text-[#9a948a]"}>
-              {emailInvalid ? "Email inválido." : "Ej: nombre@mail.com"}
-            </span>
-          </label>
-          <label className="space-y-2 text-xs text-[#9a948a]">
-            Contraseña
-            <input
-              type="password"
-              className={fieldClass(!!fieldErrors.password)}
-              data-error={fieldErrors.password ? "true" : undefined}
-              value={contrasena}
-              onChange={(event) => setContrasena(event.target.value)}
-            />
-            <span
-              className={
-                contrasenaRemaining > 0
-                  ? "text-[11px] text-[#f5b78a]"
-                  : "text-[11px] text-[#9a948a]"
-              }
-            >
-              {contrasenaHelper}
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <section className="glass-card space-y-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg text-white">3. Datos personales o empresa</h3>
-            <p className="text-xs text-[#9a948a]">Datos necesarios para validar la cuenta.</p>
-          </div>
-          <span className="gold-pill">Paso 3</span>
-        </div>
-        {accountType === "viewer" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Nombre
-              <input
-                className={fieldClass(!!fieldErrors.firstName)}
-                data-error={fieldErrors.firstName ? "true" : undefined}
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Apellido
-              <input
-                className={fieldClass(!!fieldErrors.lastName)}
-                data-error={fieldErrors.lastName ? "true" : undefined}
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              DNI
-              <input
-                className={fieldClass(!!fieldErrors.dni)}
-                data-error={fieldErrors.dni ? "true" : undefined}
-                value={dni}
-                onChange={(event) => setDni(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Teléfono
-              <input
-                className={fieldClass(!!fieldErrors.phone)}
-                data-error={fieldErrors.phone ? "true" : undefined}
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-              />
-            </label>
-          </div>
-        )}
-        {accountType === "owner" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Teléfono
-              <input
-                className={fieldClass(!!fieldErrors.phone)}
-                data-error={fieldErrors.phone ? "true" : undefined}
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Nombre
-              <input
-                className={fieldClass(!!fieldErrors.ownerFirstName)}
-                data-error={fieldErrors.ownerFirstName ? "true" : undefined}
-                value={ownerFirstName}
-                onChange={(event) => setOwnerFirstName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Apellido
-              <input
-                className={fieldClass(!!fieldErrors.ownerLastName)}
-                data-error={fieldErrors.ownerLastName ? "true" : undefined}
-                value={ownerLastName}
-                onChange={(event) => setOwnerLastName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              DNI
-              <input
-                className={fieldClass(!!fieldErrors.ownerDni)}
-                data-error={fieldErrors.ownerDni ? "true" : undefined}
-                value={ownerDni}
-                onChange={(event) => setOwnerDni(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Fecha de nacimiento
-              <input
-                type="date"
-                className={fieldClass(!!fieldErrors.ownerBirthDate)}
-                data-error={fieldErrors.ownerBirthDate ? "true" : undefined}
-                value={ownerBirthDate}
-                onChange={(event) => setOwnerBirthDate(event.target.value)}
-              />
-            </label>
-          </div>
-        )}
-        {accountType === "agency" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Teléfono
-              <input
-                className={fieldClass(!!fieldErrors.phone)}
-                data-error={fieldErrors.phone ? "true" : undefined}
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Nombre comercial
-              <input
-                className={fieldClass(!!fieldErrors.agencyName)}
-                data-error={fieldErrors.agencyName ? "true" : undefined}
-                value={agencyName}
-                onChange={(event) => setAgencyName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Razon social
-              <input
-                className={fieldClass(!!fieldErrors.agencyLegalName)}
-                data-error={fieldErrors.agencyLegalName ? "true" : undefined}
-                value={agencyLegalName}
-                onChange={(event) => setAgencyLegalName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              CUIT
-              <input
-                className={fieldClass(!!fieldErrors.agencyCuit)}
-                data-error={fieldErrors.agencyCuit ? "true" : undefined}
-                value={agencyCuit}
-                onChange={(event) => setAgencyCuit(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Matricula
-              <input
-                className={fieldClass(!!fieldErrors.agencyLicense)}
-                data-error={fieldErrors.agencyLicense ? "true" : undefined}
-                value={agencyLicense}
-                onChange={(event) => setAgencyLicense(event.target.value)}
-              />
-            </label>
-          </div>
-        )}
-      </section>
-
-      {showPlan && (
-        <section className="glass-card space-y-6 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg text-white">4. Plan</h3>
-              <p className="text-xs text-[#9a948a]">Elegí el plan que se adapta a tu escala.</p>
-            </div>
-            <span className="gold-pill">Paso 4</span>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {planChoices.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setPlan(item.key)}
-                className={
-                  plan === item.key
-                    ? "rounded-2xl border border-gold-500/40 bg-night-900/60 p-4 text-left shadow-soft"
-                    : "rounded-2xl border border-white/10 bg-night-800/70 p-4 text-left"
-                }
-              >
-                <h4 className="text-base text-white">{item.label}</h4>
-                <p className="mt-2 text-xs text-[#9a948a]">{item.description}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="glass-card space-y-4 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg text-white">5. Términos y condiciones</h3>
-            <p className="text-xs text-[#9a948a]">
-              Acepta las reglas de uso para finalizar el registro.
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-soft">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">Crear cuenta</p>
+            <h2 className="mt-2 font-display text-[2rem] leading-tight text-white">
+              Empeza en Brupi con el perfil correcto
+            </h2>
+            <p className="mt-2 max-w-sm text-sm text-[#E7E2DD]">
+              Buscador, dueno directo o inmobiliaria. Un flujo claro y rapido para arrancar.
             </p>
           </div>
-          <span className="gold-pill">Paso 5</span>
-        </div>
-        <label className="flex items-start gap-3 text-xs text-[#9a948a]">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 accent-[#d1a466]"
-            checked={termsAccepted}
-            onChange={(event) => {
-              setTermsAccepted(event.target.checked);
-              setFieldErrors((prev) => ({ ...prev, termsAccepted: false }));
-            }}
-          />
-          <span>
-            Acepto los términos y condiciones de Brupi.{" "}
-            <button
-              type="button"
-              className="underline text-[#d8c5a4]"
-              onClick={() => setShowTerms(true)}
-            >
-              Leer términos
-            </button>
-          </span>
-        </label>
-        {fieldErrors.termsAccepted && (
-          <p className="text-[11px] text-[#f5b78a]">
-            Debes aceptar los términos y condiciones para continuar.
-          </p>
-        )}
-      </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-xs text-[#9a948a]">
-          Las cuentas de dueños e inmobiliarias quedan pendientes de verificación.
-        </p>
-        <button
-          className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-6 py-2 text-xs font-semibold text-night-900"
-          type="submit"
-          disabled={status === "loading"}
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-black/15 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">Tipo de cuenta</p>
+              <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-[#E7E2DD]">
+                {accountTypeOptions.find((item) => item.key === accountType)?.title}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              {accountTypeOptions.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setAccountType(item.key)}
+                  className={
+                    accountType === item.key
+                      ? "relative rounded-2xl border border-gold-500/60 bg-night-900/70 p-2 text-left ring-1 ring-gold-500/25 transition-all duration-300"
+                      : "relative rounded-2xl border border-white/10 bg-black/20 p-2 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20"
+                  }
+                >
+                  {accountType === item.key && (
+                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(175,140,92,0.8)]" />
+                  )}
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="h-12 w-full rounded-xl object-cover"
+                    loading="lazy"
+                  />
+                  <p className="mt-1.5 text-xs font-medium text-white">{item.title}</p>
+                  <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-[#D1C7BD]">
+                    {item.text}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-black/15 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</p>
+              <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-[#E7E2DD]">
+                {planChoices.find((item) => item.key === plan)?.label}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {planChoices.map((item) => (
+                (() => {
+                  const disabled = !availablePlans.includes(item.key as PlanKey);
+                  const selected = !disabled && plan === item.key;
+                  return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    if (!disabled) setPlan(item.key as PlanKey);
+                  }}
+                  disabled={disabled}
+                  className={
+                    selected
+                      ? "rounded-2xl border border-gold-500/60 bg-gradient-to-br from-[#4a433c]/60 to-[#2b2723]/80 p-2.5 text-left ring-1 ring-gold-500/25 transition-all duration-300"
+                      : disabled
+                        ? "cursor-not-allowed rounded-2xl border border-white/10 bg-black/10 p-2.5 text-left opacity-40 grayscale"
+                        : "rounded-2xl border border-white/10 bg-black/20 p-2.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20"
+                  }
+                >
+                  {item.promo ? (
+                    <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
+                      {item.promo}
+                    </span>
+                  ) : null}
+                  <div className="text-xs font-medium text-white">{item.label}</div>
+                  <div className="mt-0.5 text-xl font-semibold text-white">
+                    {item.price}
+                    <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-[#D1C7BD]">
+                    {item.description}
+                  </p>
+                  {disabled && (
+                    <p className="mt-1 text-[10px] text-[#D1C7BD]">No disponible para este perfil.</p>
+                  )}
+                </button>
+                  );
+                })()
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <section
+          className={`flex items-start justify-center p-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5 lg:p-6 ${
+            isEntering ? "translate-x-0 opacity-100 blur-0" : "translate-x-7 opacity-0 blur-sm"
+          }`}
         >
-          {status === "loading" ? "Creando..." : "Crear cuenta"}
-        </button>
+          <form ref={formRef} className="w-full max-w-2xl space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-1.5 text-center lg:text-left">
+              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Crear cuenta</h1>
+              <p className="text-sm text-[#D1C7BD]">Elegi tu perfil y completa los datos.</p>
+            </div>
+
+            <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 lg:hidden">
+              <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Tipo de cuenta</div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {accountTypeOptions.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setAccountType(item.key)}
+                    className={
+                      accountType === item.key
+                        ? "rounded-2xl border border-gold-500/50 bg-night-900/48 p-3 text-left shadow-soft transition-all duration-300"
+                        : "rounded-2xl border border-white/10 bg-night-900/24 p-3 text-left transition-all duration-300"
+                    }
+                  >
+                    <h4 className="text-sm text-white">{item.title}</h4>
+                    <p className="mt-1 text-[11px] text-[#D1C7BD]">{item.text}</p>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Credenciales</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Email
+                  <input
+                    className={fieldClass(!!fieldErrors.email)}
+                    data-error={fieldErrors.email ? "true" : undefined}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="tuemail@ejemplo.com"
+                    autoComplete="email"
+                  />
+                  <span className={emailInvalid ? "text-[11px] text-[#AF8C5C]" : "text-[11px] text-[#D1C7BD]"}>
+                    {emailInvalid ? "Email invalido." : "Formato valido de email."}
+                  </span>
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Contrasena
+                  <input
+                    type="password"
+                    className={fieldClass(!!fieldErrors.password)}
+                    data-error={fieldErrors.password ? "true" : undefined}
+                    value={contrasena}
+                    onChange={(event) => setContrasena(event.target.value)}
+                    placeholder="Minimo 8 caracteres"
+                    autoComplete="new-password"
+                  />
+                  <span className={contrasenaRemaining > 0 ? "text-[11px] text-[#AF8C5C]" : "text-[11px] text-[#D1C7BD]"}>
+                    {contrasenaRemaining > 0
+                      ? `Te faltan ${contrasenaRemaining} caracteres.`
+                      : "Contrasena valida."}
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Datos del perfil</div>
+              {accountType === "viewer" && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Nombre
+                    <input className={fieldClass(!!fieldErrors.firstName)} data-error={fieldErrors.firstName ? "true" : undefined} value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Apellido
+                    <input className={fieldClass(!!fieldErrors.lastName)} data-error={fieldErrors.lastName ? "true" : undefined} value={lastName} onChange={(event) => setLastName(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    DNI
+                    <input className={fieldClass(!!fieldErrors.dni)} data-error={fieldErrors.dni ? "true" : undefined} value={dni} onChange={(event) => setDni(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Telefono
+                    <input className={fieldClass(!!fieldErrors.phone)} data-error={fieldErrors.phone ? "true" : undefined} value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  </label>
+                </div>
+              )}
+
+              {accountType === "owner" && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Telefono
+                    <input className={fieldClass(!!fieldErrors.phone)} data-error={fieldErrors.phone ? "true" : undefined} value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Nombre
+                    <input className={fieldClass(!!fieldErrors.ownerFirstName)} data-error={fieldErrors.ownerFirstName ? "true" : undefined} value={ownerFirstName} onChange={(event) => setOwnerFirstName(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Apellido
+                    <input className={fieldClass(!!fieldErrors.ownerLastName)} data-error={fieldErrors.ownerLastName ? "true" : undefined} value={ownerLastName} onChange={(event) => setOwnerLastName(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    DNI
+                    <input className={fieldClass(!!fieldErrors.ownerDni)} data-error={fieldErrors.ownerDni ? "true" : undefined} value={ownerDni} onChange={(event) => setOwnerDni(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Fecha de nacimiento
+                    <input type="date" className={fieldClass(!!fieldErrors.ownerBirthDate)} data-error={fieldErrors.ownerBirthDate ? "true" : undefined} value={ownerBirthDate} onChange={(event) => setOwnerBirthDate(event.target.value)} />
+                  </label>
+                </div>
+              )}
+
+              {accountType === "agency" && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Telefono
+                    <input className={fieldClass(!!fieldErrors.phone)} data-error={fieldErrors.phone ? "true" : undefined} value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Nombre comercial
+                    <input className={fieldClass(!!fieldErrors.agencyName)} data-error={fieldErrors.agencyName ? "true" : undefined} value={agencyName} onChange={(event) => setAgencyName(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Razon social
+                    <input className={fieldClass(!!fieldErrors.agencyLegalName)} data-error={fieldErrors.agencyLegalName ? "true" : undefined} value={agencyLegalName} onChange={(event) => setAgencyLegalName(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    CUIT
+                    <input className={fieldClass(!!fieldErrors.agencyCuit)} data-error={fieldErrors.agencyCuit ? "true" : undefined} value={agencyCuit} onChange={(event) => setAgencyCuit(event.target.value)} />
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Matricula
+                    <input className={fieldClass(!!fieldErrors.agencyLicense)} data-error={fieldErrors.agencyLicense ? "true" : undefined} value={agencyLicense} onChange={(event) => setAgencyLicense(event.target.value)} />
+                  </label>
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 lg:hidden">
+              <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Plan mensual</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {planChoices.map((item) => (
+                  (() => {
+                    const disabled = !availablePlans.includes(item.key as PlanKey);
+                    const selected = !disabled && plan === item.key;
+                    return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      if (!disabled) setPlan(item.key as PlanKey);
+                    }}
+                    disabled={disabled}
+                    className={
+                      selected
+                        ? "rounded-2xl border border-gold-500/60 bg-emerald-500/10 p-3 text-left shadow-[0_0_0_1px_rgba(16,185,129,0.35)] transition-all duration-300"
+                        : disabled
+                          ? "cursor-not-allowed rounded-2xl border border-white/10 bg-black/10 p-3 text-left opacity-40 grayscale"
+                          : "rounded-2xl border border-white/10 bg-night-900/24 p-3 text-left transition-all duration-300"
+                    }
+                  >
+                    {item.promo ? (
+                      <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
+                        {item.promo}
+                      </span>
+                    ) : null}
+                    <div className="text-sm text-white">{item.label}</div>
+                    <div className="mt-1 text-xl font-semibold text-white">
+                      {item.price}
+                      <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-[#D1C7BD]">{item.description}</p>
+                    {disabled && (
+                      <p className="mt-1 text-[10px] text-[#D1C7BD]">No disponible para este perfil.</p>
+                    )}
+                  </button>
+                    );
+                  })()
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
+              <label className="flex items-start gap-3 text-xs text-[#D1C7BD]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-[#AF8C5C]"
+                  checked={termsAccepted}
+                  onChange={(event) => {
+                    setTermsAccepted(event.target.checked);
+                    setFieldErrors((prev) => ({ ...prev, termsAccepted: false }));
+                  }}
+                />
+                <span>
+                  Acepto los terminos y condiciones de Brupi.{" "}
+                  <button type="button" className="underline text-[#d8c5a4]" onClick={() => setShowTerms(true)}>
+                    Leer terminos
+                  </button>
+                </span>
+              </label>
+              {fieldErrors.termsAccepted && (
+                <p className="text-[11px] text-[#AF8C5C]">
+                  Debes aceptar los terminos y condiciones para continuar.
+                </p>
+              )}
+            </section>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-6 py-2 text-xs font-semibold text-white/90"
+                onClick={handleGoLogin}
+              >
+                Ya tengo una cuenta
+              </button>
+              <button
+                className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-6 py-2 text-xs font-semibold text-night-900 disabled:opacity-70"
+                type="submit"
+                disabled={status === "loading"}
+              >
+                {status === "loading" ? "Creando..." : "Crear cuenta"}
+              </button>
+            </div>
+
+            {status === "error" && <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>}
+            {status === "success" && (
+              <div className="rounded-2xl border border-white/10 bg-night-900/40 p-4">
+                <h4 className="text-sm text-white">Cuenta creada</h4>
+                <p className="mt-1 text-xs text-[#D1C7BD]">
+                  En instantes te redirigimos para iniciar sesion.
+                </p>
+              </div>
+            )}
+          </form>
+        </section>
       </div>
-      {status === "error" && (
-        <p className="text-xs text-[#f5b78a]">{errorMessage}</p>
-      )}
-      {status === "success" && accountType !== "viewer" && (
-        <div className="glass-card space-y-2 p-4">
-          <h4 className="text-sm text-white">Cuenta creada</h4>
-          <p className="text-xs text-[#9a948a]">
-            Tu cuenta esta pendiente de verificación. Te avisaremos cuando este activa.
-          </p>
-        </div>
-      )}
-      {status === "success" && accountType === "viewer" && (
-        <div className="glass-card space-y-2 p-4">
-          <h4 className="text-sm text-white">Cuenta creada</h4>
-          <p className="text-xs text-[#9a948a]">Ya podes iniciar sesión y guardar publicaciones.</p>
-        </div>
-      )}
-    </form>
+
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        title="Términos y condiciones"
+        title="Terminos y condiciones"
         subtitle="Lineamientos de uso de Brupi."
       >
         <div className="space-y-3">
           <h4 className="text-base text-white">1. Uso responsable</h4>
           <p>
-            Brupi es una plataforma para conectar personas que buscan propiedades con
-            propietarios e inmobiliarias. No se permite publicar informacion falsa,
-            engañosa o duplicada.
+            Brupi conecta personas que buscan propiedades con propietarios e inmobiliarias.
+            No se permite publicar informacion falsa, enganosa o duplicada.
           </p>
         </div>
         <div className="space-y-3">
           <h4 className="text-base text-white">2. Contenido y veracidad</h4>
           <p>
-            Cada usuario es responsable de la informacion que publica. Brupi puede
-            solicitar datos para validar publicaciones, pero no garantiza la veracidad
-            total de cada anuncio.
+            Cada usuario es responsable de su contenido. Brupi puede solicitar datos para
+            validar publicaciones, pero no garantiza la veracidad total de cada anuncio.
           </p>
         </div>
         <div className="space-y-3">
           <h4 className="text-base text-white">3. Responsabilidad</h4>
           <p>
-            Brupi no se hace responsable por operaciones, transacciones o acuerdos entre
-            usuarios. La plataforma actua unicamente como un canal de contacto.
+            Brupi no se hace responsable por transacciones o acuerdos entre usuarios. La
+            plataforma actua como canal de contacto.
           </p>
         </div>
         <div className="space-y-3">
           <h4 className="text-base text-white">4. No somos corredores</h4>
           <p>
             Brupi no es una inmobiliaria ni corredor inmobiliario. No gestionamos
-            operaciones ni cobramos comisiones por los acuerdos entre usuarios.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">5. Buenas practicas</h4>
-          <p>
-            Esperamos un comportamiento respetuoso entre usuarios. Las cuentas con uso
-            abusivo, fraudulento o spam podran ser suspendidas.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">6. Privacidad</h4>
-          <p>
-            Los datos personales se utilizan solo para gestionar publicaciones y
-            contactos. No compartimos informacion con terceros sin consentimiento.
+            operaciones ni cobramos comisiones por acuerdos entre usuarios.
           </p>
         </div>
       </LegalModal>
-  </div>
+    </div>
   );
 }
+

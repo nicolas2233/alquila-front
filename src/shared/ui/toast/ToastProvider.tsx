@@ -24,10 +24,10 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const toastStyles: Record<ToastType, string> = {
-  success: "border-white/10 bg-[#e6e6e6] text-[#1f1f1f]",
-  error: "border-white/10 bg-[#e6e6e6] text-[#1f1f1f]",
-  info: "border-white/10 bg-[#e6e6e6] text-[#1f1f1f]",
-  warning: "border-white/10 bg-[#e6e6e6] text-[#1f1f1f]",
+  success: "border-white/10 bg-[#E7E2DD] text-[#1A1613]",
+  error: "border-white/10 bg-[#E7E2DD] text-[#1A1613]",
+  info: "border-white/10 bg-[#E7E2DD] text-[#1A1613]",
+  warning: "border-white/10 bg-[#E7E2DD] text-[#1A1613]",
 };
 
 const toastIcons: Record<ToastType, string> = {
@@ -78,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             {item.actionLabel && item.onAction && (
               <button
                 type="button"
-                className="ml-3 rounded-full border border-black/20 px-2 py-0.5 text-[11px] font-semibold text-[#1f1f1f]"
+                className="ml-3 rounded-full border border-black/20 px-2 py-0.5 text-[11px] font-semibold text-[#1A1613]"
                 onClick={() => {
                   item.onAction?.();
                   removeToast(item.id);

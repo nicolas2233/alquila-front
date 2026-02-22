@@ -9,10 +9,21 @@ export function LoginPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const locationState = location.state as { from?: string } | null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [switchingToRegister, setSwitchingToRegister] = useState(false);
+  const [isEntering, setIsEntering] = useState(() => locationState?.from !== "register");
+
+  useEffect(() => {
+    if (locationState?.from === "register") {
+      const frame = window.requestAnimationFrame(() => setIsEntering(true));
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [locationState?.from]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -95,7 +106,9 @@ export function LoginPage() {
       setStatus("error");
       setErrorMessage(message);
       if (message.toLowerCase().includes("no existe una cuenta")) {
-        addToast(message, "error", 4500, "Crear cuenta", () => navigate("/registro"));
+        addToast(message, "error", 4500, "Crear cuenta", () =>
+          navigate("/registro", { state: { from: "login" } })
+        );
         return;
       }
       if (message.toLowerCase().includes("contrasena incorrecta")) {
@@ -106,59 +119,151 @@ export function LoginPage() {
     }
   };
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl text-white">Login</h2>
-        <p className="text-sm text-[#9a948a]">Ingresa con tu email y contrasena.</p>
-      </div>
+  const handleGoRegister = () => {
+    if (switchingToRegister) return;
+    setSwitchingToRegister(true);
+    window.setTimeout(() => {
+      navigate("/registro", { state: { from: "login" } });
+    }, 260);
+  };
 
-      <form
-        className="glass-card space-y-4 p-6"
-        onSubmit={handleSubmit}
-      >
-        <label className="space-y-2 text-xs text-[#9a948a]">
-          Email
-          <input
-            className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </label>
-        <label className="space-y-2 text-xs text-[#9a948a]">
-          Contrasena
-          <input
-            type="password"
-            className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
-        {status === "error" && <p className="text-xs text-[#f5b78a]">{errorMessage}</p>}
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-6 py-2 text-xs font-semibold text-night-900"
-            type="submit"
-            disabled={status === "loading"}
-          >
-            {status === "loading" ? "Ingresando..." : "Ingresar"}
-          </button>
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-night-900/48 shadow-card transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        switchingToRegister ? "opacity-0 translate-y-2 scale-[0.98] blur-[1px]" : "opacity-100"
+      }`}
+    >
+      <div className="absolute -left-20 -top-24 h-72 w-72 rounded-full bg-gold-500/20 blur-3xl" />
+      <div className="absolute -bottom-24 -right-16 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+
+      <div className="relative grid min-h-[500px] lg:min-h-[520px] lg:grid-cols-[0.95fr_1.05fr]">
+        <aside
+          className={`hidden border-r border-white/10 bg-gradient-to-br from-[#2f2b27] via-[#3d3833] to-[#2a2622] p-6 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:flex lg:flex-col lg:justify-between ${
+            isEntering ? "translate-x-0 opacity-100 blur-0" : "-translate-x-7 opacity-0 blur-sm"
+          }`}
+        >
           <button
             type="button"
-            className="rounded-full border border-white/20 px-6 py-2 text-xs font-semibold text-white/90"
-            onClick={() => navigate("/registro")}
+            onClick={() => navigate("/")}
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
           >
-            Crear cuenta
+            <span aria-hidden="true">{"\u2190"}</span>
+            Volver al inicio
           </button>
-        </div>
-        <button
-          type="button"
-          className="text-xs text-gold-400 underline"
-          onClick={() => navigate("/recuperar")}
+
+          <div className="space-y-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Acceso seguro</p>
+            <h2 className="font-display text-3xl leading-tight text-white">
+              Bienvenido de nuevo a Brupi
+            </h2>
+            <p className="max-w-sm text-sm text-[#E7E2DD]">
+              Ingresa para gestionar tus publicaciones, solicitudes y panel de forma
+              simple desde cualquier dispositivo.
+            </p>
+          </div>
+
+          <div className="grid gap-2">
+            {[
+              { label: "1", title: "Iniciar sesion", detail: "Con email y contrasena." },
+              { label: "2", title: "Gestiona", detail: "Publicaciones y estados." },
+              { label: "3", title: "Conecta", detail: "Responde solicitudes rapido." },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gold-500/20 text-xs font-semibold text-white">
+                    {item.label}
+                  </span>
+                  <div>
+                    <p className="text-sm text-white">{item.title}</p>
+                    <p className="text-xs text-[#D1C7BD]">{item.detail}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <section
+          className={`flex items-start justify-center p-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5 lg:p-6 ${
+            isEntering ? "translate-x-0 opacity-100 blur-0" : "translate-x-7 opacity-0 blur-sm"
+          }`}
         >
-          Olvide mi contrasena
-        </button>
-      </form>
+          <form
+            className="w-full max-w-md space-y-4"
+            onSubmit={handleSubmit}
+          >
+            <div className="space-y-1.5 text-center lg:text-left">
+              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Bienvenido</h1>
+              <p className="text-sm text-[#D1C7BD]">
+                Ingresa con tu cuenta para continuar.
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
+              <label className="space-y-2 text-xs text-[#D1C7BD]">
+                Email
+                <input
+                  className="w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-gold-400/60"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  placeholder="tuemail@ejemplo.com"
+                />
+              </label>
+
+              <label className="space-y-2 text-xs text-[#D1C7BD]">
+                Contrasena
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 pr-12 text-sm text-white outline-none transition focus:border-gold-400/60"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    placeholder="Ingresa tu contrasena"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-[#D1C7BD]"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                  >
+                    {showPassword ? "Ocultar" : "Ver"}
+                  </button>
+                </div>
+              </label>
+
+              {status === "error" && <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  className="flex-1 rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-6 py-2 text-xs font-semibold text-night-900 disabled:opacity-70"
+                  type="submit"
+                  disabled={status === "loading"}
+                >
+                  {status === "loading" ? "Ingresando..." : "Ingresar"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-6 py-2 text-xs font-semibold text-white/90"
+                  onClick={handleGoRegister}
+                >
+                  Crear cuenta
+                </button>
+              </div>
+            </div>
+
+            <div className="text-center lg:text-left">
+              <button
+                type="button"
+                className="text-xs text-gold-400 underline"
+                onClick={() => navigate("/recuperar")}
+              >
+                Olvide mi contrasena
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
     </div>
   );
 }

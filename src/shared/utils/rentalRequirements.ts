@@ -1,4 +1,4 @@
-export type RentalRequirements = {
+﻿export type RentalRequirements = {
   guarantees?: string;
   entryMonths?: number;
   contractDurationMonths?: number;
@@ -42,7 +42,8 @@ export const formatRentalRequirements = (requirements: RentalRequirements) => {
     parts.push(`Índice: ${indexTypeLabels[requirements.indexType] ?? requirements.indexType}`);
   }
   if (requirements.indexValue !== undefined) {
-    parts.push(`Valor Índice: ${requirements.indexValue}`);
+    parts.push(`Valor índice: ${requirements.indexValue}`);
   }
   return parts.join(" · ");
 };
+

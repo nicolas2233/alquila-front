@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getToken } from "../shared/auth/session";
@@ -171,24 +171,24 @@ export function SavedSearchesPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl text-white">Mis búsquedas guardadas</h2>
-        <p className="text-sm text-[#9a948a]">Volvé a ejecutar una búsqueda en un click.</p>
+        <p className="text-sm text-[#D1C7BD]">Volvé a ejecutar una búsqueda en un click.</p>
       </div>
 
       {status === "loading" && (
-        <p className="text-xs text-[#9a948a]">Cargando búsquedas...</p>
+        <p className="text-xs text-[#D1C7BD]">Cargando búsquedas...</p>
       )}
       {status === "error" && (
-        <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#f5b78a]">
+        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#AF8C5C]">
           {message}
         </div>
       )}
 
       {status === "idle" && items.length === 0 && (
-        <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
+        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#D1C7BD]">
           <p className="text-sm text-white">Todavía no guardaste búsquedas.</p>
           <p className="mt-1">Anda a Buscar y guarda tus filtros favoritos.</p>
           <Link
-            className="mt-3 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+            className="mt-3 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
             to="/buscar"
           >
             Ir a Buscar
@@ -206,7 +206,7 @@ export function SavedSearchesPage() {
             return (
               <div
                 key={item.id}
-                className="rounded-2xl border border-white/10 bg-night-900/60 p-5"
+                className="rounded-2xl border border-white/10 bg-night-900/48 p-5"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -220,10 +220,10 @@ export function SavedSearchesPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[#9a948a]">{summary}</p>
+                    <p className="text-xs text-[#D1C7BD]">{summary}</p>
                   </div>
                   <button
-                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                     type="button"
                     onClick={() => removeSearch(item.id)}
                   >
@@ -231,20 +231,20 @@ export function SavedSearchesPage() {
                   </button>
                 </div>
                 <Link
-                  className="mt-4 inline-flex rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                  className="mt-4 inline-flex rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
                   to={url}
                 >
                   Ejecutar búsqueda
                 </Link>
                 <button
-                  className="ml-2 mt-4 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                  className="ml-2 mt-4 inline-flex rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
                   type="button"
                   onClick={() => loadMatches(item.id)}
                 >
                   Ver alertas
                 </button>
                 {matchItems.length > 0 && (
-                  <div className="mt-4 space-y-2 text-xs text-[#9a948a]">
+                  <div className="mt-4 space-y-2 text-xs text-[#D1C7BD]">
                     <div className="text-sm text-white">Coincidencias recientes</div>
                     <div className="grid gap-2 md:grid-cols-2">
                       {matchItems.map((match) => {
@@ -254,10 +254,10 @@ export function SavedSearchesPage() {
                           <Link
                             key={match.id}
                             to={`/publicacion/${match.id}`}
-                            className="rounded-xl border border-white/10 bg-night-900/60 p-3"
+                            className="rounded-xl border border-white/10 bg-night-900/48 p-3"
                           >
                             <div className="text-sm text-white">{match.title}</div>
-                            <div className="text-xs text-[#9a948a]">
+                            <div className="text-xs text-[#D1C7BD]">
                               {address}
                               {locality ? ` - ${locality}` : ""}
                             </div>
@@ -275,3 +275,5 @@ export function SavedSearchesPage() {
     </div>
   );
 }
+
+

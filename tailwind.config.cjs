@@ -5,17 +5,20 @@ module.exports = {
     extend: {
       colors: {
         night: {
-          900: "#0e1116",
-          800: "#141821",
-          700: "#1b1f2b",
-          600: "#232a38",
+          900: "#3A342F",
+          800: "#474440",
+          700: "#5A534C",
+          600: "#6B645D",
         },
         gold: {
-          500: "#caa56a",
-          400: "#e0c08a",
+          100: "#E7E2DD",
+          200: "#D1C7BD",
+          300: "#AF8C5C",
+          500: "#AF8C5C",
+          400: "#D1C7BD",
         },
         accent: {
-          500: "#8da2ff",
+          500: "#E7E2DD",
         },
       },
       fontFamily: {
@@ -36,7 +39,7 @@ module.exports = {
         fadeUp: "fadeUp 0.8s ease both",
       },
       backgroundImage: {
-        hero: "linear-gradient(120deg, rgba(14, 17, 22, 0.1), rgba(14, 17, 22, 0.85)), url('https://images.unsplash.com/photo-1501183638710-841dd1904471?auto=format&fit=crop&w=1400&q=80')",
+        hero: "linear-gradient(120deg, rgba(58, 52, 47, 0.08), rgba(58, 52, 47, 0.52)), url('https://images.unsplash.com/photo-1501183638710-841dd1904471?auto=format&fit=crop&w=1400&q=80')",
       },
     },
   },

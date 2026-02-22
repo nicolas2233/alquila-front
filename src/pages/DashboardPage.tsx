@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
-import { geocodeAddress } from "../shared/map/geocode";
-import { useLocation } from "react-router-dom";
+import { geocodeAddress, reverseGeocode } from "../shared/map/geocode";
+import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
@@ -9,13 +9,12 @@ import type {
   PropertyApiDetail,
   PropertyApiListItem,
 } from "../shared/properties/propertyMappers";
-import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
+import { formatPrice, mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { formatRentalRequirements } from "../shared/utils/rentalRequirements";
 import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
 import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
-import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Borrador",
@@ -34,6 +33,11 @@ const statusDotClass: Record<string, string> = {
   TEMPORARILY_UNAVAILABLE: "bg-rose-400",
 };
 const statusOptions = ["ACTIVE", "PAUSED", "SOLD", "RENTED", "TEMPORARILY_UNAVAILABLE"];
+const quickEditStatusOptionsByOperation: Record<string, string[]> = {
+  SALE: ["ACTIVE", "PAUSED", "SOLD"],
+  RENT: ["ACTIVE", "PAUSED", "RENTED"],
+  TEMPORARY: ["ACTIVE", "PAUSED", "TEMPORARILY_UNAVAILABLE"],
+};
 const requestStatusLabels: Record<string, string> = {
   NEW: "Nueva",
   CONTACTED: "Contactado",
@@ -58,6 +62,20 @@ const propertyLabels: Record<string, string> = {
   OFFICE: "Oficina",
   WAREHOUSE: "Deposito",
 };
+
+function hexToRgba(hex: string, alpha: number) {
+  const value = hex.trim().replace("#", "");
+  const normalized =
+    value.length === 3 ? value.split("").map((char) => `${char}${char}`).join("") : value;
+  if (!/^[0-9A-Fa-f]{6}$/.test(normalized)) {
+    return `rgba(17, 39, 95, ${alpha})`;
+  }
+  const numeric = Number.parseInt(normalized, 16);
+  const r = (numeric >> 16) & 255;
+  const g = (numeric >> 8) & 255;
+  const b = numeric & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 function EditLocationPicker({
   lat,
@@ -96,7 +114,7 @@ function EditLocationPicker({
           <CircleMarker
             center={[lat, lng]}
             radius={8}
-            pathOptions={{ color: "#f4d19a", fillColor: "#d1a466", fillOpacity: 0.9 }}
+            pathOptions={{ color: "#f4d19a", fillColor: "#AF8C5C", fillOpacity: 0.9 }}
           />
         )}
       </MapContainer>
@@ -108,6 +126,8 @@ type AgencyProfile = {
   id: string;
   name: string;
   legalName: string;
+  cuit?: string | null;
+  licenseNumber?: string | null;
   phone?: string | null;
   address?: string | null;
   about?: string | null;
@@ -115,13 +135,23 @@ type AgencyProfile = {
   email?: string | null;
   website?: string | null;
   instagram?: string | null;
+  facebook?: string | null;
   logo?: string | null;
+  heroColor?: string | null;
+  heroImage?: string | null;
+  heroImagePosition?: string | null;
+  heroImageOpacity?: number | null;
+  contactCardColor?: string | null;
+  contactCardOpacity?: number | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 type PanelSection = "profile" | "listings" | "requests" | "my-requests";
 
 export function DashboardPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const sessionUser = useMemo(() => getSessionUser(), []);
   const sessionToken = useMemo(() => getToken(), []);
@@ -148,6 +178,8 @@ export function DashboardPage() {
   const [agencyError, setAgencyError] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [agencyLegalName, setAgencyLegalName] = useState("");
+  const [agencyCuit, setAgencyCuit] = useState("");
+  const [agencyLicenseNumber, setAgencyLicenseNumber] = useState("");
   const [agencyPhone, setAgencyPhone] = useState("");
   const [agencyAddress, setAgencyAddress] = useState("");
   const [agencyAbout, setAgencyAbout] = useState("");
@@ -155,96 +187,83 @@ export function DashboardPage() {
   const [agencyEmail, setAgencyEmail] = useState("");
   const [agencyWebsite, setAgencyWebsite] = useState("");
   const [agencyInstagram, setAgencyInstagram] = useState("");
+  const [agencyFacebook, setAgencyFacebook] = useState("");
   const [agencyLogo, setAgencyLogo] = useState("");
+  const [agencyHeroColor, setAgencyHeroColor] = useState("#4b70e7");
+  const [agencyHeroImage, setAgencyHeroImage] = useState("");
+  const [agencyHeroImagePosition, setAgencyHeroImagePosition] = useState<
+    "top" | "center" | "bottom"
+  >("center");
+  const [agencyHeroImageOpacity, setAgencyHeroImageOpacity] = useState(45);
+  const [agencyContactCardColor, setAgencyContactCardColor] = useState("#11275f");
+  const [agencyContactCardOpacity, setAgencyContactCardOpacity] = useState(35);
+  const [agencyLat, setAgencyLat] = useState<number | undefined>(undefined);
+  const [agencyLng, setAgencyLng] = useState<number | undefined>(undefined);
+  const [agencyMapQuery, setAgencyMapQuery] = useState("");
+  const [agencyGeoStatus, setAgencyGeoStatus] = useState<"idle" | "loading" | "error">(
+    "idle"
+  );
+  const [agencyGeoMessage, setAgencyGeoMessage] = useState("");
+  const [agencyProfileTab, setAgencyProfileTab] = useState<"data" | "styles">("data");
   const [ownerStatus, setOwnerStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
   );
   const [ownerError, setOwnerError] = useState("");
   const [ownerName, setOwnerName] = useState("");
+  const [ownerFirstName, setOwnerFirstName] = useState("");
+  const [ownerLastName, setOwnerLastName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerDni, setOwnerDni] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
   const [ownerAddress, setOwnerAddress] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
   const [ownerAvatarUrl, setOwnerAvatarUrl] = useState("");
+  const [ownerShowNamePublic, setOwnerShowNamePublic] = useState(false);
   const [ownerDniTramite, setOwnerDniTramite] = useState("");
   const [ownerBirthDate, setOwnerBirthDate] = useState("");
   const [activeSection, setActiveSection] = useState<PanelSection>("profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const lockIcon = (
+    <span className="ml-1 inline-flex items-center text-[#BFB8AD]" title="No editable">
+      <svg
+        aria-hidden="true"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="h-3.5 w-3.5"
+      >
+        <path d="M17 8h-1V6a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4V6Z" />
+      </svg>
+    </span>
+  );
   const [selectedItem, setSelectedItem] = useState<PropertyApiDetail | null>(null);
-  const detailContentRef = useRef<HTMLDivElement | null>(null);
-  const editFormRef = useRef<HTMLDivElement | null>(null);
-  const [detailStatus, setDetailStatus] = useState<"idle" | "loading" | "error">(
-    "idle"
-  );
-  const [detailError, setDetailError] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [editSaveStatus, setEditSaveStatus] = useState<"idle" | "saving" | "error">(
-    "idle"
-  );
-  const [editStep, setEditStep] = useState<1 | 2 | 3 | 4>(1);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editPrice, setEditPrice] = useState("");
-  const [editCurrency, setEditCurrency] = useState("ARS");
-  const [editStatus, setEditStatus] = useState("ACTIVE");
-  const [editRooms, setEditRooms] = useState("");
-  const [editBathrooms, setEditBathrooms] = useState("");
-  const [editAreaM2, setEditAreaM2] = useState("");
-  const [editExpensesAmount, setEditExpensesAmount] = useState("");
-  const [editExpensesCurrency, setEditExpensesCurrency] = useState("ARS");
-  const [editPropertyType, setEditPropertyType] = useState("");
-  const [editOperationType, setEditOperationType] = useState("");
-
-  const [editHasGarage, setEditHasGarage] = useState(false);
-  const [editPetsAllowed, setEditPetsAllowed] = useState(false);
-  const [editKidsAllowed, setEditKidsAllowed] = useState(false);
-  const [editFurnished, setEditFurnished] = useState(false);
-  const [editAgeYears, setEditAgeYears] = useState("");
-  const [editCoveredAreaM2, setEditCoveredAreaM2] = useState("");
-  const [editSemiCoveredAreaM2, setEditSemiCoveredAreaM2] = useState("");
-  const [editBedrooms, setEditBedrooms] = useState("");
-  const [editFloorsCount, setEditFloorsCount] = useState("");
-  const [editParty, setEditParty] = useState("");
-  const [editNeighborhood, setEditNeighborhood] = useState("");
-  const [editPostalCode, setEditPostalCode] = useState("");
-  const [editLotOrParcel, setEditLotOrParcel] = useState("");
-  const [editFrontageM, setEditFrontageM] = useState("");
-  const [editDepthM, setEditDepthM] = useState("");
-  const [editLat, setEditLat] = useState("");
-  const [editLng, setEditLng] = useState("");
-  const [editBuildable, setEditBuildable] = useState(false);
-  const [editInvestmentOpportunity, setEditInvestmentOpportunity] = useState(false);
-  const [editFinancingAvailable, setEditFinancingAvailable] = useState(false);
-  const [editFinancingAmount, setEditFinancingAmount] = useState("");
-  const [editFinancingCurrency, setEditFinancingCurrency] = useState("ARS");
-  const [editFloor, setEditFloor] = useState("");
-  const [editUnit, setEditUnit] = useState("");
-  const [editFacing, setEditFacing] = useState("FRONT");
-  const [editAddressLine, setEditAddressLine] = useState("");
-  const [editAddressQuery, setEditAddressQuery] = useState("");
-  const [editShowMapLocation, setEditShowMapLocation] = useState(true);
-  const [editUnitLabel, setEditUnitLabel] = useState("");
-  const [editGeoStatus, setEditGeoStatus] = useState<"idle" | "loading" | "error">(
-    "idle"
-  );
-  const [editGeoMessage, setEditGeoMessage] = useState("");
-
-  const [editAmenities, setEditAmenities] = useState<string[]>([]);
-  const [editBusinessUses, setEditBusinessUses] = useState<string[]>([]);
-  const [editOfficeFeatures, setEditOfficeFeatures] = useState<string[]>([]);
-  const [editWarehouseFeatures, setEditWarehouseFeatures] = useState<string[]>([]);
-
-  const [serviceElectricity, setServiceElectricity] = useState(false);
-  const [serviceGas, setServiceGas] = useState(false);
-  const [serviceWater, setServiceWater] = useState(false);
-  const [serviceSewer, setServiceSewer] = useState(false);
-  const [serviceInternet, setServiceInternet] = useState(false);
-  const [servicePavement, setServicePavement] = useState(false);
-  const [newPhotos, setNewPhotos] = useState<File[]>([]);
+  const [publicStatus, setPublicStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [publicError, setPublicError] = useState("");
   const [showPublicModal, setShowPublicModal] = useState(false);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const [quickEditStatus, setQuickEditStatus] = useState<"idle" | "loading" | "saving" | "error">(
+    "idle"
+  );
+  const [quickEditError, setQuickEditError] = useState("");
+  const [quickEditItem, setQuickEditItem] = useState<PropertyApiDetail | null>(null);
+  const [quickEditOperationType, setQuickEditOperationType] = useState<"SALE" | "RENT" | "TEMPORARY">(
+    "SALE"
+  );
+  const [quickEditPriceAmount, setQuickEditPriceAmount] = useState("");
+  const [quickEditPriceCurrency, setQuickEditPriceCurrency] = useState<"ARS" | "USD">("ARS");
+  const [quickEditStatusValue, setQuickEditStatusValue] = useState("ACTIVE");
+  const [quickEditPermutaAccepted, setQuickEditPermutaAccepted] = useState(false);
+  const [quickEditPermutaReason, setQuickEditPermutaReason] = useState("");
+  const [quickEditOperationReason, setQuickEditOperationReason] = useState("");
+  const [quickEditRentGuarantees, setQuickEditRentGuarantees] = useState("");
+  const [quickEditRentEntryMonths, setQuickEditRentEntryMonths] = useState("");
+  const [quickEditRentContractDuration, setQuickEditRentContractDuration] = useState("");
+  const [quickEditRentIndexFrequency, setQuickEditRentIndexFrequency] = useState("");
+  const [quickEditRentIndexType, setQuickEditRentIndexType] = useState("");
+  const [quickEditRentIndexValue, setQuickEditRentIndexValue] = useState("");
+  const [quickEditRentInfoPublic, setQuickEditRentInfoPublic] = useState(true);
   const [requestStatus, setRequestStatus] = useState<"idle" | "loading" | "error">(
     "idle"
   );
@@ -493,6 +512,8 @@ export function DashboardPage() {
       const data = (await response.json()) as AgencyProfile;
       setAgencyName(data.name ?? "");
       setAgencyLegalName(data.legalName ?? "");
+      setAgencyCuit(data.cuit ?? "");
+      setAgencyLicenseNumber(data.licenseNumber ?? "");
       setAgencyPhone(data.phone ?? "");
       setAgencyAddress(data.address ?? "");
       setAgencyAbout(data.about ?? "");
@@ -500,7 +521,31 @@ export function DashboardPage() {
       setAgencyEmail(data.email ?? "");
       setAgencyWebsite(data.website ?? "");
       setAgencyInstagram(data.instagram ?? "");
+      setAgencyFacebook(data.facebook ?? "");
       setAgencyLogo(data.logo ?? "");
+      setAgencyHeroColor(data.heroColor ?? "#4b70e7");
+      setAgencyHeroImage(data.heroImage ?? "");
+      setAgencyHeroImagePosition(
+        data.heroImagePosition === "top" ||
+          data.heroImagePosition === "center" ||
+          data.heroImagePosition === "bottom"
+          ? data.heroImagePosition
+          : "center"
+      );
+      setAgencyHeroImageOpacity(
+        typeof data.heroImageOpacity === "number"
+          ? Math.max(0, Math.min(100, data.heroImageOpacity))
+          : 45
+      );
+      setAgencyContactCardColor(data.contactCardColor ?? "#11275f");
+      setAgencyContactCardOpacity(
+        typeof data.contactCardOpacity === "number"
+          ? Math.max(0, Math.min(100, data.contactCardOpacity))
+          : 35
+      );
+      setAgencyLat(typeof data.lat === "number" ? data.lat : undefined);
+      setAgencyLng(typeof data.lng === "number" ? data.lng : undefined);
+      setAgencyMapQuery(data.address ?? "");
       setAgencyStatus("idle");
     } catch (error) {
       setAgencyStatus("error");
@@ -512,6 +557,9 @@ export function DashboardPage() {
 
   const handleSelectSection = useCallback((section: PanelSection) => {
     setActiveSection(section);
+    if (section === "profile") {
+      setAgencyProfileTab("data");
+    }
     setSidebarOpen(false);
   }, []);
 
@@ -541,6 +589,7 @@ export function DashboardPage() {
     const requestId = params.get("requestId");
     if (tab === "profile") {
       setActiveSection("profile");
+      setAgencyProfileTab("data");
       setPendingRequestId(null);
       return;
     }
@@ -597,43 +646,6 @@ export function DashboardPage() {
   }, [highlightRequestId]);
 
   useEffect(() => {
-    if (!isEditing) return;
-    const handle = window.setTimeout(() => {
-      scrollToFirstError(editFormRef.current);
-    }, 0);
-    return () => window.clearTimeout(handle);
-  }, [isEditing, selectedItem?.id]);
-
-  useEffect(() => {
-    if (!isEditing) return;
-    const container = detailContentRef.current;
-    const form = editFormRef.current;
-    if (!container || !form) return;
-    const handle = window.setTimeout(() => {
-      const targetTop = Math.max(form.offsetTop - 12, 0);
-      container.scrollTo({ top: targetTop, behavior: "smooth" });
-    }, 0);
-    return () => window.clearTimeout(handle);
-  }, [editStep, isEditing]);
-
-  useEffect(() => {
-    if (!isEditing) return;
-    const form = editFormRef.current;
-    if (!form) return;
-    const handle = window.setTimeout(() => {
-      const stepSection = form.querySelector(
-        `[data-edit-step="${editStep}"]`
-      ) as HTMLElement | null;
-      if (!stepSection) return;
-      const field = stepSection.querySelector(
-        "input:not([type='hidden']), select, textarea"
-      ) as HTMLElement | null;
-      field?.focus();
-    }, 120);
-    return () => window.clearTimeout(handle);
-  }, [editStep, isEditing]);
-
-  useEffect(() => {
     if (!highlightRequestId) return;
     const timeout = setTimeout(() => setHighlightPulse(true), 120);
     return () => clearTimeout(timeout);
@@ -667,26 +679,46 @@ export function DashboardPage() {
       setOwnerStatus("loading");
       setOwnerError("");
       try {
-        const response = await fetch(`${env.apiUrl}/users/${ownerUserId}`);
+        const response = await fetch(`${env.apiUrl}/users/${ownerUserId}`, {
+          headers: {
+            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          },
+        });
+
         if (!response.ok) {
           throw new Error("No pudimos cargar tu perfil.");
         }
         const data = (await response.json()) as {
           name?: string | null;
+          firstName?: string | null;
+          lastName?: string | null;
           email?: string | null;
+          dni?: string | null;
           phone?: string | null;
           address?: string | null;
           avatarUrl?: string | null;
+          showOwnerNamePublic?: boolean | null;
           ownerProfile?: {
             dniTramite?: string | null;
             birthDate?: string | null;
           } | null;
         };
+        const fullName = (data.name ?? "").trim();
+        if (data.firstName || data.lastName) {
+          setOwnerFirstName(data.firstName ?? "");
+          setOwnerLastName(data.lastName ?? "");
+        } else {
+          const [first = "", ...rest] = fullName.split(/\s+/).filter(Boolean);
+          setOwnerFirstName(first);
+          setOwnerLastName(rest.join(" "));
+        }
         setOwnerName(data.name ?? "");
         setOwnerEmail(data.email ?? "");
+        setOwnerDni(data.dni ?? "");
         setOwnerPhone(data.phone ?? "");
         setOwnerAddress(data.address ?? "");
         setOwnerAvatarUrl(data.avatarUrl ?? "");
+        setOwnerShowNamePublic(Boolean(data.showOwnerNamePublic));
         setOwnerDniTramite(data.ownerProfile?.dniTramite ?? "");
         setOwnerBirthDate(
           data.ownerProfile?.birthDate
@@ -704,13 +736,16 @@ export function DashboardPage() {
     if (isOwner && ownerUserId) {
       void loadOwner();
     }
-  }, [isOwner, ownerUserId]);
+  }, [isOwner, ownerUserId, sessionToken]);
 
   const updateStatus = async (propertyId: string, nextStatus: string) => {
     try {
       await fetch(`${env.apiUrl}/properties/${propertyId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
         body: JSON.stringify({ status: nextStatus }),
       });
       await loadProperties();
@@ -720,120 +755,13 @@ export function DashboardPage() {
     }
   };
 
-  const openDetail = async (item: PropertyApiListItem) => {
-    setSelectedId(item.id);
-    setSelectedItem(null);
-    setIsEditing(false);
-    setEditStep(1);
-    setDetailStatus("loading");
-    setDetailError("");
-
-    try {
-      const response = await fetch(`${env.apiUrl}/properties/${item.id}`);
-      if (!response.ok) {
-        throw new Error("No pudimos cargar la propiedad.");
-      }
-      const data = (await response.json()) as PropertyApiDetail;
-      setSelectedItem(data);
-      setEditTitle(data.title ?? "");
-      setEditDescription(data.description ?? "");
-      setEditPrice(String(data.priceAmount ?? ""));
-      setEditCurrency(data.priceCurrency ?? "ARS");
-      setEditExpensesAmount(String(data.expensesAmount ?? ""));
-      setEditExpensesCurrency(data.expensesCurrency ?? "ARS");
-      setEditPropertyType(data.propertyType ?? "");
-      setEditOperationType(data.operationType ?? "");
-      setEditRooms(String(data.rooms ?? ""));
-      setEditBathrooms(String(data.bathrooms ?? ""));
-      setEditAreaM2(String(data.areaM2 ?? ""));
-      setEditStatus(data.status ?? "ACTIVE");
-      const features = data.features ?? {};
-      setEditHasGarage(Boolean(features.hasGarage));
-      setEditPetsAllowed(Boolean(features.petsAllowed));
-      setEditKidsAllowed(Boolean(features.kidsAllowed));
-      setEditFurnished(Boolean((features as { furnished?: boolean }).furnished));
-      setEditAgeYears(String((features as { ageYears?: number }).ageYears ?? ""));
-      setEditCoveredAreaM2(
-        String((features as { coveredAreaM2?: number }).coveredAreaM2 ?? "")
-      );
-      setEditSemiCoveredAreaM2(
-        String((features as { semiCoveredAreaM2?: number }).semiCoveredAreaM2 ?? "")
-      );
-      setEditBedrooms(String((features as { bedrooms?: number }).bedrooms ?? ""));
-      setEditFloorsCount(String((features as { floorsCount?: number }).floorsCount ?? ""));
-      setEditParty(String((features as { party?: string }).party ?? ""));
-      setEditNeighborhood(String((features as { neighborhood?: string }).neighborhood ?? ""));
-      setEditPostalCode(String((features as { postalCode?: string }).postalCode ?? ""));
-      setEditLotOrParcel(String((features as { lotOrParcel?: string }).lotOrParcel ?? ""));
-      setEditFrontageM(String((features as { frontageM?: number }).frontageM ?? ""));
-      setEditDepthM(String((features as { depthM?: number }).depthM ?? ""));
-      setEditAddressLine(String(data.location?.addressLine ?? ""));
-      setEditBuildable(Boolean((features as { buildable?: boolean }).buildable));
-      setEditInvestmentOpportunity(
-        Boolean((features as { investmentOpportunity?: boolean }).investmentOpportunity)
-      );
-      setEditFinancingAvailable(
-        Boolean((features as { financingAvailable?: boolean }).financingAvailable)
-      );
-      setEditFinancingAmount(
-        String((features as { financingAmount?: number }).financingAmount ?? "")
-      );
-      setEditFinancingCurrency(
-        String((features as { financingCurrency?: string }).financingCurrency ?? "ARS")
-      );
-      setEditFloor(String((features as { floor?: number }).floor ?? ""));
-      setEditUnit(String((features as { unit?: string }).unit ?? ""));
-      setEditFacing(String((features as { facing?: string }).facing ?? "FRONT"));
-      setEditAmenities((features as { amenities?: string[] }).amenities ?? []);
-      setEditBusinessUses((features as { businessUses?: string[] }).businessUses ?? []);
-      setEditOfficeFeatures((features as { officeFeatures?: string[] }).officeFeatures ?? []);
-      setEditWarehouseFeatures(
-        (features as { warehouseFeatures?: string[] }).warehouseFeatures ?? []
-      );
-      setEditShowMapLocation(
-        (features as { showMapLocation?: boolean }).showMapLocation ?? true
-      );
-      setEditUnitLabel(String((data as { unitLabel?: string }).unitLabel ?? ""));
-
-      setEditLat(
-        typeof data.location?.lat === "number" ? data.location.lat.toString() : ""
-      );
-      setEditLng(
-        typeof data.location?.lng === "number" ? data.location.lng.toString() : ""
-      );
-
-      const services = data.services ?? {};
-      setServiceElectricity(Boolean(services.electricity));
-      setServiceGas(Boolean(services.gas));
-      setServiceWater(Boolean(services.water));
-      setServiceSewer(Boolean(services.sewer));
-      setServiceInternet(Boolean(services.internet));
-      setServicePavement(Boolean(services.pavement));
-      setDetailStatus("idle");
-    } catch (error) {
-      setDetailStatus("error");
-      setDetailError(
-        error instanceof Error ? error.message : "Error al cargar la propiedad."
-      );
-    }
-  };
-
-  const closeDetail = () => {
-    setSelectedId(null);
-    setSelectedItem(null);
-    setIsEditing(false);
-    setEditStep(1);
-  };
-
-  const openEditFromList = async (item: PropertyApiListItem) => {
-    await openDetail(item);
-    setEditStep(1);
-    setIsEditing(true);
+  const openEditFromList = (item: PropertyApiListItem) => {
+    navigate(`/publicar/${item.id}/editar`);
   };
 
   const openPublicFromList = async (item: PropertyApiListItem) => {
-    setDetailStatus("loading");
-    setDetailError("");
+    setPublicStatus("loading");
+    setPublicError("");
     try {
       const response = await fetch(`${env.apiUrl}/properties/${item.id}`);
       if (!response.ok) {
@@ -842,11 +770,228 @@ export function DashboardPage() {
       const data = (await response.json()) as PropertyApiDetail;
       setSelectedItem(data);
       setShowPublicModal(true);
-      setDetailStatus("idle");
+      setPublicStatus("idle");
     } catch (error) {
-      setDetailStatus("error");
-      setDetailError(
+      setPublicStatus("error");
+      const message =
         error instanceof Error ? error.message : "Error al cargar la propiedad."
+      setPublicError(message);
+      addToast(message, "error");
+    }
+  };
+
+  const openQuickEditFromList = async (item: PropertyApiListItem) => {
+    setSidebarOpen(false);
+    setQuickEditOpen(true);
+    setQuickEditStatus("loading");
+    setQuickEditError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${item.id}`, {
+        headers: {
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("No pudimos cargar la publicación.");
+      }
+      const data = (await response.json()) as PropertyApiDetail;
+      const features =
+        data.features && typeof data.features === "object"
+          ? (data.features as Record<string, unknown>)
+          : {};
+      const operationType = (data.operationType ?? "SALE") as "SALE" | "RENT" | "TEMPORARY";
+      const allowedStatuses = quickEditStatusOptionsByOperation[operationType] ?? statusOptions;
+      const defaultStatus = data.status && allowedStatuses.includes(data.status) ? data.status : "ACTIVE";
+
+      setQuickEditItem(data);
+      setQuickEditOperationType(operationType);
+      setQuickEditPriceAmount(String(data.priceAmount ?? ""));
+      setQuickEditPriceCurrency((data.priceCurrency ?? "ARS") as "ARS" | "USD");
+      setQuickEditStatusValue(defaultStatus);
+      setQuickEditPermutaAccepted(Boolean(features.permutaAccepted));
+      setQuickEditPermutaReason(
+        typeof features.permutaReason === "string" ? features.permutaReason : ""
+      );
+      const rentalRequirements =
+        features.rentalRequirements && typeof features.rentalRequirements === "object"
+          ? (features.rentalRequirements as Record<string, unknown>)
+          : {};
+      setQuickEditRentGuarantees(
+        typeof rentalRequirements.guarantees === "string"
+          ? rentalRequirements.guarantees
+          : ""
+      );
+      setQuickEditRentEntryMonths(
+        rentalRequirements.entryMonths !== undefined &&
+          rentalRequirements.entryMonths !== null
+          ? String(rentalRequirements.entryMonths)
+          : ""
+      );
+      setQuickEditRentContractDuration(
+        rentalRequirements.contractDurationMonths !== undefined &&
+          rentalRequirements.contractDurationMonths !== null
+          ? String(rentalRequirements.contractDurationMonths)
+          : ""
+      );
+      setQuickEditRentIndexFrequency(
+        typeof rentalRequirements.indexFrequency === "string"
+          ? rentalRequirements.indexFrequency
+          : ""
+      );
+      setQuickEditRentIndexType(
+        typeof rentalRequirements.indexType === "string" ? rentalRequirements.indexType : ""
+      );
+      setQuickEditRentIndexValue(
+        rentalRequirements.indexValue !== undefined && rentalRequirements.indexValue !== null
+          ? String(rentalRequirements.indexValue)
+          : ""
+      );
+      setQuickEditRentInfoPublic(
+        typeof rentalRequirements.isPublic === "boolean" ? rentalRequirements.isPublic : true
+      );
+      setQuickEditOperationReason("");
+      setQuickEditStatus("idle");
+    } catch (error) {
+      setQuickEditStatus("error");
+      setQuickEditError(
+        error instanceof Error ? error.message : "No pudimos abrir la edición rápida."
+      );
+    }
+  };
+
+  const closeQuickEdit = () => {
+    setQuickEditOpen(false);
+    setQuickEditStatus("idle");
+    setQuickEditError("");
+    setQuickEditItem(null);
+    setQuickEditOperationReason("");
+    setQuickEditRentGuarantees("");
+    setQuickEditRentEntryMonths("");
+    setQuickEditRentContractDuration("");
+    setQuickEditRentIndexFrequency("");
+    setQuickEditRentIndexType("");
+    setQuickEditRentIndexValue("");
+    setQuickEditRentInfoPublic(true);
+  };
+
+  useEffect(() => {
+    if (!quickEditOpen) return;
+    const allowedStatuses =
+      quickEditStatusOptionsByOperation[quickEditOperationType] ?? statusOptions;
+    if (!allowedStatuses.includes(quickEditStatusValue)) {
+      setQuickEditStatusValue("ACTIVE");
+    }
+    if (quickEditOperationType !== "SALE") {
+      setQuickEditPermutaAccepted(false);
+      setQuickEditPermutaReason("");
+    }
+  }, [quickEditOpen, quickEditOperationType, quickEditStatusValue]);
+
+  const saveQuickEdit = async () => {
+    if (!quickEditItem) {
+      return;
+    }
+    const parsedPrice = Number(quickEditPriceAmount);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      setQuickEditStatus("error");
+      setQuickEditError("El precio debe ser un número mayor a cero.");
+      return;
+    }
+    const isOperationChanged = quickEditOperationType !== quickEditItem.operationType;
+    if (isOperationChanged && quickEditOperationReason.trim().length < 4) {
+      setQuickEditStatus("error");
+      setQuickEditError("Indica por qué cambiaste la operación (mínimo 4 caracteres).");
+      return;
+    }
+    if (quickEditOperationType === "SALE" && quickEditPermutaAccepted && quickEditPermutaReason.trim().length < 4) {
+      setQuickEditStatus("error");
+      setQuickEditError("Indica el motivo/condiciones de la permuta (mínimo 4 caracteres).");
+      return;
+    }
+
+    setQuickEditStatus("saving");
+    setQuickEditError("");
+    try {
+      const baseFeatures =
+        quickEditItem.features && typeof quickEditItem.features === "object"
+          ? { ...(quickEditItem.features as Record<string, unknown>) }
+          : {};
+
+      if (quickEditOperationType === "SALE") {
+        baseFeatures.permutaAccepted = quickEditPermutaAccepted;
+        if (quickEditPermutaAccepted) {
+          baseFeatures.permutaReason = quickEditPermutaReason.trim();
+        } else {
+          delete baseFeatures.permutaReason;
+        }
+      } else {
+        baseFeatures.permutaAccepted = false;
+        delete baseFeatures.permutaReason;
+      }
+
+      if (quickEditOperationType === "RENT") {
+        baseFeatures.rentalRequirements = {
+          guarantees: quickEditRentGuarantees.trim() || undefined,
+          entryMonths: quickEditRentEntryMonths ? Number(quickEditRentEntryMonths) : undefined,
+          contractDurationMonths: quickEditRentContractDuration
+            ? Number(quickEditRentContractDuration)
+            : undefined,
+          indexFrequency: quickEditRentIndexFrequency || undefined,
+          indexType: quickEditRentIndexType || undefined,
+          indexValue: quickEditRentIndexValue ? Number(quickEditRentIndexValue) : undefined,
+          isPublic: quickEditRentInfoPublic,
+        };
+      } else {
+        delete baseFeatures.rentalRequirements;
+      }
+
+      if (isOperationChanged) {
+        baseFeatures.previousOperationType = quickEditItem.operationType;
+        baseFeatures.operationChangeReason = quickEditOperationReason.trim();
+      } else {
+        delete baseFeatures.operationChangeReason;
+      }
+
+      const updateResponse = await fetch(`${env.apiUrl}/properties/${quickEditItem.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify({
+          operationType: quickEditOperationType,
+          priceAmount: parsedPrice,
+          priceCurrency: quickEditPriceCurrency,
+          features: baseFeatures,
+        }),
+      });
+      if (!updateResponse.ok) {
+        const body = await updateResponse.json().catch(() => null);
+        throw new Error(body?.message ?? "No pudimos guardar la edición rápida.");
+      }
+
+      if (quickEditStatusValue !== quickEditItem.status) {
+        const statusResponse = await fetch(`${env.apiUrl}/properties/${quickEditItem.id}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          },
+          body: JSON.stringify({ status: quickEditStatusValue }),
+        });
+        if (!statusResponse.ok) {
+          const body = await statusResponse.json().catch(() => null);
+          throw new Error(body?.message ?? "No pudimos actualizar el estado.");
+        }
+      }
+
+      await loadProperties();
+      addToast("Edición rápida guardada.", "success");
+      closeQuickEdit();
+    } catch (error) {
+      setQuickEditStatus("error");
+      setQuickEditError(
+        error instanceof Error ? error.message : "No pudimos guardar la edición rápida."
       );
     }
   };
@@ -876,136 +1021,27 @@ export function DashboardPage() {
     setRequestPreviewError("");
   };
 
-  const saveEdit = async () => {
-    if (!selectedId) {
-      return;
-    }
-
-    setDetailError("");
-    setEditSaveStatus("saving");
-    try {
-      if (editPrice && Number.isNaN(Number(editPrice))) {
-        throw new Error("El precio debe ser un numero valido.");
-      }
-      if (editLat && Number.isNaN(Number(editLat))) {
-        throw new Error("La latitud debe ser un numero valido.");
-      }
-      if (editLng && Number.isNaN(Number(editLng))) {
-        throw new Error("La longitud debe ser un numero valido.");
-      }
-
-      const response = await fetch(`${env.apiUrl}/properties/${selectedId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-        },
-        body: JSON.stringify({
-          title: editTitle,
-          description: editDescription,
-          operationType: editOperationType || undefined,
-          propertyType: editPropertyType || undefined,
-          priceAmount: editPrice ? Number(editPrice) : undefined,
-          priceCurrency: editPrice ? editCurrency : undefined,
-          expensesAmount: editExpensesAmount ? Number(editExpensesAmount) : undefined,
-          expensesCurrency: editExpensesAmount ? editExpensesCurrency : undefined,
-          rooms:
-            editRooms && Number(editRooms) > 0 ? Number(editRooms) : undefined,
-          bathrooms:
-            editBathrooms && Number(editBathrooms) > 0 ? Number(editBathrooms) : undefined,
-          areaM2: editAreaM2 && Number(editAreaM2) > 0 ? Number(editAreaM2) : undefined,
-            features: {
-              hasGarage: editHasGarage,
-              petsAllowed: editPetsAllowed,
-              kidsAllowed: editKidsAllowed,
-              furnished: editFurnished,
-              ageYears: editAgeYears ? Number(editAgeYears) : undefined,
-              coveredAreaM2: editCoveredAreaM2 ? Number(editCoveredAreaM2) : undefined,
-              semiCoveredAreaM2: editSemiCoveredAreaM2 ? Number(editSemiCoveredAreaM2) : undefined,
-              bedrooms:
-                editBedrooms && Number(editBedrooms) > 0 ? Number(editBedrooms) : undefined,
-              floorsCount: editFloorsCount ? Number(editFloorsCount) : undefined,
-              party: editParty || undefined,
-              neighborhood: editNeighborhood || undefined,
-              postalCode: editPostalCode || undefined,
-              lotOrParcel: editLotOrParcel || undefined,
-              frontageM: editFrontageM ? Number(editFrontageM) : undefined,
-              depthM: editDepthM ? Number(editDepthM) : undefined,
-              buildable: editBuildable,
-              investmentOpportunity: editInvestmentOpportunity,
-              financingAvailable: editFinancingAvailable,
-              financingAmount:
-                editFinancingAvailable && editFinancingAmount
-                  ? Number(editFinancingAmount)
-                  : undefined,
-              financingCurrency: editFinancingAvailable ? editFinancingCurrency : undefined,
-              floor: editFloor ? Number(editFloor) : undefined,
-              unit: editUnit || undefined,
-              facing: editFacing || undefined,
-              amenities: editAmenities.length ? editAmenities : undefined,
-              businessUses: editBusinessUses.length ? editBusinessUses : undefined,
-              officeFeatures: editOfficeFeatures.length ? editOfficeFeatures : undefined,
-              warehouseFeatures: editWarehouseFeatures.length ? editWarehouseFeatures : undefined,
-              showMapLocation: editShowMapLocation,
-            },
-          services: {
-            electricity: serviceElectricity,
-            gas: serviceGas,
-            water: serviceWater,
-            sewer: serviceSewer,
-            internet: serviceInternet,
-            pavement: servicePavement,
-          },
-          unitLabel: editUnitLabel || undefined,
-          location:
-            editAddressLine || editLat || editLng
-              ? {
-                  addressLine: editAddressLine || undefined,
-                  lat: editLat ? Number(editLat) : undefined,
-                  lng: editLng ? Number(editLng) : undefined,
-                }
-              : undefined,
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.message ?? "No pudimos guardar los cambios.");
-      }
-      if (selectedItem && editStatus !== selectedItem.status) {
-        await updateStatus(selectedId, editStatus);
-      }
-      if (newPhotos.length) {
-        const formData = new FormData();
-        newPhotos.forEach((file) => formData.append("files", file));
-        await fetch(`${env.apiUrl}/properties/${selectedId}/photos`, {
-          method: "POST",
-          headers: {
-            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-          },
-          body: formData,
-        });
-        setNewPhotos([]);
-      }
-      await loadProperties();
-      await openDetail({ id: selectedId } as PropertyApiListItem);
-      setIsEditing(false);
-      setEditStep(1);
-      addToast("Cambios guardados.", "success");
-      setIsDirty(false);
-    } catch (error) {
-      setDetailStatus("error");
-      setDetailError("No pudimos guardar los cambios.");
-      addToast("No pudimos guardar los cambios.", "error");
-      setEditSaveStatus("error");
-    } finally {
-      setEditSaveStatus("idle");
-    }
-  };
-
   const saveAgency = async () => {
     if (!agencyId) {
       return;
     }
+
+    const normalizedHeroColor = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(agencyHeroColor.trim())
+      ? agencyHeroColor.trim()
+      : undefined;
+    const normalizedContactCardColor = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(
+      agencyContactCardColor.trim()
+    )
+      ? agencyContactCardColor.trim()
+      : undefined;
+    const normalizedContactCardOpacity = Math.max(
+      0,
+      Math.min(100, Number.isFinite(agencyContactCardOpacity) ? agencyContactCardOpacity : 35)
+    );
+    const normalizedHeroOpacity = Math.max(
+      0,
+      Math.min(100, Number.isFinite(agencyHeroImageOpacity) ? agencyHeroImageOpacity : 45)
+    );
 
     setAgencyStatus("saving");
     setAgencyError("");
@@ -1013,18 +1049,28 @@ export function DashboardPage() {
     try {
       const response = await fetch(`${env.apiUrl}/agencies/${agencyId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
         body: JSON.stringify({
           name: agencyName,
-          legalName: agencyLegalName,
           phone: agencyPhone || undefined,
           address: agencyAddress || undefined,
           about: agencyAbout || undefined,
           whatsapp: agencyWhatsapp || undefined,
-          email: agencyEmail || undefined,
           website: agencyWebsite || undefined,
           instagram: agencyInstagram || undefined,
+          facebook: agencyFacebook || undefined,
           logo: agencyLogo || undefined,
+          heroColor: normalizedHeroColor,
+          heroImage: agencyHeroImage || undefined,
+          heroImagePosition: agencyHeroImagePosition,
+          heroImageOpacity: normalizedHeroOpacity,
+          contactCardColor: normalizedContactCardColor,
+          contactCardOpacity: normalizedContactCardOpacity,
+          lat: agencyLat ?? null,
+          lng: agencyLng ?? null,
         }),
       });
 
@@ -1033,7 +1079,12 @@ export function DashboardPage() {
       }
 
       setAgencyStatus("idle");
-      addToast("Perfil actualizado.", "success");
+      if (agencyProfileTab === "data") {
+        setAgencyProfileTab("styles");
+        addToast("Datos guardados. Ahora puedes ajustar estilos.", "success");
+      } else {
+        addToast("Perfil actualizado.", "success");
+      }
       setIsDirty(false);
     } catch (error) {
       setAgencyStatus("error");
@@ -1041,6 +1092,62 @@ export function DashboardPage() {
         error instanceof Error ? error.message : "Error al guardar la inmobiliaria."
       );
       addToast("No pudimos guardar el perfil.", "error");
+    }
+  };
+
+  const searchAgencyLocation = async () => {
+    const query = agencyMapQuery.trim() || agencyAddress.trim();
+    if (!query) {
+      setAgencyGeoStatus("error");
+      setAgencyGeoMessage("Ingresa una direccion para ubicar la inmobiliaria.");
+      return;
+    }
+    setAgencyGeoStatus("loading");
+    setAgencyGeoMessage("");
+    try {
+      const result = await geocodeAddress(query);
+      setAgencyLat(result.lat);
+      setAgencyLng(result.lng);
+      const locationParts = [result.locality, result.party, result.province].filter(
+        (part, index, arr) => Boolean(part) && arr.indexOf(part) === index
+      ) as string[];
+      const formattedAddress = [result.addressLine || result.displayName, locationParts.join(", ")]
+        .filter(Boolean)
+        .join(" - ");
+      setAgencyAddress(formattedAddress || result.displayName);
+      setAgencyMapQuery(formattedAddress || result.displayName);
+      setAgencyGeoStatus("idle");
+      setAgencyGeoMessage("Ubicacion encontrada. Ajusta el punto en el mapa si hace falta.");
+    } catch (error) {
+      setAgencyGeoStatus("error");
+      setAgencyGeoMessage(
+        error instanceof Error ? error.message : "No pudimos buscar la direccion."
+      );
+    }
+  };
+
+  const handleAgencyMapPointChange = async (nextLat: number, nextLng: number) => {
+    setAgencyLat(nextLat);
+    setAgencyLng(nextLng);
+    setAgencyGeoStatus("loading");
+    setAgencyGeoMessage("Buscando direccion del punto...");
+    try {
+      const result = await reverseGeocode(nextLat, nextLng);
+      const locationParts = [result.locality, result.party, result.province].filter(
+        (part, index, arr) => Boolean(part) && arr.indexOf(part) === index
+      ) as string[];
+      const formattedAddress = [result.addressLine || result.displayName, locationParts.join(", ")]
+        .filter(Boolean)
+        .join(" - ");
+      setAgencyAddress(formattedAddress || result.displayName);
+      setAgencyMapQuery(formattedAddress || result.displayName);
+      setAgencyGeoStatus("idle");
+      setAgencyGeoMessage("Direccion actualizada desde el mapa.");
+    } catch {
+      setAgencyGeoStatus("error");
+      setAgencyGeoMessage(
+        "No pudimos resolver la direccion exacta, pero guardamos el punto del mapa."
+      );
     }
   };
 
@@ -1077,18 +1184,26 @@ export function DashboardPage() {
     if (!ownerUserId) {
       return;
     }
+    const ownerFullName = [ownerFirstName.trim(), ownerLastName.trim()]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
     setOwnerStatus("saving");
     setOwnerError("");
     try {
       const response = await fetch(`${env.apiUrl}/users/${ownerUserId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
         body: JSON.stringify({
-          name: ownerName,
+          name: ownerFullName || ownerName,
           email: ownerEmail,
           phone: ownerPhone || undefined,
           address: ownerAddress || undefined,
           avatarUrl: ownerAvatarUrl ? ownerAvatarUrl : null,
+          showOwnerNamePublic: ownerShowNamePublic,
           password: ownerPassword || undefined,
           ownerDniTramite: ownerDniTramite || undefined,
           ownerBirthDate: ownerBirthDate || undefined,
@@ -1105,9 +1220,10 @@ export function DashboardPage() {
           "alquila_user",
           JSON.stringify({
             ...currentUser,
-            name: ownerName,
+            name: ownerFullName || ownerName,
             email: ownerEmail,
             avatarUrl: ownerAvatarUrl || null,
+            showOwnerNamePublic: ownerShowNamePublic,
           })
         );
       }
@@ -1159,300 +1275,743 @@ export function DashboardPage() {
     [selectedItem]
   );
 
-  const removePhoto = async (photoId: string) => {
-    if (!selectedId) {
-      return;
-    }
-    try {
-      await fetch(`${env.apiUrl}/properties/${selectedId}/photos/${photoId}`, {
-        method: "DELETE",
-      });
-      await openDetail({ id: selectedId } as PropertyApiListItem);
-    } catch {
-      setDetailStatus("error");
-      setDetailError("No pudimos eliminar la foto.");
-    }
+  const sectionMeta: Record<
+    PanelSection,
+    { badge: string; title: string; description: string }
+  > = {
+    profile: {
+      badge: "Perfil",
+      title: isAgency ? "Perfil de inmobiliaria" : "Perfil de dueño directo",
+      description: isAgency
+        ? "Configura identidad, canales y hero público de tu agencia."
+        : "Gestiona tus datos personales y de contacto.",
+    },
+    listings: {
+      badge: "Publicaciones",
+      title: "Mis inmuebles",
+      description: "Edita, pausa y controla el estado de tus publicaciones.",
+    },
+    requests: {
+      badge: "Gestión",
+      title: "Solicitudes de contacto",
+      description: "Responde consultas y seguimiento comercial desde un solo lugar.",
+    },
+    "my-requests": {
+      badge: "Actividad",
+      title: "Mis solicitudes",
+      description: "Revisa el estado de tus consultas y conversaciones abiertas.",
+    },
   };
+  const currentSectionMeta = sectionMeta[activeSection];
+  const isPremiumPanelHero =
+    activeSection === "profile" || activeSection === "listings" || activeSection === "requests";
+  const isProfileHero = activeSection === "profile";
+  const premiumHeroTitle = isProfileHero
+    ? isAgency
+      ? "Tu marca inmobiliaria, clara y confiable"
+      : "Tu perfil de dueño, listo para convertir"
+    : activeSection === "listings"
+    ? "Gestioná tus inmuebles con foco comercial"
+    : "Respondé solicitudes sin perder contexto";
+  const premiumHeroDescription = isProfileHero
+    ? isAgency
+      ? "Mostrá identidad, canales de contacto y una presencia profesional para reforzar confianza."
+      : "Configurá tus datos públicos y privados para publicar con mejor presentación y contacto más rápido."
+    : activeSection === "listings"
+    ? "Controlá estados, ediciones y publicaciones desde un flujo más claro, rápido y ordenado."
+    : "Centralizá consultas, seguimiento y contacto con interesados desde un solo lugar.";
+  const sidebarButtonClass = (section: PanelSection) =>
+    activeSection === section
+      ? "w-full rounded-2xl border border-[#AF8C5C]/55 bg-gradient-to-r from-[#AF8C5C]/25 to-[#D1C7BD]/20 px-3 py-2 text-left text-white shadow-[0_8px_24px_rgba(175,140,92,0.18)]"
+      : "w-full rounded-2xl border border-white/10 bg-night-900/32 px-3 py-2 text-left text-[#E7E2DD] hover:border-white/20";
+  const agencyInputClass =
+    "w-full rounded-2xl border border-white/15 bg-night-900/62 px-3 py-2.5 text-sm text-white placeholder:text-[#9a948a]";
+  const agencyProfileStep = agencyProfileTab === "data" ? 1 : 2;
 
   return (
     <div className="relative" onChange={() => setIsDirty(true)}>
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-[1250] bg-black/60 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <section
+        className={`relative overflow-hidden rounded-[30px] border border-white/10 p-4 sm:p-5 md:p-7 lg:-mt-8 xl:-mt-10 ${
+          isPremiumPanelHero ? "bg-night-900/78" : "bg-night-900/72"
+        }`}
+      >
+        {isPremiumPanelHero && (
+          <>
+            <div className="pointer-events-none absolute inset-0 bg-hero bg-cover bg-center opacity-20" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(12,16,28,0.92)_0%,rgba(12,16,28,0.78)_50%,rgba(12,16,28,0.9)_100%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(175,140,92,0.28),transparent_45%),radial-gradient(circle_at_78%_26%,rgba(108,141,255,0.18),transparent_44%)]" />
+          </>
+        )}
+        {!isPremiumPanelHero && (
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(175,140,92,0.28),transparent_42%),radial-gradient(circle_at_85%_75%,rgba(209,199,189,0.18),transparent_48%)]" />
+        )}
+        <div
+          className={`relative flex flex-wrap gap-4 ${
+            isPremiumPanelHero
+              ? "min-h-[210px] flex-col items-center justify-center text-center sm:min-h-[230px] md:min-h-[250px]"
+              : "items-end justify-between"
+          }`}
+        >
+          <div
+            className={`space-y-2 ${
+              isPremiumPanelHero ? "mx-auto max-w-3xl text-center" : "max-w-2xl"
+            }`}
+          >
+            <span className="inline-flex items-center rounded-full border border-[#AF8C5C]/45 bg-[#AF8C5C]/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#E7E2DD]">
+              {currentSectionMeta.badge}
+            </span>
+            <h2
+              className={`text-white ${
+                isPremiumPanelHero ? "text-2xl sm:text-3xl md:text-4xl" : "text-3xl md:text-4xl"
+              }`}
+            >
+              {isPremiumPanelHero ? premiumHeroTitle : currentSectionMeta.title}
+            </h2>
+            <p
+              className={`text-[#D1C7BD] ${
+                isPremiumPanelHero ? "max-w-2xl text-sm md:text-base" : "text-sm"
+              }`}
+            >
+              {isPremiumPanelHero ? premiumHeroDescription : currentSectionMeta.description}
+            </p>
+            {isPremiumPanelHero && (
+              <div className="hidden sm:flex flex-wrap justify-center gap-2 pt-1">
+                {activeSection === "profile" && (
+                  <>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Perfil público
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Contacto directo
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Confianza local
+                    </span>
+                  </>
+                )}
+                {activeSection === "listings" && (
+                  <>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Estados
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Edición rápida
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Vista pública
+                    </span>
+                  </>
+                )}
+                {activeSection === "requests" && (
+                  <>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Consultas
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Seguimiento
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Conversación
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          <div
+            className={`flex items-center gap-2 ${
+              isPremiumPanelHero ? "mx-auto w-full flex-col justify-center gap-2 sm:self-auto" : ""
+            }`}
+          >
+            <span className="rounded-full border border-white/15 bg-night-900/50 px-3 py-1 text-xs text-[#E7E2DD]">
+              Cuenta: {roleLabel}
+            </span>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full border border-gold-400/50 bg-gold-500/20 px-4 py-2 text-xs font-semibold text-gold-100 shadow-[0_0_0_1px_rgba(209,164,102,0.25)] lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+              Menu
+            </button>
+          </div>
+        </div>
+        {isAgency && !agencyId && (
+          <p className="relative mt-4 text-xs text-[#AF8C5C]">
+            Falta asociar una inmobiliaria a tu usuario.
+          </p>
+        )}
+      </section>
+      <div className="mt-5 grid items-start gap-5 md:mt-6 md:gap-6 lg:grid-cols-[220px_1fr]">
         <aside
-          className={`glass-card fixed left-4 top-20 z-50 h-[calc(100vh-6rem)] w-[220px] space-y-2 overflow-y-auto p-4 text-sm text-[#c7c2b8] transition-transform lg:static lg:z-auto lg:h-fit lg:translate-x-0 lg:overflow-visible ${
+          className={`glass-card fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 top-4 z-[1300] max-h-[calc(100svh-6.75rem-env(safe-area-inset-bottom))] w-[min(82vw,260px)] space-y-2 overflow-y-auto overscroll-contain p-4 text-sm text-[#E7E2DD] transition-transform lg:static lg:bottom-auto lg:left-auto lg:top-auto lg:z-auto lg:h-fit lg:max-h-none lg:w-auto lg:translate-x-0 lg:overflow-visible ${
             sidebarOpen ? "translate-x-0" : "-translate-x-[calc(100%+2rem)]"
           }`}
         >
           <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Panel</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Panel</div>
             <button
               type="button"
-              className="rounded-full border border-white/20 px-2 py-1 text-[10px] text-[#c7c2b8] lg:hidden"
+              className="rounded-full border border-white/20 px-2 py-1 text-[10px] text-[#E7E2DD] lg:hidden"
               onClick={() => setSidebarOpen(false)}
             >
               Cerrar
             </button>
           </div>
-        <button
-          type="button"
-          onClick={() => handleSelectSection("profile")}
-          className={
-            activeSection === "profile"
-              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
-          }
-        >
-          {isAgency ? "Perfil inmobiliaria" : "Perfil dueño"}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSelectSection("listings")}
-          className={
-            activeSection === "listings"
-              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
-          }
-        >
-          Mis inmuebles
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSelectSection("requests")}
-          className={
-            activeSection === "requests"
-              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
-          }
-        >
-          Solicitudes
-        </button>
-        {sessionUser?.role === "VISITOR" && (
           <button
             type="button"
-            onClick={() => handleSelectSection("my-requests")}
-            className={
-              activeSection === "my-requests"
-                ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-                : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
-            }
+            onClick={() => handleSelectSection("profile")}
+            className={sidebarButtonClass("profile")}
           >
-            Mis solicitudes
+            {isAgency ? "Perfil inmobiliaria" : "Perfil dueño"}
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => handleSelectSection("listings")}
+            className={sidebarButtonClass("listings")}
+          >
+            Mis inmuebles
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSelectSection("requests")}
+            className={sidebarButtonClass("requests")}
+          >
+            Solicitudes
+          </button>
+          {sessionUser?.role === "VISITOR" && (
+            <button
+              type="button"
+              onClick={() => handleSelectSection("my-requests")}
+              className={sidebarButtonClass("my-requests")}
+            >
+              Mis solicitudes
+            </button>
+          )}
       </aside>
 
-      <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl text-white">Panel de publicaciones</h2>
-          <p className="text-sm text-[#9a948a]">Controla estados, disponibilidad y contactos.</p>
-        </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-gold-400/50 bg-gold-500/20 px-4 py-2 text-xs font-semibold text-gold-100 shadow-[0_0_0_1px_rgba(209,164,102,0.25)] lg:hidden"
-          onClick={() => setSidebarOpen(true)}
-        >
-          <svg
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-          Menu
-        </button>
-      </div>
-
-      <div className="glass-card space-y-3 p-6 text-sm text-[#c7c2b8]">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
-            Cuenta: {roleLabel}
-          </span>
-          {isAgency && !agencyId && (
-            <span className="text-xs text-[#f5b78a]">
-              Falta asociar una inmobiliaria a tu usuario.
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-[#9a948a]">
-          Edita el perfil de tu inmobiliaria y luego veremos las publicaciones.
-        </p>
-      </div>
+      <div className="space-y-6 md:space-y-8">
 
       {activeSection === "profile" && isAgency && (
-        <div className="glass-card space-y-4 p-6">
+        <div className="glass-card space-y-6 p-6 md:p-7">
+          <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+              Perfil público inmobiliaria
+            </p>
+            <p className="mt-1 text-xs text-[#D1C7BD]">
+              Completa estos datos para reforzar marca, confianza y contacto directo.
+            </p>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Perfil de inmobiliaria</h3>
-              <p className="text-xs text-[#9a948a]">
+              <p className="text-xs text-[#D1C7BD]">
                 Edita los datos que veran tus clientes.
               </p>
             </div>
-            <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-              type="button"
-              onClick={saveAgency}
-              disabled={agencyStatus === "saving" || !agencyId}
-            >
-              {agencyStatus === "saving" ? "Guardando..." : "Guardar cambios"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  if (!agencyId) return;
+                  window.open(`/agencia/${agencyId}`, "_blank", "noopener,noreferrer");
+                }}
+                disabled={!agencyId}
+              >
+                Ver perfil
+              </button>
+              <button
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                type="button"
+                onClick={saveAgency}
+                disabled={agencyStatus === "saving" || !agencyId}
+              >
+                {agencyStatus === "saving" ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
           </div>
 
           {!agencyId && (
-            <p className="text-xs text-[#f5b78a]">
+            <p className="text-xs text-[#AF8C5C]">
               Necesitamos asociar tu usuario a una inmobiliaria.
             </p>
           )}
 
           {agencyStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando datos...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando datos...</p>
           )}
           {agencyStatus === "error" && (
-            <p className="text-xs text-[#f5b78a]">{agencyError}</p>
+            <p className="text-xs text-[#AF8C5C]">{agencyError}</p>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Nombre comercial
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyName}
-                onChange={(event) => setAgencyName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Razon social
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyLegalName}
-                onChange={(event) => setAgencyLegalName(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Telefono
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyPhone}
-                onChange={(event) => setAgencyPhone(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Domicilio
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyAddress}
-                onChange={(event) => setAgencyAddress(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              WhatsApp
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyWhatsapp}
-                onChange={(event) => setAgencyWhatsapp(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Email
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyEmail}
-                onChange={(event) => setAgencyEmail(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Web
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyWebsite}
-                onChange={(event) => setAgencyWebsite(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Instagram
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyInstagram}
-                onChange={(event) => setAgencyInstagram(event.target.value)}
-              />
-            </label>
-            <div className="space-y-2 text-xs text-[#9a948a]">
-              <div>Logo</div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-500/15 text-sm font-semibold text-gold-200">
-                  {agencyLogo?.startsWith("data:") || agencyLogo?.startsWith("http") ? (
-                    <img
-                      src={agencyLogo}
-                      alt="Logo"
-                      className="h-12 w-12 rounded-2xl object-cover"
-                    />
-                  ) : (
-                    (agencyLogo || agencyName || "A")
-                      .split(" ")
-                      .map((part) => part.charAt(0))
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()
-                  )}
-                </div>
-                <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]">
-                  Subir logo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        if (typeof reader.result === "string") {
-                          setAgencyLogo(reader.result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                  onClick={() => setAgencyLogo("")}
-                >
-                  Iniciales
-                </button>
-              </div>
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={agencyLogo}
-                onChange={(event) => setAgencyLogo(event.target.value)}
-                placeholder="URL del logo o texto corto"
-              />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`rounded-full px-4 py-2 text-xs transition ${
+                  agencyProfileTab === "data"
+                    ? "border border-[#AF8C5C]/55 bg-[#AF8C5C]/20 text-white"
+                    : "border border-white/20 text-[#E7E2DD]"
+                }`}
+                onClick={() => setAgencyProfileTab("data")}
+              >
+                Datos del perfil
+              </button>
+              <button
+                type="button"
+                className={`rounded-full px-4 py-2 text-xs transition ${
+                  agencyProfileTab === "styles"
+                    ? "border border-[#AF8C5C]/55 bg-[#AF8C5C]/20 text-white"
+                    : "border border-white/20 text-[#E7E2DD]"
+                }`}
+                onClick={() => setAgencyProfileTab("styles")}
+              >
+                Estilos del perfil
+              </button>
             </div>
+            <span className="rounded-full border border-white/15 bg-night-900/55 px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+              Paso {agencyProfileStep}/2
+            </span>
           </div>
 
-          <label className="space-y-2 text-xs text-[#9a948a]">
-            Quienes somos
-            <textarea
-              rows={3}
-              className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-              value={agencyAbout}
-              onChange={(event) => setAgencyAbout(event.target.value)}
-            />
-          </label>
+          {agencyProfileTab === "data" && (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Nombre comercial
+                  <input
+                    className={agencyInputClass}
+                    value={agencyName}
+                    onChange={(event) => setAgencyName(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Razon social
+                  {lockIcon}
+                  <input
+                    className={`${agencyInputClass} bg-night-900/35 text-white/80`}
+                    value={agencyLegalName}
+                    readOnly
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  CUIT
+                  {lockIcon}
+                  <input
+                    className={`${agencyInputClass} bg-night-900/35 text-white/80`}
+                    value={agencyCuit}
+                    readOnly
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Matrícula
+                  {lockIcon}
+                  <input
+                    className={`${agencyInputClass} bg-night-900/35 text-white/80`}
+                    value={agencyLicenseNumber}
+                    readOnly
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Telefono
+                  <input
+                    className={agencyInputClass}
+                    value={agencyPhone}
+                    onChange={(event) => setAgencyPhone(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Domicilio
+                  <input
+                    className={agencyInputClass}
+                    value={agencyAddress}
+                    onChange={(event) => setAgencyAddress(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  WhatsApp
+                  <input
+                    className={agencyInputClass}
+                    value={agencyWhatsapp}
+                    onChange={(event) => setAgencyWhatsapp(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Email
+                  {lockIcon}
+                  <input
+                    className={`${agencyInputClass} bg-night-900/35 text-white/80`}
+                    value={agencyEmail}
+                    readOnly
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Web
+                  <input
+                    className={agencyInputClass}
+                    value={agencyWebsite}
+                    onChange={(event) => setAgencyWebsite(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Instagram
+                  <input
+                    className={agencyInputClass}
+                    value={agencyInstagram}
+                    onChange={(event) => setAgencyInstagram(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Facebook
+                  <input
+                    className={agencyInputClass}
+                    value={agencyFacebook}
+                    onChange={(event) => setAgencyFacebook(event.target.value)}
+                    placeholder="https://facebook.com/tu-inmobiliaria"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2 text-xs text-[#D1C7BD]">
+                Quienes somos
+                <textarea
+                  rows={3}
+                  className={agencyInputClass}
+                  value={agencyAbout}
+                  onChange={(event) => setAgencyAbout(event.target.value)}
+                />
+              </label>
+
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/40 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs uppercase tracking-[0.12em] text-[#D1C7BD]">
+                    Ubicacion en mapa de la inmobiliaria
+                  </p>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                    onClick={() => {
+                      setAgencyLat(undefined);
+                      setAgencyLng(undefined);
+                      setAgencyGeoStatus("idle");
+                      setAgencyGeoMessage("");
+                    }}
+                  >
+                    Limpiar punto
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <input
+                    className={agencyInputClass}
+                    value={agencyMapQuery}
+                    onChange={(event) => setAgencyMapQuery(event.target.value)}
+                    placeholder="Ej: San Martin 123, Bragado, Buenos Aires"
+                  />
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                    onClick={() => void searchAgencyLocation()}
+                    disabled={agencyGeoStatus === "loading"}
+                  >
+                    {agencyGeoStatus === "loading" ? "Buscando..." : "Buscar direccion"}
+                  </button>
+                </div>
+                {agencyGeoMessage && (
+                  <p
+                    className={`text-xs ${
+                      agencyGeoStatus === "error" ? "text-[#AF8C5C]" : "text-[#D1C7BD]"
+                    }`}
+                  >
+                    {agencyGeoMessage}
+                  </p>
+                )}
+                <EditLocationPicker
+                  lat={agencyLat}
+                  lng={agencyLng}
+                  onChange={(nextLat, nextLng) => {
+                    void handleAgencyMapPointChange(nextLat, nextLng);
+                  }}
+                />
+                <div className="flex flex-wrap gap-3 text-xs text-[#D1C7BD]">
+                  <span className="rounded-full border border-white/10 px-3 py-1">
+                    Lat: {typeof agencyLat === "number" ? agencyLat.toFixed(6) : "-"}
+                  </span>
+                  <span className="rounded-full border border-white/10 px-3 py-1">
+                    Lng: {typeof agencyLng === "number" ? agencyLng.toFixed(6) : "-"}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {agencyProfileTab === "styles" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
+                <div>Vista previa del hero</div>
+                <div
+                  className="relative overflow-hidden rounded-2xl border border-white/10 p-5"
+                  style={{ backgroundColor: agencyHeroColor || "#4b70e7" }}
+                >
+                  {agencyHeroImage && (
+                    <img
+                      src={agencyHeroImage}
+                      alt="Vista previa"
+                      className={`absolute inset-0 h-full w-full object-cover ${
+                        agencyHeroImagePosition === "top"
+                          ? "object-top"
+                          : agencyHeroImagePosition === "bottom"
+                          ? "object-bottom"
+                          : "object-center"
+                      }`}
+                      style={{ opacity: Math.max(0, Math.min(100, agencyHeroImageOpacity)) / 100 }}
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-black/35" />
+                  <div className="relative flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/75">
+                        Hero publico
+                      </p>
+                      <p className="text-lg font-semibold text-white">{agencyName || "Tu inmobiliaria"}</p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-xs font-semibold text-white">
+                      {agencyLogo?.startsWith("data:") || agencyLogo?.startsWith("http") ? (
+                        <img
+                          src={agencyLogo}
+                          alt="Logo"
+                          className="h-10 w-10 rounded-xl object-cover"
+                        />
+                      ) : (
+                        (agencyLogo || agencyName || "A")
+                          .split(" ")
+                          .map((part) => part.charAt(0))
+                          .slice(0, 2)
+                          .join("")
+                          .toUpperCase()
+                      )}
+                    </div>
+                  </div>
+                  <div className="relative mt-4 grid gap-2 sm:grid-cols-3">
+                    {["Contacto", "Ubicacion", "Canales"].map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-xl border px-3 py-2 text-[11px] text-white/90"
+                        style={{
+                          borderColor: "rgba(255,255,255,0.24)",
+                          backgroundColor: hexToRgba(
+                            agencyContactCardColor || "#11275f",
+                            Math.max(0, Math.min(100, agencyContactCardOpacity)) / 100
+                          ),
+                        }}
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 text-xs text-[#D1C7BD]">
+                <div>Color del hero publico</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    className="h-10 w-14 cursor-pointer rounded-lg border border-white/20 bg-transparent"
+                    value={agencyHeroColor}
+                    onChange={(event) => setAgencyHeroColor(event.target.value)}
+                  />
+                  <input
+                    className={agencyInputClass}
+                    value={agencyHeroColor}
+                    onChange={(event) => setAgencyHeroColor(event.target.value)}
+                    placeholder="#4b70e7"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 text-xs text-[#D1C7BD]">
+                <div>Color de tarjetas de contacto</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    className="h-10 w-14 cursor-pointer rounded-lg border border-white/20 bg-transparent"
+                    value={agencyContactCardColor}
+                    onChange={(event) => setAgencyContactCardColor(event.target.value)}
+                  />
+                  <input
+                    className={agencyInputClass}
+                    value={agencyContactCardColor}
+                    onChange={(event) => setAgencyContactCardColor(event.target.value)}
+                    placeholder="#11275f"
+                  />
+                </div>
+                <label className="mt-2 block space-y-2 text-xs text-[#D1C7BD]">
+                  Opacidad tarjetas ({agencyContactCardOpacity}%)
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    className="w-full accent-[#AF8C5C]"
+                    value={agencyContactCardOpacity}
+                    onChange={(event) => setAgencyContactCardOpacity(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="space-y-2 text-xs text-[#D1C7BD]">
+                <div>Logo</div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-500/15 text-sm font-semibold text-gold-200">
+                    {agencyLogo?.startsWith("data:") || agencyLogo?.startsWith("http") ? (
+                      <img
+                        src={agencyLogo}
+                        alt="Logo"
+                        className="h-12 w-12 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      (agencyLogo || agencyName || "A")
+                        .split(" ")
+                        .map((part) => part.charAt(0))
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()
+                    )}
+                  </div>
+                  <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]">
+                    Subir logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === "string") {
+                            setAgencyLogo(reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                    onClick={() => setAgencyLogo("")}
+                  >
+                    Iniciales
+                  </button>
+                </div>
+                <input
+                  className={agencyInputClass}
+                  value={agencyLogo}
+                  onChange={(event) => setAgencyLogo(event.target.value)}
+                  placeholder="URL del logo o texto corto"
+                />
+              </div>
+              <div className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
+                <div>Imagen de fondo del hero (opcional)</div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {agencyHeroImage ? (
+                    <img
+                      src={agencyHeroImage}
+                      alt="Hero"
+                      className="h-16 w-28 rounded-xl border border-white/10 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-dashed border-white/20 text-[11px] text-[#9a948a]">
+                      Sin imagen
+                    </div>
+                  )}
+                  <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]">
+                    Subir imagen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === "string") {
+                            setAgencyHeroImage(reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                    onClick={() => setAgencyHeroImage("")}
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <input
+                  className={agencyInputClass}
+                  value={agencyHeroImage}
+                  onChange={(event) => setAgencyHeroImage(event.target.value)}
+                  placeholder="URL de imagen para el hero"
+                />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Posicion de imagen
+                    <select
+                      className={agencyInputClass}
+                      value={agencyHeroImagePosition}
+                      onChange={(event) =>
+                        setAgencyHeroImagePosition(
+                          event.target.value as "top" | "center" | "bottom"
+                        )
+                      }
+                    >
+                      <option value="top">Arriba</option>
+                      <option value="center">Centro</option>
+                      <option value="bottom">Abajo</option>
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-xs text-[#D1C7BD]">
+                    Opacidad de imagen ({agencyHeroImageOpacity}%)
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      className="w-full accent-[#AF8C5C]"
+                      value={agencyHeroImageOpacity}
+                      onChange={(event) =>
+                        setAgencyHeroImageOpacity(Number(event.target.value))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1461,12 +2020,12 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Perfil de dueño</h3>
-              <p className="text-xs text-[#9a948a]">
+              <p className="text-xs text-[#D1C7BD]">
                 Actualiza tus datos personales y de contacto.
               </p>
             </div>
             <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
               type="button"
               onClick={saveOwner}
               disabled={ownerStatus === "saving"}
@@ -1476,15 +2035,15 @@ export function DashboardPage() {
           </div>
 
           {ownerStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando perfil...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando perfil...</p>
           )}
           {ownerStatus === "error" && (
-            <p className="text-xs text-[#f5b78a]">{ownerError}</p>
+            <p className="text-xs text-[#AF8C5C]">{ownerError}</p>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/60 p-4 md:col-span-2">
-              <div className="text-xs text-[#9a948a]">Avatar</div>
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/48 p-4 md:col-span-2">
+              <div className="text-xs text-[#D1C7BD]">Avatar</div>
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/15 text-lg text-gold-200">
                   {ownerAvatarUrl?.startsWith("emoji:") ? (
@@ -1497,7 +2056,10 @@ export function DashboardPage() {
                     />
                   ) : (
                     <span className="text-sm">
-                      {(ownerName || ownerEmail || "U")
+                      {([ownerFirstName, ownerLastName].filter(Boolean).join(" ") ||
+                        ownerName ||
+                        ownerEmail ||
+                        "U")
                         .split(" ")
                         .map((part) => part.charAt(0))
                         .slice(0, 2)
@@ -1507,17 +2069,17 @@ export function DashboardPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {["🙂", "🏡", "⭐", "💬"].map((emoji) => (
+                  {["🙂", "🏠", "⭐", "💬"].map((emoji) => (
                     <button
                       key={emoji}
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-night-900/60 text-base"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-night-900/48 text-base"
                       onClick={() => setOwnerAvatarUrl(`emoji:${emoji}`)}
                     >
                       {emoji}
                     </button>
                   ))}
-                  <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]">
+                  <label className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]">
                     Subir foto
                     <input
                       type="file"
@@ -1538,7 +2100,7 @@ export function DashboardPage() {
                   </label>
                   <button
                     type="button"
-                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                     onClick={() => setOwnerAvatarUrl("")}
                   >
                     Iniciales
@@ -1546,60 +2108,111 @@ export function DashboardPage() {
                 </div>
               </div>
             </div>
-            <label className="space-y-2 text-xs text-[#9a948a]">
-              Nombre completo
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
+              Nombre
+              {lockIcon}
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                value={ownerName}
-                onChange={(event) => setOwnerName(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-night-900/35 px-3 py-2 text-sm text-white/80"
+                value={ownerFirstName}
+                readOnly
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
+              Apellido
+              {lockIcon}
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/35 px-3 py-2 text-sm text-white/80"
+                value={ownerLastName}
+                readOnly
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Email
+              {lockIcon}
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/35 px-3 py-2 text-sm text-white/80"
                 value={ownerEmail}
-                onChange={(event) => setOwnerEmail(event.target.value)}
+                readOnly
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
+              DNI
+              {lockIcon}
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/35 px-3 py-2 text-sm text-white/80"
+                value={ownerDni}
+                readOnly
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Telefono
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={ownerPhone}
                 onChange={(event) => setOwnerPhone(event.target.value)}
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Direccion
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={ownerAddress}
                 onChange={(event) => setOwnerAddress(event.target.value)}
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Nro de tramite
+              {ownerDniTramite ? lockIcon : null}
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className={`w-full rounded-xl border border-white/10 px-3 py-2 text-sm ${
+                  ownerDniTramite
+                    ? "bg-night-900/35 text-white/80"
+                    : "bg-night-900/48 text-white"
+                }`}
                 value={ownerDniTramite}
                 onChange={(event) => setOwnerDniTramite(event.target.value)}
+                readOnly={Boolean(ownerDniTramite)}
               />
+              {ownerDniTramite ? (
+                <p className="text-[11px] text-[#BFB8AD]">
+                  Ya registrado. Este dato no se puede modificar.
+                </p>
+              ) : null}
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Fecha de nacimiento
+              {ownerBirthDate ? lockIcon : null}
               <input
                 type="date"
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className={`w-full rounded-xl border border-white/10 px-3 py-2 text-sm ${
+                  ownerBirthDate
+                    ? "bg-night-900/35 text-white/80"
+                    : "bg-night-900/48 text-white"
+                }`}
                 value={ownerBirthDate}
                 onChange={(event) => setOwnerBirthDate(event.target.value)}
+                readOnly={Boolean(ownerBirthDate)}
               />
+              {ownerBirthDate ? (
+                <p className="text-[11px] text-[#BFB8AD]">
+                  Ya registrada. Este dato no se puede modificar.
+                </p>
+              ) : null}
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-night-900/48 px-3 py-3 text-sm text-[#E7E2DD] md:col-span-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#AF8C5C]"
+                checked={ownerShowNamePublic}
+                onChange={(event) => setOwnerShowNamePublic(event.target.checked)}
+              />
+              Mostrar mi nombre y apellido en mis publicaciones
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
               Nueva contraseña
               <input
                 type="password"
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={ownerPassword}
                 onChange={(event) => setOwnerPassword(event.target.value)}
                 placeholder="Dejar en blanco para no cambiar"
@@ -1614,10 +2227,10 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
             <h3 className="text-lg text-white">Mis inmuebles</h3>
-            <p className="text-xs text-[#9a948a]">Publicaciones creadas por tu cuenta.</p>
+            <p className="text-xs text-[#D1C7BD]">Publicaciones creadas por tu cuenta.</p>
             </div>
             <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
               type="button"
               onClick={loadProperties}
               disabled={propertyStatus === "loading"}
@@ -1626,10 +2239,10 @@ export function DashboardPage() {
             </button>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Tipo de inmueble
               <select
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                 value={propertyFilterType}
                 onChange={(event) => {
                   setPropertyFilterType(event.target.value);
@@ -1646,10 +2259,10 @@ export function DashboardPage() {
                 <option value="WAREHOUSE">Deposito</option>
               </select>
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Operacion
               <select
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                 value={propertyFilterOperation}
                 onChange={(event) => {
                   setPropertyFilterOperation(event.target.value);
@@ -1663,7 +2276,7 @@ export function DashboardPage() {
             </label>
             <div className="flex items-end">
               <button
-                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
                 type="button"
                 onClick={loadProperties}
                 disabled={propertyStatus === "loading"}
@@ -1673,67 +2286,127 @@ export function DashboardPage() {
             </div>
           </div>
           {propertyStatus === "error" && (
-            <p className="text-xs text-[#f5b78a]">{propertyError}</p>
+            <p className="text-xs text-[#AF8C5C]">{propertyError}</p>
           )}
           {propertyStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando publicaciones...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando publicaciones...</p>
           )}
           {propertyStatus === "idle" && items.length === 0 && (
-            <p className="text-xs text-[#9a948a]">No hay publicaciones cargadas.</p>
+            <p className="text-xs text-[#D1C7BD]">No hay publicaciones cargadas.</p>
           )}
           {items.length > 0 && (
             <div className="space-y-3">
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/60 px-4 py-3"
+                  className="group rounded-3xl border border-white/12 bg-gradient-to-br from-white/5 via-white/[0.03] to-transparent p-[1px] shadow-[0_10px_35px_rgba(0,0,0,0.22)]"
                 >
-                  <div className="min-w-[220px]">
-                    <div className="flex items-center gap-2 text-sm text-white">
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full ${
-                          statusDotClass[item.status ?? "DRAFT"] ?? "bg-slate-400"
-                        }`}
+                  <div className="grid gap-4 rounded-[calc(1.5rem-1px)] border border-white/6 bg-night-900/65 p-3 sm:p-4 xl:grid-cols-[220px_minmax(0,1fr)_250px]">
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-night-950/80">
+                      <img
+                        src={item.photos?.[0]?.url ?? "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80"}
+                        alt={item.title}
+                        className="h-[160px] w-full object-cover xl:h-full xl:min-h-[180px]"
+                        loading="lazy"
                       />
-                      {item.title}
-                    </div>
-                    {item.description && (
-                      <div className="text-xs text-[#9a948a]">
-                        {item.description.length > 80
-                          ? `${item.description.slice(0, 80)}...`
-                          : item.description}
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+                      <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            item.operationType === "SALE"
+                              ? "bg-[#AF8C5C]/95 text-night-950"
+                              : item.operationType === "RENT"
+                              ? "bg-sky-400/95 text-night-950"
+                              : "bg-violet-400/95 text-night-950"
+                          }`}
+                        >
+                          {operationLabels[item.operationType] ?? item.operationType}
+                        </span>
+                        <span className="rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-[11px] text-white/95">
+                          {propertyLabels[item.propertyType] ?? item.propertyType}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-[#c7c2b8]">
-                    <div>
-                      {item.priceCurrency} {item.priceAmount}
+                      <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
+                        <div className="truncate text-xs text-white/95">
+                          {item.location.addressLine}
+                          {item.location.locality?.name ? ` - ${item.location.locality.name}` : ""}
+                        </div>
+                      </div>
                     </div>
-                    <select
-                      className="rounded-lg border border-white/10 bg-night-900/60 px-2 py-1 text-xs text-white"
-                      value={item.status}
-                      onChange={(event) => updateStatus(item.id, event.target.value)}
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {statusLabels[status] ?? status}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="rounded-full border border-white/20 px-3 py-1 text-xs"
-                      type="button"
-                      onClick={() => openEditFromList(item)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      className="rounded-full border border-white/20 px-3 py-1 text-xs"
-                      type="button"
-                      onClick={() => openPublicFromList(item)}
-                    >
-                      Ver publico
-                    </button>
+
+                    <div className="min-w-0 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            statusDotClass[item.status ?? "DRAFT"] ?? "bg-slate-400"
+                          }`}
+                        />
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">
+                          {statusLabels[item.status ?? "DRAFT"] ?? item.status ?? "Borrador"}
+                        </span>
+                        {item.updatedAt && (
+                          <span className="text-[11px] text-[#BFB8AD]">
+                            Actualizada{" "}
+                            {new Date(item.updatedAt).toLocaleDateString("es-AR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="truncate text-lg font-semibold text-white sm:text-xl">
+                          {item.title}
+                        </div>
+                        <div className="mt-1 text-base font-semibold text-[#E7E2DD]">
+                          {formatPrice(item.priceAmount, item.priceCurrency)}
+                        </div>
+                      </div>
+
+                    </div>
+
+                    <div className="flex min-w-0 flex-col justify-end gap-3 rounded-2xl border border-white/10 bg-black/15 p-3">
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Estado de publicación
+                        <select
+                          className="w-full rounded-xl border border-white/10 bg-night-900/70 px-3 py-2 text-xs text-white"
+                          value={item.status}
+                          onChange={(event) => updateStatus(item.id, event.target.value)}
+                        >
+                          {statusOptions.map((status) => (
+                            <option key={status} value={status}>
+                              {statusLabels[status] ?? status}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          className="rounded-full border border-white/20 bg-white/5 px-3 py-2 text-xs text-white transition hover:border-white/35"
+                          type="button"
+                          onClick={() => openEditFromList(item)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="rounded-full border border-gold-400/35 bg-gold-500/10 px-3 py-2 text-xs text-gold-100 transition hover:border-gold-300/60"
+                          type="button"
+                          onClick={() => void openQuickEditFromList(item)}
+                        >
+                          Rápida
+                        </button>
+                        <button
+                          className="col-span-2 rounded-full border border-white/20 px-3 py-2 text-xs text-[#E7E2DD] transition hover:border-white/35"
+                          type="button"
+                          onClick={() => openPublicFromList(item)}
+                        >
+                          Ver ficha pública
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1747,12 +2420,12 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Solicitudes de contacto</h3>
-              <p className="text-xs text-[#9a948a]">
+              <p className="text-xs text-[#D1C7BD]">
                 Gestiona interesados y reservas de visita.
               </p>
             </div>
             <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
               type="button"
               onClick={loadRequests}
               disabled={requestStatus === "loading"}
@@ -1762,20 +2435,20 @@ export function DashboardPage() {
           </div>
 
           {requestStatus === "error" && (
-            <p className="text-xs text-[#f5b78a]">{requestError}</p>
+            <p className="text-xs text-[#AF8C5C]">{requestError}</p>
           )}
           {requestStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando solicitudes...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
           )}
           {requestStatus === "idle" && contactRequests.length === 0 && (
-            <p className="text-xs text-[#9a948a]">Todavia no recibiste solicitudes.</p>
+            <p className="text-xs text-[#D1C7BD]">Todavia no recibiste solicitudes.</p>
           )}
 
           <div className="grid gap-3 md:grid-cols-3">
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Tipo de inmueble
               <select
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                 value={requestFilterType}
                 onChange={(event) => setRequestFilterType(event.target.value)}
               >
@@ -1790,10 +2463,10 @@ export function DashboardPage() {
                 <option value="WAREHOUSE">Deposito</option>
               </select>
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Operacion
               <select
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                 value={requestFilterOperation}
                 onChange={(event) => setRequestFilterOperation(event.target.value)}
               >
@@ -1805,7 +2478,7 @@ export function DashboardPage() {
             </label>
             <div className="flex items-end">
               <button
-                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
                 type="button"
                 onClick={loadRequests}
                 disabled={requestStatus === "loading"}
@@ -1839,53 +2512,79 @@ export function DashboardPage() {
                   data-request-id={request.id}
                   className={
                     highlightRequestId === request.id
-                      ? `rounded-2xl border border-gold-500/70 bg-night-900/85 p-4 shadow-[0_0_0_2px_rgba(224,192,138,0.7)] transition duration-500 ${
+                      ? `rounded-3xl border border-gold-500/70 bg-night-900/80 p-[1px] shadow-[0_0_0_2px_rgba(224,192,138,0.7)] transition duration-500 ${
                           highlightPulse ? "scale-[1.01]" : "scale-100"
                         }`
-                      : "rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                      : "rounded-3xl border border-white/10 bg-night-900/55 p-[1px]"
                   }
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm text-white">
-                        {requestTypeLabels[request.type] ?? request.type}
+                  <div className="grid gap-3 rounded-[calc(1.5rem-1px)] border border-white/6 bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent p-3 lg:grid-cols-[minmax(0,1fr)_230px]">
+                    <div className="min-w-0 space-y-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-gold-400/35 bg-gold-500/12 px-2.5 py-1 text-[11px] font-semibold text-gold-100">
+                          {requestTypeLabels[request.type] ?? request.type}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
+                          {requestStatusLabels[request.status] ?? request.status}
+                        </span>
                       </div>
-                      <div className="text-xs text-[#9a948a]">
-                        {request.property.title} -{" "}
-                        {operationLabels[request.property.operationType] ??
-                          request.property.operationType}{" "}
-                        -{" "}
-                        {propertyLabels[request.property.propertyType] ??
-                          request.property.propertyType}
+
+                      <div className="rounded-2xl border border-white/10 bg-black/15 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-base font-semibold text-white">
+                              {request.property.title}
+                            </div>
+                            {request.property.location?.addressLine && (
+                              <div className="mt-1 truncate text-xs text-[#D1C7BD]">
+                                {request.property.location.addressLine}
+                              </div>
+                            )}
+                          </div>
+                          <div className="shrink-0 rounded-full border border-white/15 bg-white/90 px-3 py-1 text-xs font-semibold text-night-900">
+                            {formatPrice(
+                              request.property.priceAmount,
+                              request.property.priceCurrency
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      {request.property.location?.addressLine && (
-                        <div className="text-xs text-[#9a948a]">
-                          {request.property.location.addressLine}
+
+                      {request.message && (
+                        <div className="rounded-2xl border border-white/10 bg-night-950/35 p-3">
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-[#D1C7BD]">
+                            Mensaje
+                          </div>
+                          <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-[#E7E2DD]">
+                            {request.message}
+                          </p>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-[#c7c2b8]">
-                      <div>
-                        {request.property.priceCurrency} {request.property.priceAmount}
-                      </div>
-                      <select
-                        className="rounded-lg border border-white/10 bg-night-900/60 px-2 py-1 text-xs text-white"
-                        value={request.status}
-                        onChange={(event) =>
-                          updateRequestStatus(
-                            request.id,
-                            event.target.value as "NEW" | "CONTACTED" | "CLOSED"
-                          )
-                        }
-                      >
-                        {["NEW", "CONTACTED", "CLOSED"].map((status) => (
-                          <option key={status} value={status}>
-                            {requestStatusLabels[status] ?? status}
-                          </option>
-                        ))}
-                      </select>
+
+                    <div className="flex flex-col justify-end gap-3 rounded-2xl border border-white/10 bg-black/15 p-3">
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Estado de solicitud
+                        <select
+                          className="w-full rounded-xl border border-white/10 bg-night-900/70 px-3 py-2 text-xs text-white"
+                          value={request.status}
+                          onChange={(event) =>
+                            updateRequestStatus(
+                              request.id,
+                              event.target.value as "NEW" | "CONTACTED" | "CLOSED"
+                            )
+                          }
+                        >
+                          {["NEW", "CONTACTED", "CLOSED"].map((status) => (
+                            <option key={status} value={status}>
+                              {requestStatusLabels[status] ?? status}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
                       <button
-                        className="rounded-full border border-white/20 px-3 py-1 text-xs"
+                        className="rounded-full border border-gold-400/35 bg-gradient-to-r from-[#AF8C5C]/18 to-[#D1C7BD]/10 px-4 py-2 text-xs font-medium text-[#F1E3C5] transition hover:border-gold-300/60"
                         type="button"
                         onClick={() => {
                           void openRequestDetail(request);
@@ -1895,16 +2594,6 @@ export function DashboardPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-2 text-xs text-[#9a948a] md:grid-cols-3">
-                    <div>Nombre: {request.name ?? "Sin nombre"}</div>
-                    <div>Email: {request.email ?? "Sin email"}</div>
-                    <div>Telefono: {request.phone ?? "Sin telefono"}</div>
-                  </div>
-                  {request.message && (
-                    <div className="mt-2 text-xs text-[#9a948a]">
-                      Mensaje: {request.message}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -1917,12 +2606,12 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Mis solicitudes enviadas</h3>
-              <p className="text-xs text-[#9a948a]">
+              <p className="text-xs text-[#D1C7BD]">
                 Historial de solicitudes que enviaste.
               </p>
             </div>
             <button
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
               type="button"
               onClick={loadMyRequests}
               disabled={requestStatus === "loading"}
@@ -1932,13 +2621,13 @@ export function DashboardPage() {
           </div>
 
           {requestStatus === "error" && (
-            <p className="text-xs text-[#f5b78a]">{requestError}</p>
+            <p className="text-xs text-[#AF8C5C]">{requestError}</p>
           )}
           {requestStatus === "loading" && (
-            <p className="text-xs text-[#9a948a]">Cargando solicitudes...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
           )}
           {requestStatus === "idle" && myRequests.length === 0 && (
-            <p className="text-xs text-[#9a948a]">Todavia no enviaste solicitudes.</p>
+            <p className="text-xs text-[#D1C7BD]">Todavia no enviaste solicitudes.</p>
           )}
 
           {myRequests.length > 0 && (
@@ -1949,10 +2638,10 @@ export function DashboardPage() {
                   data-request-id={request.id}
                   className={
                     highlightRequestId === request.id
-                      ? `rounded-2xl border border-gold-500/70 bg-night-900/85 p-4 shadow-[0_0_0_2px_rgba(224,192,138,0.7)] transition duration-500 ${
+                      ? `rounded-2xl border border-gold-500/70 bg-night-900/72 p-4 shadow-[0_0_0_2px_rgba(224,192,138,0.7)] transition duration-500 ${
                           highlightPulse ? "scale-[1.01]" : "scale-100"
                         }`
-                      : "rounded-2xl border border-white/10 bg-night-900/60 p-4"
+                      : "rounded-2xl border border-white/10 bg-night-900/48 p-4"
                   }
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1960,7 +2649,7 @@ export function DashboardPage() {
                       <div className="text-sm text-white">
                         {requestTypeLabels[request.type] ?? request.type}
                       </div>
-                      <div className="text-xs text-[#9a948a]">
+                      <div className="text-xs text-[#D1C7BD]">
                         {request.property.title} -{" "}
                         {operationLabels[request.property.operationType] ??
                           request.property.operationType}{" "}
@@ -1969,12 +2658,12 @@ export function DashboardPage() {
                           request.property.propertyType}
                       </div>
                       {request.property.location?.addressLine && (
-                        <div className="text-xs text-[#9a948a]">
+                        <div className="text-xs text-[#D1C7BD]">
                           {request.property.location.addressLine}
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-[#c7c2b8]">
+                    <div className="flex items-center gap-3 text-xs text-[#E7E2DD]">
                       <div>
                         {request.property.priceCurrency} {request.property.priceAmount}
                       </div>
@@ -1984,14 +2673,14 @@ export function DashboardPage() {
                     </div>
                   </div>
                   {request.message && (
-                    <div className="mt-2 text-xs text-[#9a948a]">
+                    <div className="mt-2 text-xs text-[#D1C7BD]">
                       Mensaje: {request.message}
                     </div>
                   )}
                   {request.type === "INTEREST" &&
                     request.property.rentalRequirements &&
                     request.property.rentalRequirements.isPublic === false && (
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#c7c2b8]">
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#E7E2DD]">
                         <div className="rounded-full border border-white/10 px-3 py-1">
                           Requisitos privados:{" "}
                           {formatRentalRequirements(request.property.rentalRequirements) ||
@@ -2012,18 +2701,273 @@ export function DashboardPage() {
           )}
         </div>
       )}
-      {requestDetailOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+      {quickEditOpen && (
+        <div className="fixed inset-0 z-[1300] flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
+          <div className="my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-night-900/90 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
-                <h3 className="text-xl text-white">Detalle de solicitud</h3>
-                <p className="text-xs text-[#9a948a]">
-                  {requestTypeLabels[selectedRequest.type] ?? selectedRequest.type}
+                <h3 className="text-xl text-white">Edición rápida</h3>
+                <p className="text-xs text-[#D1C7BD]">
+                  Ajusta precio, operación, estado y permuta sin entrar al formulario completo.
                 </p>
               </div>
               <button
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                type="button"
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                onClick={closeQuickEdit}
+                disabled={quickEditStatus === "saving"}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+              {quickEditStatus === "loading" && (
+                <p className="text-sm text-[#D1C7BD]">Cargando publicación...</p>
+              )}
+              {quickEditStatus !== "loading" && quickEditItem && (
+                <>
+                  <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+                    <div className="text-sm text-white">{quickEditItem.title}</div>
+                    {quickEditItem.location?.addressLine && (
+                      <div className="text-xs text-[#D1C7BD]">{quickEditItem.location.addressLine}</div>
+                    )}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2 text-xs text-[#D1C7BD]">
+                      Operación
+                      <select
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={quickEditOperationType}
+                        onChange={(event) =>
+                          setQuickEditOperationType(
+                            event.target.value as "SALE" | "RENT" | "TEMPORARY"
+                          )
+                        }
+                      >
+                        <option value="SALE">Venta</option>
+                        <option value="RENT">Alquiler</option>
+                        <option value="TEMPORARY">Temporario</option>
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-xs text-[#D1C7BD]">
+                      Estado
+                      <select
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={quickEditStatusValue}
+                        onChange={(event) => setQuickEditStatusValue(event.target.value)}
+                      >
+                        {(quickEditStatusOptionsByOperation[quickEditOperationType] ?? statusOptions).map(
+                          (status) => (
+                            <option key={status} value={status}>
+                              {statusLabels[status] ?? status}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-xs text-[#D1C7BD]">
+                      Precio
+                      <input
+                        type="number"
+                        min={0}
+                        step="1"
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={quickEditPriceAmount}
+                        onChange={(event) => setQuickEditPriceAmount(event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-2 text-xs text-[#D1C7BD]">
+                      Moneda
+                      <select
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={quickEditPriceCurrency}
+                        onChange={(event) =>
+                          setQuickEditPriceCurrency(event.target.value as "ARS" | "USD")
+                        }
+                      >
+                        <option value="ARS">ARS</option>
+                        <option value="USD">USD</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  {quickEditOperationType !== quickEditItem.operationType && (
+                    <label className="space-y-2 text-xs text-[#D1C7BD]">
+                      Motivo de cambio a{" "}
+                      {operationLabels[quickEditOperationType] ?? quickEditOperationType}
+                      <textarea
+                        rows={3}
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={quickEditOperationReason}
+                        onChange={(event) => setQuickEditOperationReason(event.target.value)}
+                        placeholder="Ej: pasó de venta a alquiler por estrategia comercial"
+                      />
+                    </label>
+                  )}
+
+                  {quickEditOperationType === "RENT" && (
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/45 p-4">
+                      <h4 className="text-sm font-semibold text-white">Requisitos del alquiler</h4>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Garantías solicitadas
+                          <input
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditRentGuarantees}
+                            onChange={(event) => setQuickEditRentGuarantees(event.target.value)}
+                            placeholder="Ej: garantía propietaria, recibo de sueldo"
+                          />
+                        </label>
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Meses para entrar
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditRentEntryMonths}
+                            onChange={(event) => setQuickEditRentEntryMonths(event.target.value)}
+                          />
+                        </label>
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Duración del contrato (meses)
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditRentContractDuration}
+                            onChange={(event) =>
+                              setQuickEditRentContractDuration(event.target.value)
+                            }
+                          />
+                        </label>
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Indexación cada
+                          <select
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditRentIndexFrequency}
+                            onChange={(event) =>
+                              setQuickEditRentIndexFrequency(event.target.value)
+                            }
+                          >
+                            <option value="">Sin definir</option>
+                            <option value="MONTHLY">Mensual</option>
+                            <option value="QUARTERLY">Trimestral</option>
+                            <option value="SEMI_ANNUAL">Semestral</option>
+                            <option value="ANNUAL">Anual</option>
+                          </select>
+                        </label>
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Tipo de indexación
+                          <select
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditRentIndexType}
+                            onChange={(event) => setQuickEditRentIndexType(event.target.value)}
+                          >
+                            <option value="">Sin definir</option>
+                            <option value="IPC">IPC</option>
+                            <option value="UVA">UVA</option>
+                            <option value="INFLATION">Inflación</option>
+                            <option value="OTHER">Otro</option>
+                          </select>
+                        </label>
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Porcentaje / valor
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditRentIndexValue}
+                            onChange={(event) => setQuickEditRentIndexValue(event.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[#AF8C5C]"
+                          checked={quickEditRentInfoPublic}
+                          onChange={(event) => setQuickEditRentInfoPublic(event.target.checked)}
+                        />
+                        Mostrar esta información de forma pública
+                      </label>
+                    </div>
+                  )}
+
+                  {quickEditOperationType === "SALE" && (
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/45 p-4">
+                      <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[#AF8C5C]"
+                          checked={quickEditPermutaAccepted}
+                          onChange={(event) => setQuickEditPermutaAccepted(event.target.checked)}
+                        />
+                        Acepta permuta
+                      </label>
+                      {quickEditPermutaAccepted && (
+                        <label className="space-y-2 text-xs text-[#D1C7BD]">
+                          Motivo/condiciones de permuta
+                          <textarea
+                            rows={3}
+                            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                            value={quickEditPermutaReason}
+                            onChange={(event) => setQuickEditPermutaReason(event.target.value)}
+                            placeholder="Ej: permuta por casa más chica + diferencia"
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+            </div>
+            <div className="border-t border-white/10 bg-night-900/95 px-6 py-4 backdrop-blur-sm">
+              {quickEditError && (
+                <p className="mb-3 text-xs text-[#AF8C5C]">{quickEditError}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                  onClick={closeQuickEdit}
+                  disabled={quickEditStatus === "saving"}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={() => void saveQuickEdit()}
+                  disabled={quickEditStatus === "saving" || quickEditStatus === "loading"}
+                >
+                  {quickEditStatus === "saving" ? "Guardando..." : "Guardar rápido"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {requestDetailOpen && selectedRequest && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[#211c18] px-6 py-4">
+              <div>
+                <h3 className="text-xl text-white">Detalle de solicitud</h3>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-gold-400/35 bg-gold-500/12 px-2.5 py-1 text-[11px] font-semibold text-gold-100">
+                    {requestTypeLabels[selectedRequest.type] ?? selectedRequest.type}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
+                    {requestStatusLabels[selectedRequest.status] ?? selectedRequest.status}
+                  </span>
+                </div>
+              </div>
+              <button
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                 type="button"
                 onClick={() => {
                   setRequestDetailOpen(false);
@@ -2033,114 +2977,116 @@ export function DashboardPage() {
                 Cerrar
               </button>
             </div>
-            <div className="max-h-[calc(90vh-90px)] overflow-y-auto space-y-4 px-6 py-5 text-sm text-[#c7c2b8]">
-              <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
-                <div className="text-sm text-white">{selectedRequest.property.title}</div>
-                <div className="text-xs text-[#9a948a]">
-                  {operationLabels[selectedRequest.property.operationType] ??
-                    selectedRequest.property.operationType}{" "}
-                  -{" "}
-                  {propertyLabels[selectedRequest.property.propertyType] ??
-                    selectedRequest.property.propertyType}
-                </div>
-                {selectedRequest.property.location?.addressLine && (
-                  <div className="text-xs text-[#9a948a]">
-                    {selectedRequest.property.location.addressLine}
+            <div className="max-h-[calc(90vh-90px)] overflow-y-auto px-6 py-5 text-sm text-[#E7E2DD]">
+              <div className="mx-auto max-w-xl space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-[#24201c] p-4">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-[#D1C7BD]">
+                      Datos de contacto
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#BFB8AD]">
+                          Nombre
+                        </div>
+                        <div className="mt-1 text-sm text-white">
+                          {selectedRequest.name ??
+                            selectedRequest.requesterUser?.name ??
+                            "Sin nombre"}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#BFB8AD]">
+                          Email
+                        </div>
+                        <div className="mt-1 break-all text-sm text-white">
+                          {selectedRequest.email ??
+                            selectedRequest.requesterUser?.email ??
+                            "Sin email"}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#BFB8AD]">
+                          Teléfono
+                        </div>
+                        <div className="mt-1 text-sm text-white">
+                          {selectedRequest.phone ??
+                            selectedRequest.requesterUser?.phone ??
+                            "Sin telefono"}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-                <div className="mt-2 text-xs text-[#9a948a]">
-                  {selectedRequest.property.priceCurrency}{" "}
-                  {selectedRequest.property.priceAmount}
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <div className="text-xs text-[#9a948a]">Nombre</div>
-                  <div className="text-sm text-white">
-                    {selectedRequest.name ?? selectedRequest.requesterUser?.name ?? "Sin nombre"}
+
+                  <div className="rounded-2xl border border-white/10 bg-[#24201c] p-4">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-[#D1C7BD]">
+                      Acciones
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(() => {
+                        const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
+                        if (!phone) return null;
+                        const message = `Hola ${selectedRequest.name ?? ""}, vimos tu solicitud por "${
+                          selectedRequest.property.title
+                        }".`;
+                        const link = buildWhatsappLink(phone, message);
+                        if (!link) {
+                          return null;
+                        }
+                        return (
+                          <a
+                            className="inline-flex items-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(37,211,102,0.25)]"
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <svg
+                              aria-hidden="true"
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="h-3.5 w-3.5"
+                            >
+                              <path d="M20.52 3.48A11.94 11.94 0 0 0 12.06 0C5.46 0 .1 5.37.1 11.96c0 2.1.55 4.15 1.6 5.96L0 24l6.25-1.64a11.9 11.9 0 0 0 5.8 1.49h.01c6.6 0 11.96-5.37 11.96-11.96 0-3.2-1.25-6.2-3.5-8.41Zm-8.46 18.35h-.01a9.9 9.9 0 0 1-5.05-1.39l-.36-.21-3.71.98.99-3.61-.23-.37a9.88 9.88 0 0 1-1.52-5.27c0-5.46 4.44-9.9 9.9-9.9 2.64 0 5.12 1.03 6.98 2.9a9.82 9.82 0 0 1 2.9 6.98c0 5.46-4.44 9.9-9.89 9.9Zm5.43-7.43c-.3-.15-1.78-.88-2.06-.98-.27-.1-.47-.15-.67.15-.2.3-.77.98-.95 1.18-.17.2-.35.22-.65.08-.3-.15-1.25-.46-2.37-1.46a8.94 8.94 0 0 1-1.64-2.03c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.53.08-.8.38-.28.3-1.05 1.03-1.05 2.52 0 1.48 1.07 2.91 1.22 3.11.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.09 1.78-.73 2.03-1.43.25-.7.25-1.31.17-1.44-.07-.13-.27-.2-.57-.35Z" />
+                            </svg>
+                            WhatsApp
+                          </a>
+                        );
+                      })()}
+                      {(() => {
+                        const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
+                        if (!phone) return null;
+                        return (
+                          <a
+                            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                            href={`tel:${phone}`}
+                          >
+                            Llamar
+                          </a>
+                        );
+                      })()}
+                      {(() => {
+                        const email = selectedRequest.email ?? selectedRequest.requesterUser?.email;
+                        if (!email) return null;
+                        return (
+                          <a
+                            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                            href={`mailto:${email}`}
+                          >
+                            Email
+                          </a>
+                        );
+                      })()}
+                      {selectedRequest.property.id && (
+                        <button
+                          className="rounded-full border border-gold-400/35 bg-gold-500/10 px-4 py-2 text-xs text-[#F1E3C5]"
+                          type="button"
+                          onClick={() => openRequestPropertyDetail(selectedRequest.property.id)}
+                        >
+                          Ver ficha
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-xs text-[#9a948a]">Email</div>
-                  <div className="text-sm text-white">
-                    {selectedRequest.email ?? selectedRequest.requesterUser?.email ?? "Sin email"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-[#9a948a]">Telefono</div>
-                  <div className="text-sm text-white">
-                    {selectedRequest.phone ?? selectedRequest.requesterUser?.phone ?? "Sin telefono"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-[#9a948a]">Estado</div>
-                  <div className="text-sm text-white">
-                    {requestStatusLabels[selectedRequest.status] ??
-                      selectedRequest.status}
-                  </div>
-                </div>
-              </div>
-              {selectedRequest.message && (
-                <div>
-                  <div className="text-xs text-[#9a948a]">Mensaje</div>
-                  <div className="text-sm text-white">{selectedRequest.message}</div>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
-                  if (!phone) return null;
-                  const message = `Hola ${selectedRequest.name ?? ""}, vimos tu solicitud por "${
-                    selectedRequest.property.title
-                  }".`;
-                  const link = buildWhatsappLink(phone, message);
-                  if (!link) {
-                    return null;
-                  }
-                  return (
-                    <a
-                      className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
-                      href={link}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      WhatsApp
-                    </a>
-                  );
-                })()}
-                {(() => {
-                  const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
-                  if (!phone) return null;
-                  return (
-                    <a
-                      className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                      href={`tel:${phone}`}
-                    >
-                      Llamar
-                    </a>
-                  );
-                })()}
-                {(() => {
-                  const email = selectedRequest.email ?? selectedRequest.requesterUser?.email;
-                  if (!email) return null;
-                  return (
-                    <a
-                      className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                      href={`mailto:${email}`}
-                    >
-                      Email
-                    </a>
-                  );
-                })()}
-                {selectedRequest.property.id && (
-                  <button
-                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                    type="button"
-                    onClick={() => openRequestPropertyDetail(selectedRequest.property.id)}
-                  >
-                    Ver ficha
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -2154,859 +3100,25 @@ export function DashboardPage() {
         />
       )}
       {requestPreviewStatus === "error" && requestPreviewError && (
-        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
+        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/78 px-4 py-3 text-xs text-[#AF8C5C] shadow-card">
           {requestPreviewError}
         </div>
       )}
-      {selectedId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <div>
-                <h3 className="text-xl text-white">
-                  {selectedItem?.title ?? "Detalle de inmueble"}
-                </h3>
-                {selectedItem?.status && (
-                  <div className="mt-2 inline-flex items-center gap-2 text-xs text-[#c7c2b8]">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        statusDotClass[selectedItem.status] ?? "bg-slate-400"
-                      }`}
-                    />
-                    {statusLabels[selectedItem.status] ?? selectedItem.status}
-                  </div>
-                )}
-              </div>
-              <button
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                type="button"
-                onClick={closeDetail}
-              >
-                Cerrar
-              </button>
-            </div>
-
-            <div
-              ref={detailContentRef}
-              className="max-h-[calc(92vh-120px)] overflow-y-auto space-y-6 p-6"
-            >
-              {detailStatus === "loading" && (
-                <p className="text-xs text-[#9a948a]">Cargando detalle...</p>
-              )}
-              {detailStatus === "error" && (
-                <p className="text-xs text-[#f5b78a]">{detailError}</p>
-              )}
-              {detailStatus === "idle" && selectedItem && (
-                <>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm text-[#c7c2b8]">
-                      {selectedItem.priceCurrency} {selectedItem.priceAmount}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                        type="button"
-                        onClick={() => {
-                          setIsEditing((prev) => !prev);
-                          setEditStep(1);
-                        }}
-                      >
-                        {isEditing ? "Cancelar" : "Editar"}
-                      </button>
-                      <button
-                        className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                        type="button"
-                        onClick={() => setShowPublicModal(true)}
-                      >
-                        Ver publico
-                      </button>
-                    </div>
-                  </div>
-
-                  {isEditing ? (
-                    <div ref={editFormRef} className="space-y-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] uppercase tracking-[0.18em] text-gold-300/90">
-                              Editando paso {editStep} de 4
-                            </span>
-                            <span className="text-xs text-[#9a948a]">
-                              {editStep === 1 && "Basico"}
-                              {editStep === 2 && "Ubicacion"}
-                              {editStep === 3 && "Caracteristicas"}
-                              {editStep === 4 && "Fotos"}
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] transition-all duration-300"
-                              style={{ width: `${(editStep / 4) * 100}%` }}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            {[
-                              { id: 1 as const, label: "Basico" },
-                              { id: 2 as const, label: "Ubicacion" },
-                              { id: 3 as const, label: "Caracteristicas" },
-                              { id: 4 as const, label: "Fotos" },
-                            ].map((step) => {
-                              const isActive = editStep === step.id;
-                              const isCompleted = editStep > step.id;
-                              return (
-                                <button
-                                  key={step.id}
-                                  type="button"
-                                  onClick={() => setEditStep(step.id)}
-                                  className={
-                                    isActive
-                                      ? "rounded-xl border border-gold-400/40 bg-gold-500/20 px-3 py-2 text-left text-xs text-gold-100 shadow-[0_0_0_1px_rgba(209,164,102,0.35)]"
-                                      : isCompleted
-                                      ? "rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-left text-xs text-emerald-100"
-                                      : "rounded-xl border border-white/15 bg-night-900/30 px-3 py-2 text-left text-xs text-[#c7c2b8]"
-                                  }
-                                >
-                                  <div className="text-[10px] uppercase tracking-wide opacity-80">
-                                    {isCompleted ? "Completado" : isActive ? "Actual" : `Paso ${step.id}`}
-                                  </div>
-                                  <div className="mt-1 font-medium">{step.label}</div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        {editStep === 1 && (
-                        <div data-edit-step="1" className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Titulo
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editTitle}
-                                onChange={(event) => setEditTitle(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Operacion
-                              <select
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editOperationType}
-                                onChange={(event) => setEditOperationType(event.target.value)}
-                              >
-                                <option value="SALE">Venta</option>
-                                <option value="RENT">Alquiler</option>
-                                <option value="TEMPORARY">Temporario</option>
-                              </select>
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Tipo de inmueble
-                              <select
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editPropertyType}
-                                onChange={(event) => setEditPropertyType(event.target.value)}
-                              >
-                                <option value="HOUSE">Casa</option>
-                                <option value="APARTMENT">Departamento</option>
-                                <option value="LAND">Terreno</option>
-                                <option value="COMMERCIAL">Comercio</option>
-                                <option value="OFFICE">Oficina</option>
-                                <option value="WAREHOUSE">Galpon</option>
-                              </select>
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Precio
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editPrice}
-                                onChange={(event) => setEditPrice(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Expensas
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editExpensesAmount}
-                                onChange={(event) => setEditExpensesAmount(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Moneda expensas
-                              <select
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editExpensesCurrency}
-                                onChange={(event) => setEditExpensesCurrency(event.target.value)}
-                              >
-                                <option value="ARS">ARS</option>
-                                <option value="USD">USD</option>
-                              </select>
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Ambientes
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editRooms}
-                                onChange={(event) => setEditRooms(event.target.value)}
-                              />
-                            </label>
-                          <label className="space-y-2 text-xs text-[#9a948a]">
-                            Banos
-                            <input
-                              className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                              value={editBathrooms}
-                              onChange={(event) => setEditBathrooms(event.target.value)}
-                            />
-                          </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              M2
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editAreaM2}
-                                onChange={(event) => setEditAreaM2(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Cubierta (m2)
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editCoveredAreaM2}
-                                onChange={(event) => setEditCoveredAreaM2(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Semicubierta (m2)
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editSemiCoveredAreaM2}
-                                onChange={(event) => setEditSemiCoveredAreaM2(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Dormitorios
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editBedrooms}
-                                onChange={(event) => setEditBedrooms(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Pisos
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editFloorsCount}
-                                onChange={(event) => setEditFloorsCount(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Moneda
-                              <select
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editCurrency}
-                                onChange={(event) => setEditCurrency(event.target.value)}
-                              >
-                                <option value="ARS">ARS</option>
-                                <option value="USD">USD</option>
-                              </select>
-                            </label>
-                          <label className="space-y-2 text-xs text-[#9a948a]">
-                            Estado
-                            <select
-                            className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                            value={editStatus}
-                            onChange={(event) => setEditStatus(event.target.value)}
-                          >
-                            {statusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {statusLabels[status] ?? status}
-                              </option>
-                            ))}
-                          </select>
-                          </label>
-                        </div>
-                          <label className="space-y-2 text-xs text-[#9a948a]">
-                            Descripcion
-                            <textarea
-                              rows={4}
-                              className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                              value={editDescription}
-                              onChange={(event) => setEditDescription(event.target.value)}
-                            />
-                          </label>
-                        </div>
-                        )}
-
-                        {editStep === 2 && (
-                        <div data-edit-step="2" className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Ubicacion y datos</h4>
-                          <div className="grid gap-4 md:grid-cols-3">
-                            <label className="space-y-2 text-xs text-[#9a948a] md:col-span-3">
-                              Direccion
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editAddressLine}
-                                onChange={(event) => setEditAddressLine(event.target.value)}
-                                placeholder="Calle y altura"
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Partido
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editParty}
-                                onChange={(event) => setEditParty(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Barrio
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editNeighborhood}
-                                onChange={(event) => setEditNeighborhood(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Codigo postal
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editPostalCode}
-                                onChange={(event) => setEditPostalCode(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Unidad / Lote (opcional)
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editUnitLabel}
-                                onChange={(event) => setEditUnitLabel(event.target.value)}
-                                placeholder="Ej: Dpto 3B, Casa 2, Lote 5"
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Lote o partida
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editLotOrParcel}
-                                onChange={(event) => setEditLotOrParcel(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Frente (m)
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editFrontageM}
-                                onChange={(event) => setEditFrontageM(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Fondo (m)
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editDepthM}
-                                onChange={(event) => setEditDepthM(event.target.value)}
-                              />
-                            </label>
-                            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/60 p-4 md:col-span-3">
-                              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#9a948a]">
-                                <span>Ubicacion en el mapa</span>
-                                <button
-                                  type="button"
-                                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
-                                  onClick={async () => {
-                                    const query = (
-                                      editAddressQuery.trim()
-                                        ? editAddressQuery
-                                        : [
-                                            editAddressLine,
-                                            editNeighborhood,
-                                            editParty,
-                                            "Bragado",
-                                            "Buenos Aires",
-                                            "Argentina",
-                                          ]
-                                            .filter(Boolean)
-                                            .join(", ")
-                                    ).trim();
-                                    if (!query) {
-                                      setEditGeoStatus("error");
-                                      setEditGeoMessage(
-                                        "Completa la direccion para buscarla en el mapa."
-                                      );
-                                      return;
-                                    }
-                                    setEditGeoStatus("loading");
-                                    setEditGeoMessage("");
-                                    try {
-                                      const result = await geocodeAddress(query);
-                                      if (!result) {
-                                        setEditGeoStatus("error");
-                                        setEditGeoMessage("No encontramos esa direccion.");
-                                        return;
-                                      }
-                                      setEditLat(String(result.lat));
-                                      setEditLng(String(result.lng));
-                                      setEditGeoStatus("idle");
-                                      setEditGeoMessage(`Encontrado: ${result.displayName}`);
-                                    } catch (error) {
-                                      setEditGeoStatus("error");
-                                      setEditGeoMessage(
-                                        error instanceof Error
-                                          ? error.message
-                                          : "No pudimos buscar la direccion."
-                                      );
-                                    }
-                                  }}
-                                  disabled={editGeoStatus === "loading"}
-                                >
-                                  {editGeoStatus === "loading"
-                                    ? "Buscando..."
-                                    : "Buscar direccion"}
-                                </button>
-                              </div>
-                              <label className="space-y-2 text-xs text-[#9a948a]">
-                                Buscar direccion (texto libre)
-                                <input
-                                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                  value={editAddressQuery}
-                                  onChange={(event) => setEditAddressQuery(event.target.value)}
-                                  placeholder="Ej: Rivadavia 456, Bragado"
-                                />
-                              </label>
-                              {editGeoMessage && (
-                                <div
-                                  className={`text-xs ${
-                                    editGeoStatus === "error"
-                                      ? "text-[#f5b78a]"
-                                      : "text-[#9a948a]"
-                                  }`}
-                                >
-                                  {editGeoMessage}
-                                </div>
-                              )}
-                              <EditLocationPicker
-                                lat={editLat ? Number(editLat) : undefined}
-                                lng={editLng ? Number(editLng) : undefined}
-                                onChange={(nextLat, nextLng) => {
-                                  setEditLat(String(nextLat));
-                                  setEditLng(String(nextLng));
-                                }}
-                              />
-                              {editLat && editLng && (
-                                <div className="text-[11px] text-[#9a948a]">
-                                  Coordenadas: {Number(editLat).toFixed(5)}, {Number(editLng).toFixed(5)}
-                                </div>
-                              )}
-                              <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-[#d1a466]"
-                                  checked={editShowMapLocation}
-                                  onChange={(event) => setEditShowMapLocation(event.target.checked)}
-                                />
-                                Mostrar ubicacion en el mapa publico
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                        )}
-
-                        {editStep === 3 && (
-                        <div data-edit-step="3" className="space-y-4">
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Convivencia</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editHasGarage}
-                                onChange={(event) => setEditHasGarage(event.target.checked)}
-                              />
-                              Cochera
-                            </label>
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editFurnished}
-                                onChange={(event) => setEditFurnished(event.target.checked)}
-                              />
-                              Amueblado
-                            </label>
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editPetsAllowed}
-                                onChange={(event) => setEditPetsAllowed(event.target.checked)}
-                              />
-                              Mascotas
-                            </label>
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editKidsAllowed}
-                                onChange={(event) => setEditKidsAllowed(event.target.checked)}
-                              />
-                              Niños
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Antiguedad (anos)
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editAgeYears}
-                                onChange={(event) => setEditAgeYears(event.target.value)}
-                              />
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Amenities</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {[
-                              { id: "AIR_CONDITIONING", label: "Aire acondicionado" },
-                              { id: "HEATER", label: "Estufa" },
-                              { id: "KITCHEN", label: "Cocina" },
-                              { id: "GRILL", label: "Parrilla" },
-                              { id: "POOL", label: "Pileta" },
-                              { id: "JACUZZI", label: "Hidromasaje" },
-                              { id: "SOLARIUM", label: "Solarium" },
-                              { id: "ELEVATOR", label: "Ascensor" },
-                            ].map((item) => (
-                              <label
-                                key={item.id}
-                                className="flex items-center gap-3 text-xs text-[#9a948a]"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-[#d1a466]"
-                                  checked={editAmenities.includes(item.id)}
-                                  onChange={(event) =>
-                                    setEditAmenities((prev) =>
-                                      event.target.checked
-                                        ? [...prev, item.id]
-                                        : prev.filter((value) => value !== item.id)
-                                    )
-                                  }
-                                />
-                                {item.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Negocio</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {[
-                              { id: "FOOD", label: "Local de comida" },
-                              { id: "EVENTS", label: "Salon de eventos" },
-                              { id: "RETAIL", label: "Negocio comercial" },
-                              { id: "FACTORY", label: "Fabrica" },
-                              { id: "OFFICES", label: "Oficinas" },
-                              { id: "CLINICS", label: "Consultorios" },
-                            ].map((item) => (
-                              <label
-                                key={item.id}
-                                className="flex items-center gap-3 text-xs text-[#9a948a]"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-[#d1a466]"
-                                  checked={editBusinessUses.includes(item.id)}
-                                  onChange={(event) =>
-                                    setEditBusinessUses((prev) =>
-                                      event.target.checked
-                                        ? [...prev, item.id]
-                                        : prev.filter((value) => value !== item.id)
-                                    )
-                                  }
-                                />
-                                {item.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Oficina</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {[
-                              { id: "MEETING_ROOM", label: "Sala de reuniones" },
-                              { id: "RECEPTION", label: "Recepcion" },
-                              { id: "PRIVATE_OFFICES", label: "Despachos" },
-                            ].map((item) => (
-                              <label
-                                key={item.id}
-                                className="flex items-center gap-3 text-xs text-[#9a948a]"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-[#d1a466]"
-                                  checked={editOfficeFeatures.includes(item.id)}
-                                  onChange={(event) =>
-                                    setEditOfficeFeatures((prev) =>
-                                      event.target.checked
-                                        ? [...prev, item.id]
-                                        : prev.filter((value) => value !== item.id)
-                                    )
-                                  }
-                                />
-                                {item.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Galpon</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {[
-                              { id: "TRUCK_ACCESS", label: "Acceso camion" },
-                            ].map((item) => (
-                              <label
-                                key={item.id}
-                                className="flex items-center gap-3 text-xs text-[#9a948a]"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-[#d1a466]"
-                                  checked={editWarehouseFeatures.includes(item.id)}
-                                  onChange={(event) =>
-                                    setEditWarehouseFeatures((prev) =>
-                                      event.target.checked
-                                        ? [...prev, item.id]
-                                        : prev.filter((value) => value !== item.id)
-                                    )
-                                  }
-                                />
-                                {item.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Terreno</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editBuildable}
-                                onChange={(event) => setEditBuildable(event.target.checked)}
-                              />
-                              Apto para construir
-                            </label>
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editInvestmentOpportunity}
-                                onChange={(event) =>
-                                  setEditInvestmentOpportunity(event.target.checked)
-                                }
-                              />
-                              Oportunidad de inversion
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Financiacion</h4>
-                          <div className="grid gap-4 md:grid-cols-3">
-                            <label className="flex items-center gap-3 text-xs text-[#9a948a]">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#d1a466]"
-                                checked={editFinancingAvailable}
-                                onChange={(event) =>
-                                  setEditFinancingAvailable(event.target.checked)
-                                }
-                              />
-                              Financia
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Monto
-                              <input
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editFinancingAmount}
-                                onChange={(event) => setEditFinancingAmount(event.target.value)}
-                              />
-                            </label>
-                            <label className="space-y-2 text-xs text-[#9a948a]">
-                              Moneda
-                              <select
-                                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
-                                value={editFinancingCurrency}
-                                onChange={(event) => setEditFinancingCurrency(event.target.value)}
-                              >
-                                <option value="ARS">ARS</option>
-                                <option value="USD">USD</option>
-                              </select>
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">Servicios</h4>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {[
-                              { id: "electricity", label: "Luz", value: serviceElectricity, setValue: setServiceElectricity },
-                              { id: "gas", label: "Gas", value: serviceGas, setValue: setServiceGas },
-                              { id: "water", label: "Agua", value: serviceWater, setValue: setServiceWater },
-                              { id: "sewer", label: "Cloaca", value: serviceSewer, setValue: setServiceSewer },
-                              { id: "internet", label: "Internet", value: serviceInternet, setValue: setServiceInternet },
-                              { id: "pavement", label: "Asfalto", value: servicePavement, setValue: setServicePavement },
-                            ].map((item) => (
-                              <label
-                                key={item.id}
-                                className="flex items-center gap-3 text-xs text-[#9a948a]"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-[#d1a466]"
-                                  checked={item.value}
-                                  onChange={(event) => item.setValue(event.target.checked)}
-                                />
-                                {item.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        </div>
-                        )}
-
-                        {editStep === 4 && (
-                        <div data-edit-step="4" className="space-y-4">
-                        <div className="space-y-3">
-                          <label className="text-xs text-[#9a948a]">Fotos actuales</label>
-                          {selectedItem.photos && selectedItem.photos.length > 0 ? (
-                            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                              {selectedItem.photos.map((photo) => (
-                                <div
-                                  key={photo.id ?? photo.url}
-                                  className="relative overflow-hidden rounded-xl border border-white/10 bg-night-900/60"
-                                >
-                                  {photo.id && (
-                                    <button
-                                      type="button"
-                                      className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
-                                      onClick={() => photo.id && removePhoto(photo.id)}
-                                    >
-                                      Quitar
-                                    </button>
-                                  )}
-                                  <img
-                                    src={photo.url}
-                                    alt="Foto actual"
-                                    className="h-24 w-full object-cover"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-[#9a948a]">
-                              No hay fotos cargadas.
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-3">
-                          <label className="text-xs text-[#9a948a]">Agregar nuevas fotos</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-[#c7c2b8]"
-                            onChange={(event) => {
-                              const files = event.target.files
-                                ? Array.from(event.target.files)
-                                : [];
-                              setNewPhotos(files.slice(0, 12));
-                            }}
-                          />
-                          {newPhotos.length > 0 && (
-                            <div className="text-xs text-[#9a948a]">
-                              {newPhotos.length} fotos nuevas seleccionadas.
-                            </div>
-                          )}
-                        </div>
-                        </div>
-                        )}
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                              type="button"
-                              onClick={() =>
-                                setEditStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4) : prev))
-                              }
-                              disabled={editStep === 1}
-                            >
-                              Paso anterior
-                            </button>
-                            <button
-                              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                              type="button"
-                              onClick={() =>
-                                setEditStep((prev) => (prev < 4 ? ((prev + 1) as 1 | 2 | 3 | 4) : prev))
-                              }
-                              disabled={editStep === 4}
-                            >
-                              Paso siguiente
-                            </button>
-                          </div>
-                        <div className="flex flex-wrap gap-3">
-                          <button
-                            className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900 disabled:cursor-not-allowed disabled:opacity-70"
-                            type="button"
-                            onClick={saveEdit}
-                            disabled={editSaveStatus === "saving"}
-                          >
-                            {editSaveStatus === "saving" ? (
-                              <span className="inline-flex items-center gap-2">
-                                <span className="h-3 w-3 animate-spin rounded-full border border-night-900/40 border-t-night-900" />
-                                Guardando...
-                              </span>
-                            ) : (
-                              "Guardar cambios"
-                            )}
-                          </button>
-                          <button
-                            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
-                            type="button"
-                            onClick={() => {
-                              setIsEditing(false);
-                              setEditStep(1);
-                            }}
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                        </div>
-                      </div>
-                  ) : (
-                    <div className="space-y-3 text-sm text-[#9a948a]">
-                      <div>{selectedItem.description}</div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+      {publicStatus === "error" && publicError && (
+        <div className="fixed bottom-6 left-6 rounded-xl border border-white/10 bg-night-900/78 px-4 py-3 text-xs text-[#AF8C5C] shadow-card">
+          {publicError}
         </div>
       )}
-
       {showPublicModal && publicListing && (
         <PropertyDetailModal
           listing={publicListing}
           onClose={() => setShowPublicModal(false)}
           actions={
             <>
-              <button className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900">
+              <button className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-xs font-semibold text-night-900">
                 WhatsApp
               </button>
-              <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]">
+              <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#E7E2DD]">
                 Guardar
               </button>
             </>
@@ -3019,3 +3131,5 @@ export function DashboardPage() {
     </div>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getToken } from "../shared/auth/session";
@@ -97,23 +97,23 @@ export function NotificationsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl text-white">Notificaciones</h2>
-        <p className="text-sm text-[#9a948a]">Tus alertas y novedades recientes.</p>
+        <p className="text-sm text-[#D1C7BD]">Tus alertas y novedades recientes.</p>
       </div>
 
-      <div className="glass-card p-4 text-xs text-[#9a948a]">
+      <div className="glass-card p-4 text-xs text-[#D1C7BD]">
         Revisa cada notificacion para ver el detalle completo.
       </div>
 
       {status === "loading" && (
-        <p className="text-xs text-[#9a948a]">Cargando notificaciones...</p>
+        <p className="text-xs text-[#D1C7BD]">Cargando notificaciones...</p>
       )}
       {status === "error" && (
-        <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#f5b78a]">
+        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#AF8C5C]">
           {message}
         </div>
       )}
       {status === "idle" && items.length === 0 && (
-        <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4 text-xs text-[#9a948a]">
+        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#D1C7BD]">
           No tenes notificaciones por ahora.
         </div>
       )}
@@ -123,14 +123,14 @@ export function NotificationsPage() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="rounded-2xl border border-white/10 bg-night-900/60 p-4"
+              className="rounded-2xl border border-white/10 bg-night-900/48 p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-sm text-white">{item.title}</div>
-                  {item.body && <div className="text-xs text-[#9a948a]">{item.body}</div>}
+                  {item.body && <div className="text-xs text-[#D1C7BD]">{item.body}</div>}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-[#c7c2b8]">
+                <div className="flex items-center gap-2 text-xs text-[#E7E2DD]">
                   {item.link ? (
                     item.type === "CONTACT_REQUEST" ? (
                       <button
@@ -168,3 +168,4 @@ export function NotificationsPage() {
     </div>
   );
 }
+

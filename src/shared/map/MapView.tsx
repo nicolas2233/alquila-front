@@ -2,12 +2,12 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 
 export type MapPoint = {
   id: string;
   title: string;
   subtitle?: string;
+  address?: string;
   imageUrl?: string;
   badge?: string;
   color?: string;
@@ -104,7 +104,7 @@ export function MapView({ points, selectedId, onSelect }: MapViewProps) {
             key={point.id}
             position={[point.lat, point.lng]}
             icon={createMarkerIcon(
-              point.color ?? "#d1a466",
+              point.color ?? "#AF8C5C",
               point.id === selectedId,
               point.count
             )}
@@ -120,6 +120,9 @@ export function MapView({ points, selectedId, onSelect }: MapViewProps) {
                     <div className="text-sm font-semibold text-[#171717]">
                       {point.count} unidades en este edificio
                     </div>
+                    {point.address && (
+                      <div className="text-[11px] text-[#4e4e4e]">{point.address}</div>
+                    )}
                     {point.subtitle && (
                       <div className="text-[11px] text-[#6b6b6b]">
                         {point.subtitle}
@@ -146,6 +149,9 @@ export function MapView({ points, selectedId, onSelect }: MapViewProps) {
                     <div className="text-sm font-semibold text-[#171717]">
                       {point.title}
                     </div>
+                    {point.address && (
+                      <div className="text-[11px] text-[#4e4e4e]">{point.address}</div>
+                    )}
                     {point.subtitle && (
                       <div className="text-[11px] text-[#6b6b6b]">{point.subtitle}</div>
                     )}

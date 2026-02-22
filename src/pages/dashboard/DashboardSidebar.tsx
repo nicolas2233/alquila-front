@@ -1,4 +1,4 @@
-import type { PanelSection } from "../../shared/utils/dashboardSections";
+﻿import type { PanelSection } from "../../shared/utils/dashboardSections";
 
 export function DashboardSidebar({
   activeSection,
@@ -12,15 +12,15 @@ export function DashboardSidebar({
   onSelectSection: (section: PanelSection) => void;
 }) {
   return (
-    <aside className="glass-card flex flex-col gap-2 p-4 lg:sticky lg:top-24 lg:h-fit">
-      <div className="text-xs uppercase tracking-[0.2em] text-[#9a948a]">Panel</div>
+    <aside className="glass-card flex flex-col gap-2 p-3 lg:sticky lg:top-24 lg:h-fit lg:p-4">
+      <div className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Panel</div>
       <button
         type="button"
         onClick={() => onSelectSection("profile")}
         className={
           activeSection === "profile"
-            ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-            : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+            ? "w-full rounded-xl border border-gold-500/40 bg-night-900/48 px-3 py-2.5 text-left text-sm text-white"
+            : "w-full rounded-xl border border-white/10 bg-night-900/32 px-3 py-2.5 text-left text-sm text-[#E7E2DD]"
         }
       >
         {isAgency ? "Perfil inmobiliaria" : "Perfil dueño"}
@@ -30,8 +30,8 @@ export function DashboardSidebar({
         onClick={() => onSelectSection("listings")}
         className={
           activeSection === "listings"
-            ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-            : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+            ? "w-full rounded-xl border border-gold-500/40 bg-night-900/48 px-3 py-2.5 text-left text-sm text-white"
+            : "w-full rounded-xl border border-white/10 bg-night-900/32 px-3 py-2.5 text-left text-sm text-[#E7E2DD]"
         }
       >
         Mis inmuebles
@@ -41,8 +41,8 @@ export function DashboardSidebar({
         onClick={() => onSelectSection("requests")}
         className={
           activeSection === "requests"
-            ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-            : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+            ? "w-full rounded-xl border border-gold-500/40 bg-night-900/48 px-3 py-2.5 text-left text-sm text-white"
+            : "w-full rounded-xl border border-white/10 bg-night-900/32 px-3 py-2.5 text-left text-sm text-[#E7E2DD]"
         }
       >
         Solicitudes
@@ -53,8 +53,8 @@ export function DashboardSidebar({
           onClick={() => onSelectSection("my-requests")}
           className={
             activeSection === "my-requests"
-              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/60 px-3 py-2 text-left text-white"
-              : "w-full rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 text-left text-[#c7c2b8]"
+              ? "w-full rounded-xl border border-gold-500/40 bg-night-900/48 px-3 py-2.5 text-left text-sm text-white"
+              : "w-full rounded-xl border border-white/10 bg-night-900/32 px-3 py-2.5 text-left text-sm text-[#E7E2DD]"
           }
         >
           Mis solicitudes
@@ -63,3 +63,4 @@ export function DashboardSidebar({
     </aside>
   );
 }
+

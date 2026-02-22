@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
 import { geocodeAddress } from "../shared/map/geocode";
 import { env } from "../shared/config/env";
 import { getRoleFromToken, getSessionUser, getToken } from "../shared/auth/session";
+import { useToast } from "../shared/ui/toast/ToastProvider";
 
 type Overview = {
   users: number;
@@ -78,7 +79,31 @@ type AdminPoi = {
   createdAt: string;
 };
 
-type TabKey = "overview" | "users" | "properties" | "reports" | "verifications" | "pois";
+type AdminPoiApi = Omit<AdminPoi, "lat" | "lng"> & {
+  lat: number | string;
+  lng: number | string;
+};
+
+type AdminAd = {
+  id: string;
+  title: string;
+  body?: string | null;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  ctaText?: string | null;
+  priority: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type TabKey =
+  | "overview"
+  | "users"
+  | "properties"
+  | "reports"
+  | "verifications"
+  | "pois"
+  | "ads";
 
 const poiCategoryLabels: Record<PoiCategory, string> = {
   SCHOOL: "Escuela",
@@ -89,6 +114,26 @@ const poiCategoryLabels: Record<PoiCategory, string> = {
   SUPERMARKET: "Supermercado",
   PARK: "Plaza",
 };
+
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const json = (await response.json()) as { message?: string };
+    if (json?.message && typeof json.message === "string") {
+      return json.message;
+    }
+  } catch {
+    // ignore invalid JSON error payloads
+  }
+  return fallback;
+}
+
+function normalizePoi(poi: AdminPoiApi): AdminPoi {
+  return {
+    ...poi,
+    lat: Number(poi.lat),
+    lng: Number(poi.lng),
+  };
+}
 
 function PoiLocationPicker({
   lat,
@@ -127,7 +172,7 @@ function PoiLocationPicker({
           <CircleMarker
             center={[lat, lng]}
             radius={8}
-            pathOptions={{ color: "#f4d19a", fillColor: "#d1a466", fillOpacity: 0.9 }}
+            pathOptions={{ color: "#f4d19a", fillColor: "#AF8C5C", fillOpacity: 0.9 }}
           />
         )}
       </MapContainer>
@@ -136,6 +181,7 @@ function PoiLocationPicker({
 }
 
 export function AdminPage() {
+  const { addToast } = useToast();
   const sessionUser = useMemo(() => getSessionUser(), []);
   const token = useMemo(() => getToken(), []);
   const tokenRole = useMemo(() => getRoleFromToken(token), [token]);
@@ -183,6 +229,17 @@ export function AdminPage() {
   );
   const [poiSearchMessage, setPoiSearchMessage] = useState("");
 
+  const [ads, setAds] = useState<AdminAd[]>([]);
+  const [adsStatus, setAdsStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [adsError, setAdsError] = useState("");
+  const [adTitle, setAdTitle] = useState("");
+  const [adBody, setAdBody] = useState("");
+  const [adImageUrl, setAdImageUrl] = useState("");
+  const [adLinkUrl, setAdLinkUrl] = useState("");
+  const [adCtaText, setAdCtaText] = useState("");
+  const [adPriority, setAdPriority] = useState("0");
+  const [adSaving, setAdSaving] = useState(false);
+
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") {
       return;
@@ -194,7 +251,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar el overview.");
+          throw new Error(await readApiError(response, "No pudimos cargar el overview."));
         }
         return response.json() as Promise<Overview>;
       })
@@ -218,7 +275,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar usuarios.");
+          throw new Error(await readApiError(response, "No pudimos cargar usuarios."));
         }
         return response.json() as Promise<{ items: AdminUser[] }>;
       })
@@ -242,7 +299,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar verificaciones.");
+          throw new Error(await readApiError(response, "No pudimos cargar verificaciones."));
         }
         return response.json() as Promise<{ items: AdminVerification[] }>;
       })
@@ -268,7 +325,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar publicaciónes.");
+          throw new Error(await readApiError(response, "No pudimos cargar publicaciones."));
         }
         return response.json() as Promise<{ items: AdminProperty[] }>;
       })
@@ -294,7 +351,7 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar reportes.");
+          throw new Error(await readApiError(response, "No pudimos cargar reportes."));
         }
         return response.json() as Promise<{ items: AdminReport[] }>;
       })
@@ -318,17 +375,41 @@ export function AdminPage() {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("No pudimos cargar los puntos.");
+          throw new Error(await readApiError(response, "No pudimos cargar los puntos."));
         }
-        return response.json() as Promise<{ items: AdminPoi[] }>;
+        return response.json() as Promise<{ items: AdminPoiApi[] }>;
       })
       .then((data) => {
-        setPois(data.items ?? []);
+        setPois((data.items ?? []).map(normalizePoi));
         setPoisStatus("idle");
       })
       .catch((error) => {
         setPoisStatus("error");
         setPoisError(error instanceof Error ? error.message : "Error al cargar puntos.");
+      });
+  }, [token, effectiveRole, tab]);
+
+  useEffect(() => {
+    if (!token || effectiveRole !== "ADMIN") return;
+    if (tab !== "ads") return;
+    setAdsStatus("loading");
+    setAdsError("");
+    fetch(`${env.apiUrl}/admin/ads`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(await readApiError(response, "No pudimos cargar publicidad."));
+        }
+        return response.json() as Promise<{ items: AdminAd[] }>;
+      })
+      .then((data) => {
+        setAds(data.items ?? []);
+        setAdsStatus("idle");
+      })
+      .catch((error) => {
+        setAdsStatus("error");
+        setAdsError(error instanceof Error ? error.message : "Error al cargar publicidad.");
       });
   }, [token, effectiveRole, tab]);
 
@@ -343,6 +424,9 @@ export function AdminPage() {
       body: JSON.stringify({ status }),
     });
     if (!response.ok) {
+      const message = await readApiError(response, "No pudimos actualizar el usuario.");
+      setUsersError(message);
+      addToast(message, "error");
       return;
     }
     setUsers((prev) => prev.map((item) => (item.id === userId ? { ...item, status } : item)));
@@ -366,7 +450,12 @@ export function AdminPage() {
       },
       body: JSON.stringify({ status }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos actualizar el reporte.");
+      setReportsError(message);
+      addToast(message, "error");
+      return;
+    }
     setReports((prev) => prev.map((item) => (item.id === reportId ? { ...item, status } : item)));
   };
 
@@ -380,7 +469,12 @@ export function AdminPage() {
       },
       body: JSON.stringify({ status }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos actualizar la publicacion.");
+      setPropertiesError(message);
+      addToast(message, "error");
+      return;
+    }
     setProperties((prev) =>
       prev.map((item) => (item.id === propertyId ? { ...item, status } : item))
     );
@@ -396,7 +490,12 @@ export function AdminPage() {
       },
       body: JSON.stringify({ status }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos actualizar la verificacion.");
+      setVerificationsError(message);
+      addToast(message, "error");
+      return;
+    }
     setVerifications((prev) =>
       prev.map((item) => (item.id === verificationId ? { ...item, status } : item))
     );
@@ -428,9 +527,9 @@ export function AdminPage() {
         }),
       });
       if (!response.ok) {
-        throw new Error("No pudimos crear el punto.");
+        throw new Error(await readApiError(response, "No pudimos crear el punto."));
       }
-      const created = (await response.json()) as AdminPoi;
+      const created = normalizePoi((await response.json()) as AdminPoiApi);
       setPois((prev) => [created, ...prev]);
       setPoiTitle("");
       setPoiLat("");
@@ -454,7 +553,12 @@ export function AdminPage() {
       },
       body: JSON.stringify({ isActive }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos actualizar el punto.");
+      setPoisError(message);
+      addToast(message, "error");
+      return;
+    }
     setPois((prev) => prev.map((poi) => (poi.id === poiId ? { ...poi, isActive } : poi)));
   };
 
@@ -464,13 +568,95 @@ export function AdminPage() {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos borrar el punto.");
+      setPoisError(message);
+      addToast(message, "error");
+      return;
+    }
     setPois((prev) => prev.filter((poi) => poi.id !== poiId));
+  };
+
+  const createAd = async () => {
+    if (!token) return;
+    setAdsError("");
+    if (!adTitle.trim()) {
+      setAdsError("El titulo es obligatorio.");
+      return;
+    }
+    setAdSaving(true);
+    try {
+      const response = await fetch(`${env.apiUrl}/admin/ads`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: adTitle.trim(),
+          body: adBody || undefined,
+          imageUrl: adImageUrl || undefined,
+          linkUrl: adLinkUrl || undefined,
+          ctaText: adCtaText || undefined,
+          priority: Number(adPriority) || 0,
+          isActive: true,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "No pudimos crear la publicidad."));
+      }
+      const created = (await response.json()) as AdminAd;
+      setAds((prev) => [created, ...prev]);
+      setAdTitle("");
+      setAdBody("");
+      setAdImageUrl("");
+      setAdLinkUrl("");
+      setAdCtaText("");
+      setAdPriority("0");
+    } catch (error) {
+      setAdsError(error instanceof Error ? error.message : "Error al crear publicidad.");
+    } finally {
+      setAdSaving(false);
+    }
+  };
+
+  const updateAdStatus = async (adId: string, isActive: boolean) => {
+    if (!token) return;
+    const response = await fetch(`${env.apiUrl}/admin/ads/${adId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ isActive }),
+    });
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos actualizar la publicidad.");
+      setAdsError(message);
+      addToast(message, "error");
+      return;
+    }
+    setAds((prev) => prev.map((ad) => (ad.id === adId ? { ...ad, isActive } : ad)));
+  };
+
+  const deleteAd = async (adId: string) => {
+    if (!token) return;
+    const response = await fetch(`${env.apiUrl}/admin/ads/${adId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const message = await readApiError(response, "No pudimos borrar la publicidad.");
+      setAdsError(message);
+      addToast(message, "error");
+      return;
+    }
+    setAds((prev) => prev.filter((ad) => ad.id !== adId));
   };
 
   if (effectiveRole !== "ADMIN") {
     return (
-      <div className="glass-card p-6 text-sm text-[#9a948a]">
+      <div className="glass-card p-6 text-sm text-[#D1C7BD]">
         Esta seccion es solo para administradores.
       </div>
     );
@@ -481,7 +667,7 @@ export function AdminPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl text-white">Panel admin</h2>
-          <p className="text-sm text-[#9a948a]">Control total de Brupi.</p>
+          <p className="text-sm text-[#D1C7BD]">Control total de Brupi.</p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
           {(
@@ -492,6 +678,7 @@ export function AdminPage() {
               ["reports", "Reportes"],
               ["verifications", "Verificaciones"],
               ["pois", "Puntos mapa"],
+              ["ads", "Publicidad"],
             ] as Array<[TabKey, string]>
           ).map(([key, label]) => (
             <button
@@ -499,8 +686,8 @@ export function AdminPage() {
               type="button"
               className={
                 tab === key
-                  ? "rounded-full border border-gold-500/40 bg-night-900/60 px-3 py-1 text-white"
-                  : "rounded-full border border-white/10 bg-night-900/50 px-3 py-1 text-[#c7c2b8]"
+                  ? "rounded-full border border-gold-500/40 bg-night-900/48 px-3 py-1 text-white"
+                  : "rounded-full border border-white/10 bg-night-900/32 px-3 py-1 text-[#E7E2DD]"
               }
               onClick={() => setTab(key)}
             >
@@ -513,10 +700,10 @@ export function AdminPage() {
       {tab === "overview" && (
         <section className="grid gap-4 md:grid-cols-3">
           {overviewStatus === "loading" && (
-            <div className="glass-card p-4 text-xs text-[#9a948a]">Cargando...</div>
+            <div className="glass-card p-4 text-xs text-[#D1C7BD]">Cargando...</div>
           )}
           {overviewStatus === "error" && (
-            <div className="glass-card p-4 text-xs text-[#f5b78a]">{overviewError}</div>
+            <div className="glass-card p-4 text-xs text-[#AF8C5C]">{overviewError}</div>
           )}
           {overview && (
             <>
@@ -529,7 +716,7 @@ export function AdminPage() {
                 { label: "Verificaciones pendientes", value: overview.pendingVerifications },
               ].map((item) => (
                 <div key={item.label} className="glass-card p-4">
-                  <div className="text-xs text-[#9a948a]">{item.label}</div>
+                  <div className="text-xs text-[#D1C7BD]">{item.label}</div>
                   <div className="mt-2 text-2xl text-white">{item.value}</div>
                 </div>
               ))}
@@ -541,27 +728,27 @@ export function AdminPage() {
       {tab === "users" && (
         <section className="glass-card space-y-3 p-4">
           {usersStatus === "loading" && (
-            <div className="text-xs text-[#9a948a]">Cargando usuarios...</div>
+            <div className="text-xs text-[#D1C7BD]">Cargando usuarios...</div>
           )}
           {usersStatus === "error" && (
-            <div className="text-xs text-[#f5b78a]">{usersError}</div>
+            <div className="text-xs text-[#AF8C5C]">{usersError}</div>
           )}
           {users.map((user) => (
             <div
               key={user.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/60 p-3 text-xs"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
             >
               <div>
                 <div className="text-sm text-white">{user.name ?? "Sin nombre"}</div>
-                <div className="text-[#9a948a]">{user.email}</div>
-                <div className="text-[#9a948a]">{user.role}</div>
+                <div className="text-[#D1C7BD]">{user.email}</div>
+                <div className="text-[#D1C7BD]">{user.role}</div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-white/10 px-3 py-1 text-[#c7c2b8]">
+                <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
                   {user.status}
                 </span>
                 <select
-                  className="rounded-full border border-white/20 bg-night-900/60 px-3 py-1 text-xs text-white"
+                  className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
                   value={user.status}
                   onChange={(event) => updateUserStatus(user.id, event.target.value)}
                 >
@@ -578,30 +765,30 @@ export function AdminPage() {
       {tab === "properties" && (
         <section className="glass-card space-y-3 p-4">
           {propertiesStatus === "loading" && (
-            <div className="text-xs text-[#9a948a]">Cargando publicaciónes...</div>
+            <div className="text-xs text-[#D1C7BD]">Cargando publicaciónes...</div>
           )}
           {propertiesStatus === "error" && (
-            <div className="text-xs text-[#f5b78a]">{propertiesError}</div>
+            <div className="text-xs text-[#AF8C5C]">{propertiesError}</div>
           )}
           {properties.map((item) => (
             <div
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/60 p-3 text-xs"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
             >
               <div>
                 <div className="text-sm text-white">{item.title}</div>
-                <div className="text-[#9a948a]">
+                <div className="text-[#D1C7BD]">
                   {item.operationType} - {item.propertyType} - {item.priceCurrency} {item.priceAmount}
                 </div>
-                <div className="text-[#9a948a]">
+                <div className="text-[#D1C7BD]">
                   {item.location?.addressLine} {item.location?.locality?.name ? `- ${item.location.locality.name}` : ""}
                 </div>
               </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-[#c7c2b8]">
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
                 {item.status}
               </span>
               <select
-                className="rounded-full border border-white/20 bg-night-900/60 px-3 py-1 text-xs text-white"
+                className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
                 value={item.status}
                 onChange={(event) => updatePropertyStatus(item.id, event.target.value)}
               >
@@ -619,34 +806,34 @@ export function AdminPage() {
       {tab === "reports" && (
         <section className="glass-card space-y-3 p-4">
           {reportsStatus === "loading" && (
-            <div className="text-xs text-[#9a948a]">Cargando reportes...</div>
+            <div className="text-xs text-[#D1C7BD]">Cargando reportes...</div>
           )}
           {reportsStatus === "error" && (
-            <div className="text-xs text-[#f5b78a]">{reportsError}</div>
+            <div className="text-xs text-[#AF8C5C]">{reportsError}</div>
           )}
           {reports.map((report) => (
             <div
               key={report.id}
-              className="rounded-2xl border border-white/10 bg-night-900/60 p-3 text-xs"
+              className="rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
             >
               <div className="text-sm text-white">
                 {report.type === "USER"
                   ? `Usuario: ${report.reportedUser?.name ?? report.reportedUser?.email ?? "N/A"}`
                   : report.property?.title ?? "Publicación"}
               </div>
-              <div className="text-[#9a948a]">{report.reason}</div>
-              <div className="text-[#9a948a]">
+              <div className="text-[#D1C7BD]">{report.reason}</div>
+              <div className="text-[#D1C7BD]">
                 {report.type === "USER" ? "Reporte de usuario" : "Reporte de publicación"}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-white/10 px-3 py-1 text-[#c7c2b8]">
+                <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
                   {report.status}
                 </span>
-                <span className="text-[#9a948a]">
+                <span className="text-[#D1C7BD]">
                   Reportado por {report.reporter?.email ?? "Anónimo"}
                 </span>
                 <select
-                  className="rounded-full border border-white/20 bg-night-900/60 px-3 py-1 text-xs text-white"
+                  className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
                   value={report.status}
                   onChange={(event) =>
                     updateReportStatus(report.id, event.target.value, report.type)
@@ -665,26 +852,26 @@ export function AdminPage() {
       {tab === "verifications" && (
         <section className="glass-card space-y-3 p-4">
           {verificationsStatus === "loading" && (
-            <div className="text-xs text-[#9a948a]">Cargando verificaciones...</div>
+            <div className="text-xs text-[#D1C7BD]">Cargando verificaciones...</div>
           )}
           {verificationsStatus === "error" && (
-            <div className="text-xs text-[#f5b78a]">{verificationsError}</div>
+            <div className="text-xs text-[#AF8C5C]">{verificationsError}</div>
           )}
           {verifications.map((item) => (
             <div
               key={item.id}
-              className="rounded-2xl border border-white/10 bg-night-900/60 p-3 text-xs"
+              className="rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
             >
               <div className="text-sm text-white">
                 {(item.user.name ?? item.user.email ?? "Usuario")} - {item.type}
               </div>
-              <div className="text-[#9a948a]">Estado: {item.status}</div>
-              <div className="mt-2 text-[#9a948a]">
+              <div className="text-[#D1C7BD]">Estado: {item.status}</div>
+              <div className="mt-2 text-[#D1C7BD]">
                 Datos: {JSON.stringify(item.payload)}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <select
-                  className="rounded-full border border-white/20 bg-night-900/60 px-3 py-1 text-xs text-white"
+                  className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
                   value={item.status}
                   onChange={(event) => updateVerificationStatus(item.id, event.target.value)}
                 >
@@ -702,23 +889,23 @@ export function AdminPage() {
         <section className="glass-card space-y-4 p-4">
           <div className="space-y-1">
             <h3 className="text-sm text-white">Cargar puntos de interes</h3>
-            <p className="text-xs text-[#9a948a]">
+            <p className="text-xs text-[#D1C7BD]">
               Estos puntos se muestran en el mapa cuando el usuario activa los filtros.
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Titulo
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiTitle}
                 onChange={(event) => setPoiTitle(event.target.value)}
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Categoria
               <select
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiCategory}
                 onChange={(event) => setPoiCategory(event.target.value as PoiCategory)}
               >
@@ -729,36 +916,36 @@ export function AdminPage() {
                 ))}
               </select>
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Latitud
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiLat}
                 onChange={(event) => setPoiLat(event.target.value)}
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a]">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
               Longitud
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiLng}
                 onChange={(event) => setPoiLng(event.target.value)}
               />
             </label>
-            <div className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
+            <div className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>Selecciona el punto en el mapa</span>
                 {poiLat && poiLng && (
-                  <span className="text-[11px] text-[#c7c2b8]">
+                  <span className="text-[11px] text-[#E7E2DD]">
                     {Number(poiLat).toFixed(5)}, {Number(poiLng).toFixed(5)}
                   </span>
                 )}
               </div>
               <div className="flex flex-wrap items-end gap-2">
-                <label className="flex-1 space-y-1 text-[11px] text-[#9a948a]">
-                  Buscar direcciÃ³n
+                <label className="flex-1 space-y-1 text-[11px] text-[#D1C7BD]">
+                  Buscar dirección
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={poiSearch}
                     onChange={(event) => setPoiSearch(event.target.value)}
                     placeholder="Ej: Rivadavia 123, Bragado"
@@ -766,12 +953,12 @@ export function AdminPage() {
                 </label>
                 <button
                   type="button"
-                  className="rounded-full border border-white/20 px-3 py-2 text-xs text-[#c7c2b8]"
+                  className="rounded-full border border-white/20 px-3 py-2 text-xs text-[#E7E2DD]"
                   onClick={async () => {
                     const query = poiSearch.trim();
                     if (!query) {
                       setPoiSearchStatus("error");
-                      setPoiSearchMessage("IngresÃ¡ una direcciÃ³n.");
+                      setPoiSearchMessage("Ingresá una dirección.");
                       return;
                     }
                     setPoiSearchStatus("loading");
@@ -780,7 +967,7 @@ export function AdminPage() {
                       const result = await geocodeAddress(query);
                       if (!result) {
                         setPoiSearchStatus("error");
-                        setPoiSearchMessage("No encontramos esa direcciÃ³n.");
+                        setPoiSearchMessage("No encontramos esa dirección.");
                         return;
                       }
                       setPoiLat(String(result.lat));
@@ -792,7 +979,7 @@ export function AdminPage() {
                       setPoiSearchMessage(
                         error instanceof Error
                           ? error.message
-                          : "No pudimos buscar la direcciÃ³n."
+                          : "No pudimos buscar la dirección."
                       );
                     }
                   }}
@@ -804,7 +991,7 @@ export function AdminPage() {
               {poiSearchMessage && (
                 <div
                   className={`text-[11px] ${
-                    poiSearchStatus === "error" ? "text-[#f5b78a]" : "text-[#9a948a]"
+                    poiSearchStatus === "error" ? "text-[#AF8C5C]" : "text-[#D1C7BD]"
                   }`}
                 >
                   {poiSearchMessage}
@@ -819,19 +1006,19 @@ export function AdminPage() {
                 }}
               />
             </div>
-            <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
+            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
               Direccion (opcional)
               <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiAddress}
                 onChange={(event) => setPoiAddress(event.target.value)}
               />
             </label>
-            <label className="space-y-2 text-xs text-[#9a948a] md:col-span-2">
+            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
               Descripcion (opcional)
               <textarea
                 rows={3}
-                className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiDescription}
                 onChange={(event) => setPoiDescription(event.target.value)}
               />
@@ -840,42 +1027,42 @@ export function AdminPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+              className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
               onClick={createPoi}
               disabled={poiSaving}
             >
               {poiSaving ? "Guardando..." : "Agregar punto"}
             </button>
-            {poisError && <span className="text-xs text-[#f5b78a]">{poisError}</span>}
+            {poisError && <span className="text-xs text-[#AF8C5C]">{poisError}</span>}
           </div>
 
           <div className="space-y-3">
-            <div className="text-xs text-[#9a948a]">Listado</div>
+            <div className="text-xs text-[#D1C7BD]">Listado</div>
             {poisStatus === "loading" && (
-              <div className="text-xs text-[#9a948a]">Cargando puntos...</div>
+              <div className="text-xs text-[#D1C7BD]">Cargando puntos...</div>
             )}
             {poisStatus === "error" && (
-              <div className="text-xs text-[#f5b78a]">{poisError}</div>
+              <div className="text-xs text-[#AF8C5C]">{poisError}</div>
             )}
             {pois.map((poi) => (
               <div
                 key={poi.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/60 p-3 text-xs"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
               >
                 <div>
                   <div className="text-sm text-white">{poi.title}</div>
-                  <div className="text-[#9a948a]">
+                  <div className="text-[#D1C7BD]">
                     {poiCategoryLabels[poi.category]} - {poi.lat.toFixed(5)}, {poi.lng.toFixed(5)}
                   </div>
-                  {poi.address && <div className="text-[#9a948a]">{poi.address}</div>}
+                  {poi.address && <div className="text-[#D1C7BD]">{poi.address}</div>}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-[#c7c2b8]">
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
                     {poi.isActive ? "Activo" : "Inactivo"}
                   </span>
                   <button
                     type="button"
-                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                     onClick={() => updatePoiStatus(poi.id, !poi.isActive)}
                   >
                     {poi.isActive ? "Desactivar" : "Activar"}
@@ -893,6 +1080,125 @@ export function AdminPage() {
           </div>
         </section>
       )}
+
+      {tab === "ads" && (
+        <section className="glass-card space-y-4 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm text-white">Publicidad</h3>
+            <p className="text-xs text-[#D1C7BD]">
+              Las cards publicitarias se muestran entre los inmuebles.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
+              Titulo
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={adTitle}
+                onChange={(event) => setAdTitle(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
+              Prioridad (mayor primero)
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={adPriority}
+                onChange={(event) => setAdPriority(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
+              Texto
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={adBody}
+                onChange={(event) => setAdBody(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
+              Imagen (URL)
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={adImageUrl}
+                onChange={(event) => setAdImageUrl(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
+              Link de destino
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={adLinkUrl}
+                onChange={(event) => setAdLinkUrl(event.target.value)}
+              />
+            </label>
+            <label className="space-y-2 text-xs text-[#D1C7BD]">
+              Texto boton
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={adCtaText}
+                onChange={(event) => setAdCtaText(event.target.value)}
+                placeholder="Visitar"
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
+              onClick={createAd}
+              disabled={adSaving}
+            >
+              {adSaving ? "Guardando..." : "Agregar publicidad"}
+            </button>
+            {adsError && <span className="text-xs text-[#AF8C5C]">{adsError}</span>}
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-xs text-[#D1C7BD]">Listado</div>
+            {adsStatus === "loading" && (
+              <div className="text-xs text-[#D1C7BD]">Cargando publicidad...</div>
+            )}
+            {adsStatus === "error" && (
+              <div className="text-xs text-[#AF8C5C]">{adsError}</div>
+            )}
+            {ads.map((ad) => (
+              <div
+                key={ad.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
+              >
+                <div>
+                  <div className="text-sm text-white">{ad.title}</div>
+                  <div className="text-[#D1C7BD]">
+                    Prioridad {ad.priority} {ad.linkUrl ? `- ${ad.linkUrl}` : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
+                    {ad.isActive ? "Activo" : "Inactivo"}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                    onClick={() => updateAdStatus(ad.id, !ad.isActive)}
+                  >
+                    {ad.isActive ? "Desactivar" : "Activar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-rose-400/40 px-3 py-1 text-xs text-rose-200"
+                    onClick={() => deleteAd(ad.id)}
+                  >
+                    Borrar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
+
+

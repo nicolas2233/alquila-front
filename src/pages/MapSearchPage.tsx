@@ -1,14 +1,9 @@
-
+﻿
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MapView, type MapPoint } from "../shared/map/MapView";
-import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
-import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
-import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
-import { buildWhatsappLink } from "../shared/utils/whatsapp";
-import { getSessionUser, getToken } from "../shared/auth/session";
-import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
+import { getSessionUser } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
-import { trackEvent } from "../shared/analytics/posthog";
 import { env } from "../shared/config/env";
 
 type OperationType = "SALE" | "RENT" | "TEMPORARY";
@@ -29,6 +24,7 @@ type PoiCategory =
   | "HEALTH"
   | "SUPERMARKET"
   | "PARK";
+type PublisherType = "OWNER" | "AGENCY";
 
 type MapProperty = {
   id: string;
@@ -43,6 +39,7 @@ type MapProperty = {
   areaM2?: number;
   imageUrl?: string;
   badge?: string;
+  publisherType: PublisherType;
   showMapLocation?: boolean;
   buildingId?: string | null;
   unitLabel?: string | null;
@@ -90,7 +87,7 @@ const poiLabels: Record<PoiCategory, string> = {
 };
 
 const operationColors: Record<OperationType, string> = {
-  SALE: "#d1a466",
+  SALE: "#AF8C5C",
   RENT: "#59c3ff",
   TEMPORARY: "#7fd1b2",
 };
@@ -125,11 +122,20 @@ const typeFilters: PropertyType[] = [
   "OFFICE",
   "WAREHOUSE",
 ];
+const publisherFilters: PublisherType[] = ["OWNER", "AGENCY"];
+const publisherLabels: Record<PublisherType, string> = {
+  OWNER: "Dueño directo",
+  AGENCY: "Inmobiliaria",
+};
+const publisherColors: Record<PublisherType, string> = {
+  OWNER: "#AF8C5C",
+  AGENCY: "#59c3ff",
+};
 
 export function MapSearchPage() {
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const sessionUser = useMemo(() => getSessionUser(), []);
-  const sessionToken = useMemo(() => getToken(), []);
   const [properties, setProperties] = useState<MapProperty[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
@@ -138,22 +144,16 @@ export function MapSearchPage() {
   const [poiError, setPoiError] = useState("");
   const [activeOperations, setActiveOperations] = useState<OperationType[]>([]);
   const [activeTypes, setActiveTypes] = useState<PropertyType[]>([]);
+  const [activePublishers, setActivePublishers] = useState<PublisherType[]>([]);
   const [activePoi, setActivePoi] = useState<PoiCategory[]>([]);
-  const [legendOpen, setLegendOpen] = useState(true);
-  const [operationOpen, setOperationOpen] = useState(true);
-  const [typeOpen, setTypeOpen] = useState(true);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [operationOpen, setOperationOpen] = useState(false);
+  const [typeOpen, setTypeOpen] = useState(false);
+  const [publisherOpen, setPublisherOpen] = useState(false);
   const [poiOpen, setPoiOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
-  const [detailStatus, setDetailStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [detailError, setDetailError] = useState("");
-  const [selectedListing, setSelectedListing] =
-    useState<ReturnType<typeof mapPropertyToDetailListing> | null>(null);
-  const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success">(
-    "idle"
-  );
-  const [contactMessage, setContactMessage] = useState("");
 
   useEffect(() => {
     if (!sessionUser) {
@@ -193,6 +193,7 @@ export function MapSearchPage() {
             unitLabel?: string | null;
             buildingId?: string | null;
             agency?: { name: string } | null;
+            ownerDisplayName?: string | null;
             location?: {
               addressLine?: string | null;
               lat?: number | null;
@@ -202,7 +203,7 @@ export function MapSearchPage() {
           }>;
         };
         if (ignore) return;
-        const mapped = (data.items ?? [])
+        const mapped: MapProperty[] = (data.items ?? [])
           .map((item) => {
             const rawLat = item.location?.lat ?? null;
             const rawLng = item.location?.lng ?? null;
@@ -218,11 +219,15 @@ export function MapSearchPage() {
               address: `${item.location?.addressLine ?? "Bragado"}${
                 item.unitLabel ? ` (${item.unitLabel})` : ""
               }`,
-              contactLabel: item.agency?.name ?? "Dueño directo",
+              contactLabel:
+                item.agency?.name ??
+                item.ownerDisplayName?.trim() ??
+                "Dueño directo",
               rooms: item.rooms ?? undefined,
               areaM2: item.areaM2 ?? undefined,
               imageUrl: item.photos?.[0]?.url,
               badge: typeLabels[item.propertyType],
+              publisherType: (item.agency?.name ? "AGENCY" : "OWNER") as PublisherType,
               showMapLocation: item.features?.showMapLocation ?? true,
               buildingId: item.buildingId ?? null,
               unitLabel: item.unitLabel ?? null,
@@ -303,8 +308,11 @@ export function MapSearchPage() {
     if (activeTypes.length) {
       list = list.filter((item) => activeTypes.includes(item.propertyType));
     }
+    if (activePublishers.length) {
+      list = list.filter((item) => activePublishers.includes(item.publisherType));
+    }
     return list;
-  }, [activeOperations, activeTypes, properties]);
+  }, [activeOperations, activeTypes, activePublishers, properties]);
 
   const filteredPoi = useMemo(() => {
     if (!sessionUser || !activePoi.length) {
@@ -332,7 +340,8 @@ export function MapSearchPage() {
       if (group.length > 1) {
         points.push({
           id: `building:${key}`,
-          title: first.address,
+          title: `${group.length} unidades`,
+          address: first.address,
           subtitle: `${group.length} unidades disponibles`,
           color: "#7f8cff",
           lat: first.lat,
@@ -344,6 +353,7 @@ export function MapSearchPage() {
           id: first.id,
           title: first.title,
           subtitle: `${operationLabels[first.operationType]} - ${typeLabels[first.propertyType]}`,
+          address: first.address,
           imageUrl: first.imageUrl,
           badge: first.badge,
           color: getMarkerColor(first.propertyType, first.operationType),
@@ -357,147 +367,11 @@ export function MapSearchPage() {
 
   const openDetail = async (id: string) => {
     if (!sessionUser) {
-      addToast("Inicia sesi?n para ver la ficha completa.", "warning");
+      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      navigate("/login");
       return;
     }
-    setDetailStatus("loading");
-    setDetailError("");
-    setContactStatus("idle");
-    setContactMessage("");
-    try {
-      const response = await fetch(`${env.apiUrl}/properties/${id}`);
-      if (!response.ok) {
-        throw new Error("No pudimos cargar la ficha.");
-      }
-      const data = (await response.json()) as PropertyApiDetail;
-      const mapped = mapPropertyToDetailListing(data);
-      setSelectedListing(mapped);
-      trackEvent("view_listing", {
-        propertyId: data.id,
-        operation: data.operationType,
-        propertyType: data.propertyType,
-      });
-      setDetailStatus("idle");
-    } catch (error) {
-      setDetailStatus("error");
-      setDetailError(error instanceof Error ? error.message : "No pudimos cargar la ficha.");
-    }
-  };
-
-  const closeDetail = () => {
-    setSelectedListing(null);
-    setDetailStatus("idle");
-    setDetailError("");
-    setContactStatus("idle");
-    setContactMessage("");
-  };
-
-  const isOwnListing = useMemo(() => {
-    if (!selectedListing || !sessionUser) return false;
-    if (sessionUser.role === "OWNER") {
-      return selectedListing.ownerUserId === sessionUser.id;
-    }
-    if (sessionUser.role.startsWith("AGENCY")) {
-      return selectedListing.agencyId === sessionUser.agencyId;
-    }
-    return false;
-  }, [selectedListing, sessionUser]);
-
-  const whatsappLink = useMemo(() => {
-    if (!selectedListing?.contactMethods) return null;
-    const method = selectedListing.contactMethods.find((item) => item.type === "WHATSAPP");
-    if (!method?.value) return null;
-    const message = `Hola, me interesa "${selectedListing.title}".`;
-    return buildWhatsappLink(method.value, message);
-  }, [selectedListing]);
-
-  const handleContactRequest = async () => {
-    if (!selectedListing) return;
-    if (!sessionUser || !sessionToken) {
-      addToast("Inicia sesión para enviar solicitudes.", "warning");
-      return;
-    }
-    if (isOwnListing) {
-      addToast("No puedes contactar tus propias publicaciones.", "warning");
-      return;
-    }
-    if (hasSentContactRequest({ propertyId: selectedListing.id, type: "INTEREST" })) {
-      setContactStatus("success");
-      setContactMessage("Ya enviaste una solicitud para este inmueble.");
-      return;
-    }
-    setContactStatus("loading");
-    try {
-      const response = await fetch(
-        `${env.apiUrl}/properties/${selectedListing.id}/contact-requests`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sessionToken}`,
-          },
-          body: JSON.stringify({
-            propertyId: selectedListing.id,
-            type: "INTEREST",
-            message: `Hola! Soy ${sessionUser.name ?? "un interesado"} y me interesa "${
-              selectedListing.title
-            }".`,
-          }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error("No pudimos enviar la solicitud.");
-      }
-      setContactStatus("success");
-      setContactMessage("Solicitud enviada.");
-      trackEvent("contact_request", {
-        propertyId: selectedListing.id,
-        type: "INTEREST",
-        operation: selectedListing.operation,
-        propertyType: selectedListing.propertyType,
-      });
-      markContactRequestSent({ propertyId: selectedListing.id, type: "INTEREST" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "No pudimos enviar la solicitud.";
-      setContactStatus("idle");
-      setContactMessage(message);
-    }
-  };
-
-  const handleReportProperty = async (reason: string) => {
-    if (!selectedListing) return;
-    if (!sessionUser) {
-      addToast("Inicia sesión para reportar.", "warning");
-      throw new Error("No session");
-    }
-    const response = await fetch(`${env.apiUrl}/properties/${selectedListing.id}/report`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason, reporterUserId: sessionUser.id }),
-    });
-    if (!response.ok) {
-      throw new Error("No pudimos enviar el reporte.");
-    }
-  };
-
-  const handleReportUser = async (reason: string) => {
-    if (!selectedListing?.ownerUserId || !sessionToken) {
-      throw new Error("No pudimos enviar el reporte.");
-    }
-    const response = await fetch(
-      `${env.apiUrl}/users/${selectedListing.ownerUserId}/report`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({ reason }),
-      }
-    );
-    if (!response.ok) {
-      throw new Error("No pudimos enviar el reporte.");
-    }
+    navigate(`/publicacion/${id}`);
   };
 
   const propertyIdSet = useMemo(() => new Set(properties.map((item) => item.id)), [
@@ -535,27 +409,110 @@ export function MapSearchPage() {
       prev.includes(value) ? prev.filter((poi) => poi !== value) : [...prev, value]
     );
   };
+  const togglePublisher = (value: PublisherType) => {
+    setActivePublishers((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
+  };
 
   const clearFilters = () => {
     setActiveOperations([]);
     setActiveTypes([]);
+    setActivePublishers([]);
     setActivePoi([]);
   };
+  const hasActiveFilters =
+    activeOperations.length > 0 ||
+    activeTypes.length > 0 ||
+    activePublishers.length > 0 ||
+    activePoi.length > 0;
+
+  const mapFilterSectionButtonClass =
+    "flex w-full items-center justify-between rounded-xl border border-white/15 bg-gradient-to-r from-night-900/75 to-night-800/55 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#E7E2DD] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]";
+  const mapFilterOptionClass =
+    "flex items-center justify-between rounded-xl border border-white/12 bg-night-900/42 px-3 py-2 text-xs text-[#E7E2DD]";
+  const mapFilterCheckboxWrapClass =
+    "inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/15 bg-night-800/75";
 
   const filtersPanel = (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h3 className="text-lg text-white">Filtros</h3>
-        <p className="text-xs text-[#9a948a]">Activa o desactiva para mostrar puntos.</p>
+        <h3 className="text-lg text-white">Filtros del mapa</h3>
+        <p className="text-xs text-[#D1C7BD]">
+          Activa criterios para mostrar solo puntos relevantes.
+        </p>
+        <p className="mt-2 text-[11px] text-[#D1C7BD]">
+          {hasActiveFilters
+            ? `${activeOperations.length + activeTypes.length + activePublishers.length + activePoi.length} filtros activos`
+            : "Sin filtros activos"}
+        </p>
       </div>
 
       <div className="space-y-3">
         <button
           type="button"
-          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+          className={mapFilterSectionButtonClass}
+          onClick={() => setPublisherOpen((prev) => !prev)}
+        >
+          Publicador {activePublishers.length > 0 ? `(${activePublishers.length})` : ""}
+          <span
+            className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
+              publisherOpen ? "rotate-180" : "rotate-0"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3 w-3"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+        <div
+          className={`grid gap-2 overflow-hidden transition-all duration-300 ${
+            publisherOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          {publisherFilters.map((value) => (
+            <label
+              key={value}
+              className={mapFilterOptionClass}
+              style={{ borderLeftWidth: 3, borderLeftColor: publisherColors[value] }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: publisherColors[value] }}
+                />
+                {publisherLabels[value]}
+              </span>
+              <span className={mapFilterCheckboxWrapClass}>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={activePublishers.includes(value)}
+                  onChange={() => togglePublisher(value)}
+                />
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <button
+          type="button"
+          className={mapFilterSectionButtonClass}
           onClick={() => setOperationOpen((prev) => !prev)}
         >
-          Operacion
+          Operacion {activeOperations.length > 0 ? `(${activeOperations.length})` : ""}
           <span
             className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
               operationOpen ? "rotate-180" : "rotate-0"
@@ -583,15 +540,25 @@ export function MapSearchPage() {
           {operationFilters.map((value) => (
             <label
               key={value}
-              className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
+              className={mapFilterOptionClass}
+              style={{ borderLeftWidth: 3, borderLeftColor: operationColors[value] }}
             >
-              <span>{operationLabels[value]}</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-[#d1a466]"
-                checked={activeOperations.includes(value)}
-                onChange={() => toggleOperation(value)}
-              />
+              <span className="inline-flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: operationColors[value] }}
+                />
+                {operationLabels[value]}
+              </span>
+              <span className={mapFilterCheckboxWrapClass}>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={activeOperations.includes(value)}
+                  onChange={() => toggleOperation(value)}
+                />
+              </span>
             </label>
           ))}
         </div>
@@ -600,10 +567,10 @@ export function MapSearchPage() {
       <div className="space-y-3">
         <button
           type="button"
-          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+          className={mapFilterSectionButtonClass}
           onClick={() => setTypeOpen((prev) => !prev)}
         >
-          Tipo
+          Tipo {activeTypes.length > 0 ? `(${activeTypes.length})` : ""}
           <span
             className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
               typeOpen ? "rotate-180" : "rotate-0"
@@ -631,15 +598,17 @@ export function MapSearchPage() {
           {typeFilters.map((value) => (
             <label
               key={value}
-              className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
+              className={mapFilterOptionClass}
             >
               <span>{typeLabels[value]}</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-[#d1a466]"
-                checked={activeTypes.includes(value)}
-                onChange={() => toggleType(value)}
-              />
+              <span className={mapFilterCheckboxWrapClass}>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={activeTypes.includes(value)}
+                  onChange={() => toggleType(value)}
+                />
+              </span>
             </label>
           ))}
         </div>
@@ -648,10 +617,10 @@ export function MapSearchPage() {
       <div className="space-y-3">
         <button
           type="button"
-          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#c7c2b8]"
+          className={mapFilterSectionButtonClass}
           onClick={() => setPoiOpen((prev) => !prev)}
         >
-          Servicios cerca
+          Servicios cerca {activePoi.length > 0 ? `(${activePoi.length})` : ""}
           <span
             className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 transition-transform ${
               poiOpen ? "rotate-180" : "rotate-0"
@@ -681,15 +650,25 @@ export function MapSearchPage() {
             return (
               <label
                 key={key}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-night-900/50 px-3 py-2 text-xs text-[#c7c2b8]"
+                className={mapFilterOptionClass}
+                style={{ borderLeftWidth: 3, borderLeftColor: poiColors[key] }}
               >
-                <span>{poiLabels[key]}</span>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#d1a466]"
-                  checked={activePoi.includes(key)}
-                  onChange={() => togglePoi(key)}
-                />
+                <span className="inline-flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: poiColors[key] }}
+                  />
+                  {poiLabels[key]}
+                </span>
+                <span className={mapFilterCheckboxWrapClass}>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#AF8C5C]"
+                    checked={activePoi.includes(key)}
+                    onChange={() => togglePoi(key)}
+                  />
+                </span>
               </label>
             );
           })}
@@ -699,7 +678,8 @@ export function MapSearchPage() {
       <button
         type="button"
         onClick={clearFilters}
-        className="w-full rounded-full border border-white/20 px-4 py-2 text-xs text-[#c7c2b8]"
+        className="w-full rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!hasActiveFilters}
       >
         Limpiar filtros
       </button>
@@ -707,18 +687,32 @@ export function MapSearchPage() {
   );
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl text-white">Mapa interactivo</h2>
-          <p className="text-sm text-[#9a948a]">
-            Filtra por operaci?n y tipo de inmueble. Los puntos cambian en tiempo real.
-          </p>
+    <div className="space-y-4 md:space-y-8">
+      <section className="relative h-[40svh] min-h-[240px] w-full overflow-hidden rounded-[24px] border border-white/15 md:h-[52svh] md:min-h-[320px] md:rounded-[30px] lg:-mt-8 xl:-mt-10">
+        <div className="absolute inset-0 bg-hero bg-cover bg-center" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/45 to-black/68" />
+        <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-4 text-center sm:px-6">
+          <div className="space-y-3 md:space-y-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Brupi Map</p>
+            <h2 className="font-display text-2xl leading-tight text-white sm:text-3xl md:text-5xl">
+              Explora Bragado en el mapa
+            </h2>
+            <p className="mx-auto max-w-2xl text-xs text-[#E7E2DD] sm:text-sm md:text-base">
+              Filtra por operacion, tipo de inmueble, publicador y servicios cercanos.
+            </p>
+            <div className="flex justify-center">
+              <span className="gold-pill">{filtered.length} puntos visibles</span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-[#9a948a]">
+        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 text-xs text-[#D1C7BD] md:hidden">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-gold-400/50 bg-gold-500/20 px-3 py-1 text-xs font-semibold text-gold-100 shadow-[0_0_0_1px_rgba(209,164,102,0.25)] md:hidden"
+            className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md transition md:hidden ${
+              hasActiveFilters
+                ? "border border-gold-200/70 bg-[linear-gradient(180deg,rgba(175,140,92,0.46),rgba(175,140,92,0.26))] text-white shadow-[0_10px_28px_rgba(0,0,0,0.38),0_0_0_1px_rgba(209,164,102,0.35),0_0_24px_rgba(209,164,102,0.18)]"
+                : "border border-gold-300/60 bg-[linear-gradient(180deg,rgba(175,140,92,0.32),rgba(175,140,92,0.18))] text-gold-100 shadow-[0_8px_24px_rgba(0,0,0,0.35),0_0_0_1px_rgba(209,164,102,0.22)]"
+            }`}
             onClick={() => setMobileFiltersOpen(true)}
           >
             <svg
@@ -737,27 +731,32 @@ export function MapSearchPage() {
               <line x1="10" y1="18" x2="14" y2="18" />
             </svg>
             Filtros
+            {hasActiveFilters && (
+              <span className="rounded-full bg-gold-500/40 px-2 py-0.5 text-[10px] text-[#1A1613]">
+                {activeOperations.length + activeTypes.length + activePublishers.length + activePoi.length}
+              </span>
+            )}
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
-        <section className="glass-card hidden space-y-6 p-6 lg:sticky lg:top-24 lg:block lg:h-fit">
+      <div className="grid items-start gap-4 md:gap-8 lg:grid-cols-[264px_1fr] xl:grid-cols-[276px_1fr]">
+        <section className="glass-card hidden space-y-5 p-5 lg:block lg:h-fit">
           {filtersPanel}
         </section>
 
         <section className="space-y-6">
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs text-[#9a948a]">
+            <div className="flex items-center justify-between text-xs text-[#D1C7BD]">
               <span>Bragado</span>
               <span>{filtered.length} puntos visibles</span>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-night-900/60 p-3">
-              <div className="flex items-center justify-between gap-3 text-xs text-[#9a948a]">
+            <div className="rounded-2xl border border-white/10 bg-night-900/48 p-2.5 sm:rounded-3xl sm:p-3">
+              <div className="flex items-center justify-between gap-3 text-xs text-[#D1C7BD]">
                 <span>Mapa principal</span>
                 <span>{listStatus === "loading" ? "Cargando..." : "Actualizado"}</span>
               </div>
-              <div className="mt-3 h-[45vh] max-h-[540px] min-h-[260px] overflow-hidden rounded-2xl border border-white/10 sm:h-[62vh] sm:min-h-[360px]">
+              <div className="mt-3 h-[42svh] max-h-[540px] min-h-[250px] overflow-hidden rounded-2xl border border-white/10 sm:h-[62vh] sm:min-h-[360px]">
                 <MapView
                   points={[
                     ...(sessionUser ? pointsForMap : []),
@@ -766,6 +765,7 @@ export function MapSearchPage() {
                       id: poi.id,
                       title: poi.title,
                       subtitle: poiLabels[poi.category],
+                      address: poi.address ?? undefined,
                       badge: poiLabels[poi.category],
                       color: poiColors[poi.category],
                       lat: poi.lat,
@@ -788,19 +788,35 @@ export function MapSearchPage() {
                 />
               </div>
               {listStatus === "error" && (
-                <div className="mt-3 text-xs text-[#f5b78a]">{listError}</div>
+                <div className="mt-3 text-xs text-[#AF8C5C]">{listError}</div>
               )}
               {poiStatus === "error" && (
-                <div className="mt-2 text-xs text-[#f5b78a]">{poiError}</div>
+                <div className="mt-2 text-xs text-[#AF8C5C]">{poiError}</div>
               )}
               {!sessionUser && (
-                <div className="mt-3 text-xs text-[#9a948a]">
-                  Inicia sesi?n para ver los puntos en el mapa.
+                <div className="mt-3 text-xs text-[#D1C7BD]">
+                  Inicia sesion para ver los puntos en el mapa.
                 </div>
               )}
               {sessionUser && listStatus === "idle" && properties.length === 0 && (
-                <div className="mt-3 text-xs text-[#9a948a]">
-                  No hay inmuebles con geolocalizaci?n cargada.
+                <div className="mt-3 text-xs text-[#D1C7BD]">
+                  No hay inmuebles con geolocalizacion cargada.
+                </div>
+              )}
+              {sessionUser && listStatus === "idle" && !hasActiveFilters && (
+                <div className="mt-3 rounded-2xl border border-white/10 bg-night-900/38 px-4 py-4 text-xs text-[#D1C7BD]">
+                  <div className="text-sm text-white">Activa filtros para comenzar</div>
+                  <div className="mt-1">
+                    Selecciona operacion, tipo o publicador para mostrar puntos en el mapa.
+                  </div>
+                </div>
+              )}
+              {sessionUser && listStatus === "idle" && hasActiveFilters && filtered.length === 0 && (
+                <div className="mt-3 rounded-2xl border border-[#AF8C5C]/35 bg-night-900/38 px-4 py-4 text-xs text-[#D1C7BD]">
+                  <div className="text-sm text-white">No encontramos coincidencias</div>
+                  <div className="mt-1">
+                    Prueba aflojando algun filtro o limpiando la seleccion actual.
+                  </div>
                 </div>
               )}
             </div>
@@ -811,7 +827,7 @@ export function MapSearchPage() {
               <h3 className="text-sm text-white">Leyenda</h3>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[11px] text-[#c7c2b8] md:hidden"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[11px] text-[#E7E2DD] md:hidden"
                 onClick={() => setLegendOpen((open) => !open)}
               >
                 <span>{legendOpen ? "Ocultar" : "Mostrar"}</span>
@@ -836,7 +852,7 @@ export function MapSearchPage() {
               </button>
             </div>
             <div
-              className={`flex flex-wrap gap-2 text-xs text-[#c7c2b8] overflow-hidden transition-all duration-300 md:flex ${
+              className={`flex flex-wrap gap-2 text-xs text-[#E7E2DD] overflow-hidden transition-all duration-300 md:flex ${
                 legendOpen
                   ? "max-h-64 opacity-100 translate-y-0"
                   : "max-h-0 opacity-0 -translate-y-2 md:max-h-none md:opacity-100 md:translate-y-0"
@@ -881,7 +897,7 @@ export function MapSearchPage() {
                   </span>
                 ))}
               {!activeOperations.length && !activeTypes.length && !activePoi.length && (
-                <span className="text-xs text-[#9a948a]">
+                <span className="text-xs text-[#D1C7BD]">
                   Activa filtros para mostrar la leyenda.
                 </span>
               )}
@@ -892,11 +908,14 @@ export function MapSearchPage() {
             <div className="glass-card space-y-4 p-6">
               <h3 className="text-lg text-white">Ficha rapida</h3>
               {selected ? (
-                <div className="space-y-3 text-sm text-[#c7c2b8]">
+                <div className="space-y-3 text-sm text-[#E7E2DD]">
                   <div className="text-base text-white">{selected.title}</div>
-                  <div className="flex flex-wrap gap-2 text-xs text-[#9a948a]">
+                  <div className="flex flex-wrap gap-2 text-xs text-[#D1C7BD]">
                     <span className="rounded-full border border-white/10 px-3 py-1">
                       {operationLabels[selected.operationType]}
+                    </span>
+                    <span className="rounded-full border border-white/10 px-3 py-1">
+                      {publisherLabels[selected.publisherType]}
                     </span>
                     <span className="rounded-full border border-white/10 px-3 py-1">
                       {typeLabels[selected.propertyType]}
@@ -905,17 +924,17 @@ export function MapSearchPage() {
                   <div className="text-2xl text-white">
                     {selected.priceCurrency} {selected.priceAmount.toLocaleString("es-AR")}
                   </div>
-                  <div className="text-xs text-[#9a948a]">{selected.address}</div>
-                  <div className="flex flex-wrap gap-3 text-xs text-[#9a948a]">
+                  <div className="text-xs text-[#D1C7BD]">{selected.address}</div>
+                  <div className="flex flex-wrap gap-3 text-xs text-[#D1C7BD]">
                     {selected.rooms && <span>{selected.rooms} ambientes</span>}
                     {selected.areaM2 && <span>{selected.areaM2} m2</span>}
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-night-900/60 px-4 py-3 text-xs text-[#c7c2b8]">
+                  <div className="rounded-2xl border border-white/10 bg-night-900/48 px-4 py-3 text-xs text-[#E7E2DD]">
                     Contacto: {selected.contactLabel}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
-                      className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                      className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
                       type="button"
                       onClick={() => openDetail(selected.id)}
                     >
@@ -924,7 +943,7 @@ export function MapSearchPage() {
                   </div>
                 </div>
               ) : selectedBuildingItems.length ? (
-                <div className="space-y-3 text-xs text-[#c7c2b8]">
+                <div className="space-y-3 text-xs text-[#E7E2DD]">
                   <div className="text-sm text-white">
                     {selectedBuildingItems.length} unidades disponibles
                   </div>
@@ -932,14 +951,14 @@ export function MapSearchPage() {
                     {selectedBuildingItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/50 px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/32 px-3 py-2"
                       >
                         <div className="space-y-1">
                           <div className="text-sm text-white">{item.title}</div>
-                          <div className="text-[11px] text-[#9a948a]">
+                          <div className="text-[11px] text-[#D1C7BD]">
                             {operationLabels[item.operationType]} - {typeLabels[item.propertyType]}
                           </div>
-                          <div className="text-[11px] text-[#9a948a]">{item.address}</div>
+                          <div className="text-[11px] text-[#D1C7BD]">{item.address}</div>
                         </div>
                         <button
                           type="button"
@@ -953,13 +972,17 @@ export function MapSearchPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-[#9a948a]">No hay inmuebles para mostrar.</p>
+                <div className="rounded-2xl border border-white/10 bg-night-900/38 px-4 py-4 text-xs text-[#D1C7BD]">
+                  {!hasActiveFilters
+                    ? "Activa filtros para mostrar inmuebles en esta ficha rapida."
+                    : "No hay inmuebles para mostrar con los filtros actuales."}
+                </div>
               )}
             </div>
 
             <div className="glass-card space-y-3 p-6">
               <h3 className="text-lg text-white">Resultados</h3>
-              <div className="space-y-3 text-xs text-[#9a948a]">
+              <div className="space-y-3 text-xs text-[#D1C7BD]">
                 {filtered.map((item) => (
                   <button
                     key={item.id}
@@ -970,98 +993,43 @@ export function MapSearchPage() {
                     }}
                     className={
                       item.id === selectedId
-                        ? "flex w-full flex-col gap-1 rounded-2xl border border-gold-500/40 bg-night-900/60 px-4 py-3 text-left text-white"
-                        : "flex w-full flex-col gap-1 rounded-2xl border border-white/10 bg-night-900/50 px-4 py-3 text-left text-[#c7c2b8]"
+                        ? "flex w-full flex-col gap-1 rounded-2xl border border-gold-500/40 bg-night-900/48 px-4 py-3 text-left text-white"
+                        : "flex w-full flex-col gap-1 rounded-2xl border border-white/10 bg-night-900/32 px-4 py-3 text-left text-[#E7E2DD]"
                     }
                   >
                     <span className="text-sm text-white">{item.title}</span>
                     <span>
                       {operationLabels[item.operationType]} - {typeLabels[item.propertyType]}
                     </span>
+                    <span>{publisherLabels[item.publisherType]}</span>
                     <span>{item.address}</span>
                   </button>
                 ))}
                 {!filtered.length && (
-                  <p className="text-xs text-[#9a948a]">Sin resultados para estos filtros.</p>
+                  <div className="rounded-2xl border border-white/10 bg-night-900/38 px-4 py-4 text-xs text-[#D1C7BD]">
+                    {!hasActiveFilters
+                      ? "Selecciona al menos un filtro para listar resultados."
+                      : "Sin resultados para los filtros elegidos."}
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </section>
       </div>
-
-      {selectedListing && (
-        <PropertyDetailModal
-          listing={selectedListing}
-          onClose={closeDetail}
-          isLoading={detailStatus === "loading"}
-          onReportProperty={handleReportProperty}
-          onReportUser={selectedListing.ownerUserId ? handleReportUser : undefined}
-          actions={
-            <div className="flex flex-wrap gap-3">
-              <button
-                className="rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-5 py-2 text-xs font-semibold text-night-900"
-                type="button"
-                onClick={() => {
-                  if (!sessionUser) {
-                    addToast("Inicia sesión para contactar.", "warning");
-                    return;
-                  }
-                  if (isOwnListing) {
-                    addToast("No puedes contactar tus propias publicaciones.", "warning");
-                    return;
-                  }
-                  if (whatsappLink) {
-                    window.open(whatsappLink, "_blank", "noopener,noreferrer");
-                  } else {
-                    addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
-                  }
-                }}
-              >
-                WhatsApp
-              </button>
-              <button
-                className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#c7c2b8]"
-                type="button"
-                onClick={handleContactRequest}
-                disabled={
-                  contactStatus === "loading" ||
-                  isOwnListing ||
-                  (selectedListing
-                    ? hasSentContactRequest({
-                        propertyId: selectedListing.id,
-                        type: "INTEREST",
-                      })
-                    : false)
-                }
-              >
-                Me interesa
-              </button>
-              {contactMessage && (
-                <div className="w-full text-xs text-[#9a948a]">{contactMessage}</div>
-              )}
-            </div>
-          }
-        />
-      )}
-      {detailStatus === "error" && detailError && (
-        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
-          {detailError}
-        </div>
-      )}
       {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 p-4 lg:hidden">
-          <div className="glass-card mx-auto flex h-full max-h-[85vh] w-full max-w-md flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[1300] bg-black/70 p-4 pb-[calc(6.6rem+env(safe-area-inset-bottom))] lg:hidden">
+          <div className="glass-card mx-auto flex h-full max-h-[82vh] w-full max-w-md flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
                 <div className="text-sm text-white">Filtros</div>
-                <div className="text-[11px] text-[#9a948a]">
+                <div className="text-[11px] text-[#D1C7BD]">
                   Ajusta para ver solo lo que te interesa.
                 </div>
               </div>
               <button
                 type="button"
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                 onClick={() => setMobileFiltersOpen(false)}
               >
                 Cerrar
@@ -1071,7 +1039,7 @@ export function MapSearchPage() {
             <div className="border-t border-white/10 p-4">
               <button
                 type="button"
-                className="w-full rounded-full bg-gradient-to-r from-[#b88b50] to-[#e0c08a] px-4 py-2 text-xs font-semibold text-night-900"
+                className="w-full rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
                 onClick={() => setMobileFiltersOpen(false)}
               >
                 Ver resultados
@@ -1083,3 +1051,7 @@ export function MapSearchPage() {
     </div>
   );
 }
+
+
+
+

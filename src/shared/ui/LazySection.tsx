@@ -14,7 +14,7 @@ export function LazySection({ children, className, fallback }: LazySectionProps)
           <div
             className={
               className ??
-              "mx-auto flex min-h-[40vh] max-w-6xl items-center justify-center px-6 text-sm text-[#c7c2b8]"
+              "mx-auto flex min-h-[40vh] max-w-6xl items-center justify-center px-6 text-sm text-[#E7E2DD]"
             }
           >
             Cargando...

@@ -1,17 +1,8 @@
-import { useEffect, useMemo, useState, lazy } from "react";
-import { useLocation } from "react-router-dom";
+﻿import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
-import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
-import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
-import { LazySection } from "../shared/ui/LazySection";
 import { getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
-
-const PropertyDetailModal = lazy(() =>
-  import("../shared/properties/PropertyDetailModal").then((m) => ({
-    default: m.PropertyDetailModal,
-  }))
-);
 
 type MyRequest = {
   id: string;
@@ -60,6 +51,7 @@ const propertyLabels: Record<string, string> = {
 
 export function MyRequestsPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const [items, setItems] = useState<MyRequest[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading");
@@ -68,11 +60,6 @@ export function MyRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<MyRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
-  const [selectedListing, setSelectedListing] =
-    useState<ReturnType<typeof mapPropertyToDetailListing> | null>(null);
-  const [detailListingStatus, setDetailListingStatus] =
-    useState<"idle" | "loading" | "error">("idle");
-  const [detailListingError, setDetailListingError] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -113,28 +100,12 @@ export function MyRequestsPage() {
   };
 
   const openPropertyDetail = async (propertyId: string) => {
-    setDetailListingStatus("loading");
-    setDetailListingError("");
-    try {
-      const response = await fetch(`${env.apiUrl}/properties/${propertyId}`);
-      if (!response.ok) {
-        throw new Error("No pudimos cargar la ficha.");
-      }
-      const data = (await response.json()) as PropertyApiDetail;
-      setSelectedListing(mapPropertyToDetailListing(data));
-      setDetailListingStatus("idle");
-    } catch (error) {
-      setDetailListingStatus("error");
-      setDetailListingError(
-        error instanceof Error ? error.message : "No pudimos cargar la ficha."
-      );
+    if (!token) {
+      addToast("Necesitas iniciar sesion.", "warning");
+      navigate("/login");
+      return;
     }
-  };
-
-  const closePropertyDetail = () => {
-    setSelectedListing(null);
-    setDetailListingStatus("idle");
-    setDetailListingError("");
+    navigate(`/publicacion/${propertyId}`);
   };
 
   useEffect(() => {
@@ -161,17 +132,17 @@ export function MyRequestsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl text-white">Mis solicitudes</h2>
-        <p className="text-sm text-[#9a948a]">Tus solicitudes enviadas a propiedades.</p>
+        <p className="text-sm text-[#D1C7BD]">Tus solicitudes enviadas a propiedades.</p>
       </div>
 
       {status === "loading" && (
-        <p className="text-xs text-[#9a948a]">Cargando solicitudes...</p>
+        <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
       )}
       {status === "error" && (
-        <p className="text-xs text-[#f5b78a]">{message}</p>
+        <p className="text-xs text-[#AF8C5C]">{message}</p>
       )}
       {status === "idle" && items.length === 0 && (
-        <p className="text-xs text-[#9a948a]">Aun no has hecho solicitudes.</p>
+        <p className="text-xs text-[#D1C7BD]">Aun no has hecho solicitudes.</p>
       )}
 
       {status === "idle" && items.length > 0 && (
@@ -179,26 +150,26 @@ export function MyRequestsPage() {
           {items.map((request) => (
             <div
               key={request.id}
-              className="rounded-2xl border border-white/10 bg-night-900/60 p-4"
+              className="rounded-2xl border border-white/10 bg-night-900/48 p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-sm text-white">
                     {requestTypeLabels[request.type] ?? request.type}
                   </div>
-                  <div className="text-xs text-[#9a948a]">
+                  <div className="text-xs text-[#D1C7BD]">
                     {request.property.title} -{" "}
                     {operationLabels[request.property.operationType] ?? request.property.operationType}{" "}
                     -{" "}
                     {propertyLabels[request.property.propertyType] ?? request.property.propertyType}
                   </div>
                   {request.property.location?.addressLine && (
-                    <div className="text-xs text-[#9a948a]">
+                    <div className="text-xs text-[#D1C7BD]">
                       {request.property.location.addressLine}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-[#c7c2b8]">
+                <div className="flex items-center gap-3 text-xs text-[#E7E2DD]">
                   <div>
                     {request.property.priceCurrency} {request.property.priceAmount}
                   </div>
@@ -215,13 +186,13 @@ export function MyRequestsPage() {
                 </div>
               </div>
               {request.message && (
-                <div className="mt-2 text-xs text-[#9a948a]">
+                <div className="mt-2 text-xs text-[#D1C7BD]">
                   Mensaje: {request.message}
                 </div>
               )}
               <div className="mt-3">
                 <button
-                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                   type="button"
                   onClick={() => openPropertyDetail(request.property.id)}
                 >
@@ -235,16 +206,16 @@ export function MyRequestsPage() {
 
       {detailOpen && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/95 shadow-card">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/82 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
                 <h3 className="text-xl text-white">Detalle de solicitud</h3>
-                <p className="text-xs text-[#9a948a]">
+                <p className="text-xs text-[#D1C7BD]">
                   {requestTypeLabels[selectedRequest.type] ?? selectedRequest.type}
                 </p>
               </div>
               <button
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                 type="button"
                 onClick={() => {
                   setDetailOpen(false);
@@ -254,20 +225,20 @@ export function MyRequestsPage() {
                 Cerrar
               </button>
             </div>
-            <div className="max-h-[calc(90vh-90px)] overflow-y-auto space-y-4 px-6 py-5 text-sm text-[#c7c2b8]">
-              <div className="rounded-2xl border border-white/10 bg-night-900/60 p-4">
+            <div className="max-h-[calc(90vh-90px)] overflow-y-auto space-y-4 px-6 py-5 text-sm text-[#E7E2DD]">
+              <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4">
                 <div className="text-sm text-white">{selectedRequest.property.title}</div>
-                <div className="text-xs text-[#9a948a]">
+                <div className="text-xs text-[#D1C7BD]">
                   {operationLabels[selectedRequest.property.operationType] ?? selectedRequest.property.operationType}{" "}
                   -{" "}
                   {propertyLabels[selectedRequest.property.propertyType] ?? selectedRequest.property.propertyType}
                 </div>
                 {selectedRequest.property.location?.addressLine && (
-                  <div className="text-xs text-[#9a948a]">
+                  <div className="text-xs text-[#D1C7BD]">
                     {selectedRequest.property.location.addressLine}
                   </div>
                 )}
-                <div className="mt-2 text-xs text-[#9a948a]">
+                <div className="mt-2 text-xs text-[#D1C7BD]">
                   {selectedRequest.property.priceCurrency}{" "}
                   {selectedRequest.property.priceAmount}
                 </div>
@@ -275,14 +246,14 @@ export function MyRequestsPage() {
 
               {selectedRequest.message && (
                 <div>
-                  <div className="text-xs text-[#9a948a]">Tu mensaje</div>
+                  <div className="text-xs text-[#D1C7BD]">Tu mensaje</div>
                   <div className="text-sm text-white">{selectedRequest.message}</div>
                 </div>
               )}
 
               <div>
                 <button
-                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#c7c2b8]"
+                  className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                   type="button"
                   onClick={() => openPropertyDetail(selectedRequest.property.id)}
                 >
@@ -294,20 +265,7 @@ export function MyRequestsPage() {
         </div>
       )}
 
-      {selectedListing && (
-        <LazySection fallback={<div className="h-12" />}>
-          <PropertyDetailModal
-            listing={selectedListing}
-            onClose={closePropertyDetail}
-            isLoading={detailListingStatus === "loading"}
-          />
-        </LazySection>
-      )}
-      {detailListingStatus === "error" && detailListingError && (
-        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/90 px-4 py-3 text-xs text-[#f5b78a] shadow-card">
-          {detailListingError}
-        </div>
-      )}
     </div>
   );
 }
+
