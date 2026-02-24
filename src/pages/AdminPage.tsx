@@ -112,9 +112,21 @@ type AdminAd = {
   createdAt: string;
 };
 
+type AdminPlan = {
+  id: string;
+  code: string;
+  name: string;
+  priceAmount: number | string;
+  priceCurrency: string;
+  maxProperties: number;
+  createdAt: string;
+  updatedAt?: string;
+};
+
 type TabKey =
   | "overview"
   | "users"
+  | "plans"
   | "properties"
   | "reports"
   | "verifications"
@@ -162,6 +174,14 @@ function formatShortDateTime(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function normalizePlan(plan: AdminPlan): AdminPlan {
+  return {
+    ...plan,
+    priceAmount: Number(plan.priceAmount),
+    maxProperties: Number(plan.maxProperties),
+  };
 }
 
 function getLatestAcceptance(
@@ -232,6 +252,14 @@ export function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersStatus, setUsersStatus] = useState<"idle" | "loading" | "error">("idle");
   const [usersError, setUsersError] = useState("");
+
+  const [plans, setPlans] = useState<AdminPlan[]>([]);
+  const [plansStatus, setPlansStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [plansError, setPlansError] = useState("");
+  const [planDrafts, setPlanDrafts] = useState<Record<string, { name: string; priceAmount: string; maxProperties: string }>>(
+    {}
+  );
+  const [planSavingId, setPlanSavingId] = useState<string | null>(null);
 
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [propertiesStatus, setPropertiesStatus] = useState<"idle" | "loading" | "error">(
@@ -427,6 +455,43 @@ export function AdminPage() {
 
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") return;
+    if (tab !== "plans") return;
+    setPlansStatus("loading");
+    setPlansError("");
+    fetch(`${env.apiUrl}/admin/plans`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(await readApiError(response, "No pudimos cargar planes."));
+        }
+        return response.json() as Promise<{ items: AdminPlan[] }>;
+      })
+      .then((data) => {
+        const normalized = (data.items ?? []).map(normalizePlan);
+        setPlans(normalized);
+        setPlanDrafts(
+          Object.fromEntries(
+            normalized.map((plan) => [
+              plan.id,
+              {
+                name: plan.name ?? "",
+                priceAmount: String(Number(plan.priceAmount) || 0),
+                maxProperties: String(Number(plan.maxProperties) || 0),
+              },
+            ])
+          )
+        );
+        setPlansStatus("idle");
+      })
+      .catch((error) => {
+        setPlansStatus("error");
+        setPlansError(error instanceof Error ? error.message : "Error al cargar planes.");
+      });
+  }, [token, effectiveRole, tab]);
+
+  useEffect(() => {
+    if (!token || effectiveRole !== "ADMIN") return;
     if (tab !== "ads") return;
     setAdsStatus("loading");
     setAdsError("");
@@ -466,6 +531,60 @@ export function AdminPage() {
       return;
     }
     setUsers((prev) => prev.map((item) => (item.id === userId ? { ...item, status } : item)));
+  };
+
+  const updatePlanDraft = (planId: string, field: "name" | "priceAmount" | "maxProperties", value: string) => {
+    setPlanDrafts((prev) => ({
+      ...prev,
+      [planId]: {
+        name: prev[planId]?.name ?? "",
+        priceAmount: prev[planId]?.priceAmount ?? "0",
+        maxProperties: prev[planId]?.maxProperties ?? "0",
+        [field]: value,
+      },
+    }));
+  };
+
+  const savePlan = async (planId: string) => {
+    if (!token) return;
+    const draft = planDrafts[planId];
+    if (!draft) return;
+    setPlanSavingId(planId);
+    setPlansError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/admin/plans/${planId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          priceAmount: Number(draft.priceAmount),
+          maxProperties: Number(draft.maxProperties),
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "No pudimos actualizar el plan."));
+      }
+      const updated = normalizePlan((await response.json()) as AdminPlan);
+      setPlans((prev) => prev.map((item) => (item.id === planId ? updated : item)));
+      setPlanDrafts((prev) => ({
+        ...prev,
+        [planId]: {
+          name: updated.name,
+          priceAmount: String(Number(updated.priceAmount)),
+          maxProperties: String(updated.maxProperties),
+        },
+      }));
+      addToast(`Plan ${updated.name} actualizado.`, "success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al actualizar el plan.";
+      setPlansError(message);
+      addToast(message, "error");
+    } finally {
+      setPlanSavingId(null);
+    }
   };
 
   const updateReportStatus = async (
@@ -710,6 +829,7 @@ export function AdminPage() {
             [
               ["overview", "Overview"],
               ["users", "Usuarios"],
+              ["plans", "Planes"],
               ["properties", "Publicaciones"],
               ["reports", "Reportes"],
               ["verifications", "Verificaciones"],
@@ -758,6 +878,115 @@ export function AdminPage() {
               ))}
             </>
           )}
+        </section>
+      )}
+
+      {tab === "plans" && (
+        <section className="glass-card space-y-4 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm text-white">Planes de suscripcion</h3>
+            <p className="text-xs text-[#D1C7BD]">
+              Ajusta precios y cupos sin tocar codigo. Moneda fija: ARS.
+            </p>
+          </div>
+
+          {plansStatus === "loading" && (
+            <div className="text-xs text-[#D1C7BD]">Cargando planes...</div>
+          )}
+          {plansStatus === "error" && <div className="text-xs text-[#AF8C5C]">{plansError}</div>}
+          {plansError && plansStatus !== "error" && (
+            <div className="text-xs text-[#AF8C5C]">{plansError}</div>
+          )}
+
+          <div className="space-y-3">
+            {plans.map((plan) => {
+              const draft = planDrafts[plan.id] ?? {
+                name: plan.name,
+                priceAmount: String(plan.priceAmount),
+                maxProperties: String(plan.maxProperties),
+              };
+              const isSaving = planSavingId === plan.id;
+              const isPaidPlan = plan.code !== "OWNER_FREE";
+              return (
+                <div
+                  key={plan.id}
+                  className="rounded-2xl border border-white/10 bg-night-900/48 p-4"
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full border border-gold-500/30 bg-night-900/60 px-3 py-1 text-[11px] tracking-[0.12em] text-[#D1C7BD]">
+                        {plan.code}
+                      </span>
+                      <span className="text-xs text-[#9f988d]">
+                        Act. {formatShortDateTime(plan.updatedAt ?? plan.createdAt)}
+                      </span>
+                    </div>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-[#E7E2DD]">
+                      {plan.priceCurrency}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-12">
+                    <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-5">
+                      Nombre del plan
+                      <input
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={draft.name}
+                        onChange={(event) => updatePlanDraft(plan.id, "name", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-4">
+                      Precio mensual (ARS)
+                      <input
+                        type="number"
+                        min={0}
+                        step="1"
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={draft.priceAmount}
+                        onChange={(event) =>
+                          updatePlanDraft(plan.id, "priceAmount", event.target.value)
+                        }
+                      />
+                      {isPaidPlan && Number(draft.priceAmount || 0) < 15 && (
+                        <div className="text-[11px] text-[#AF8C5C]">
+                          Mercado Pago puede rechazar montos menores a ARS 15.
+                        </div>
+                      )}
+                    </label>
+                    <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-3">
+                      Cupo de inmuebles
+                      <input
+                        type="number"
+                        min={0}
+                        step="1"
+                        className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                        value={draft.maxProperties}
+                        onChange={(event) =>
+                          updatePlanDraft(plan.id, "maxProperties", event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
+                      onClick={() => savePlan(plan.id)}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                    <span className="text-xs text-[#9f988d]">
+                      {isPaidPlan
+                        ? "Impacta nuevas activaciones y renovaciones. Revisa reglas de cambio de plan."
+                        : "Plan gratuito para dueño directo (sin cobro)."}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 

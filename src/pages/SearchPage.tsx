@@ -1261,14 +1261,22 @@ export function SearchPage() {
                       className="glass-card overflow-hidden animate-fadeUp md:grid md:min-h-[218.67px] md:grid-cols-[260px_minmax(0,1fr)_210px]"
                     >
                       <div className="relative h-44 md:h-[218.67px]">
-                        <img
-                          className="h-full w-full object-cover"
-                          src={item.image}
-                          alt={item.title}
-                          sizes="(min-width: 1024px) 320px, (min-width: 768px) 45vw, 90vw"
-                          loading="lazy"
-                          decoding="async"
-                        />
+                        <button
+                          type="button"
+                          className="block h-full w-full text-left"
+                          onClick={() => openModal(item)}
+                          onMouseEnter={() => prefetchDetail(item.id)}
+                          aria-label={`Ver ficha de ${item.title}`}
+                        >
+                          <img
+                            className="h-full w-full object-cover transition duration-300 hover:scale-[1.02]"
+                            src={item.image}
+                            alt={item.title}
+                            sizes="(min-width: 1024px) 320px, (min-width: 768px) 45vw, 90vw"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </button>
                         <span
                           className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${getImageOperationBadgeClass(
                             item.operation
@@ -1280,7 +1288,16 @@ export function SearchPage() {
                       <div className="min-w-0 p-3 md:p-4 md:pr-2">
                         <div className="flex h-full flex-col gap-2 overflow-hidden">
                           <div>
-                            <h4 className="line-clamp-1 text-xl text-white">{item.title}</h4>
+                            <h4 className="line-clamp-1 text-xl text-white">
+                              <button
+                                type="button"
+                                className="block max-w-full text-left transition hover:text-[#E7E2DD]"
+                                onClick={() => openModal(item)}
+                                onMouseEnter={() => prefetchDetail(item.id)}
+                              >
+                                {item.title}
+                              </button>
+                            </h4>
                             <p className="line-clamp-1 text-sm text-[#D1C7BD]">{item.address}</p>
                           </div>
                           <p className="line-clamp-1 text-sm text-[#D1C7BD]">
@@ -1436,14 +1453,22 @@ export function SearchPage() {
                     className="glass-card flex h-full min-h-[470px] flex-col overflow-hidden animate-fadeUp"
                   >
                     <div className="relative h-44">
-                      <img
-                        className="h-full w-full rounded-t-2xl object-cover"
-                        src={item.image}
-                        alt={item.title}
-                        sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 92vw"
-                        loading="lazy"
-                        decoding="async"
-                      />
+                      <button
+                        type="button"
+                        className="block h-full w-full text-left"
+                        onClick={() => openModal(item)}
+                        onMouseEnter={() => prefetchDetail(item.id)}
+                        aria-label={`Ver ficha de ${item.title}`}
+                      >
+                        <img
+                          className="h-full w-full rounded-t-2xl object-cover transition duration-300 hover:scale-[1.02]"
+                          src={item.image}
+                          alt={item.title}
+                          sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 92vw"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </button>
                       <span
                         className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${getImageOperationBadgeClass(
                           item.operation
@@ -1458,7 +1483,16 @@ export function SearchPage() {
 
                     <div className="flex flex-1 flex-col p-4">
                       <div className="min-w-0">
-                        <h4 className="line-clamp-1 text-xl text-white">{item.title}</h4>
+                        <h4 className="line-clamp-1 text-xl text-white">
+                          <button
+                            type="button"
+                            className="block max-w-full text-left transition hover:text-[#E7E2DD]"
+                            onClick={() => openModal(item)}
+                            onMouseEnter={() => prefetchDetail(item.id)}
+                          >
+                            {item.title}
+                          </button>
+                        </h4>
                         <p className="line-clamp-1 text-sm text-[#D1C7BD]">{item.address}</p>
                       </div>
 

@@ -2,20 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://domusbrag.com/</loc>
-    <lastmod>2026-02-24T06:34:29.832Z</lastmod>
+    <lastmod>2026-02-24T22:30:57.601Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://domusbrag.com/buscar</loc>
-    <lastmod>2026-02-24T06:34:29.832Z</lastmod>
+    <lastmod>2026-02-24T22:30:57.601Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://domusbrag.com/mapa</loc>
-    <lastmod>2026-02-24T06:34:29.832Z</lastmod>
+    <lastmod>2026-02-24T22:30:57.601Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0yirtt0000uir4dkjofalr</loc>
+    <lastmod>2026-02-24T18:47:34.221Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0yitks0008uir4icuha454</loc>
+    <lastmod>2026-02-24T18:47:34.852Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0yiuqc000guir4epgr4mo6</loc>
+    <lastmod>2026-02-24T18:47:35.303Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0zea4b0003uim4tu6jcjhu</loc>
+    <lastmod>2026-02-24T19:11:14.363Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0zndqm0003ui1ozomwycn8</loc>
+    <lastmod>2026-02-24T19:18:18.959Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0znf9v000bui1owdq1jymw</loc>
+    <lastmod>2026-02-24T19:18:20.948Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://domusbrag.com/publicacion/cmm0zngat000jui1oz391dc2n</loc>
+    <lastmod>2026-02-24T19:18:22.278Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>

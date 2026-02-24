@@ -132,6 +132,40 @@
     padding: 12px;
   }
 
+  .leaflet-control-layers {
+    background: rgba(10, 11, 16, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28) !important;
+    color: #e7e2dd !important;
+    backdrop-filter: blur(8px);
+  }
+
+  .leaflet-control-layers-toggle {
+    filter: invert(1) brightness(1.2);
+    opacity: 0.95;
+  }
+
+  .leaflet-control-layers-expanded {
+    padding: 10px 12px !important;
+  }
+
+  .leaflet-control-layers-expanded label {
+    color: #e7e2dd !important;
+    font-size: 12px;
+  }
+
+  /* Cuando el selector de capas comparte esquina con el zoom, lo bajamos para que no se pisen */
+  .leaflet-top.leaflet-left .leaflet-control-layers {
+    margin-top: 58px !important;
+  }
+
+  @media (max-width: 640px) {
+    .leaflet-top.leaflet-left .leaflet-control-layers {
+      margin-top: 66px !important;
+    }
+  }
+
   .pb-safe-tabs {
     padding-bottom: calc(7.2rem + env(safe-area-inset-bottom));
   }

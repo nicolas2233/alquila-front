@@ -1,5 +1,10 @@
 ﻿import { useEffect, useState } from "react";
-import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer, LayersControl } from "react-leaflet";
+
+const ESRI_SATELLITE =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const ESRI_ATTRIBUTION =
+  "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics";
 
 export type PropertyDetailListing = {
   id: string;
@@ -94,6 +99,8 @@ export function PropertyDetailModal({
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
+  const [showImageZoom, setShowImageZoom] = useState(false);
+  const [showMapZoom, setShowMapZoom] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
@@ -109,6 +116,7 @@ export function PropertyDetailModal({
     Number.isFinite(listing.lat) &&
     typeof listing.lng === "number" &&
     Number.isFinite(listing.lng);
+  const mapCenter = hasMapLocation ? ([listing.lat as number, listing.lng as number] as [number, number]) : null;
   const serviceLabels = [
     { key: "electricity", label: "Luz" },
     { key: "gas", label: "Gas" },
@@ -610,6 +618,23 @@ export function PropertyDetailModal({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useEffect(() => {
+    if (!showImageZoom) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowImageZoom(false);
+      }
+      if (images.length > 1 && event.key === "ArrowLeft") {
+        setActiveImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+      }
+      if (images.length > 1 && event.key === "ArrowRight") {
+        setActiveImage((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showImageZoom, images.length]);
+
   const submitReport = async () => {
     if (!reportTarget) return;
     const reason = reportReason.trim();
@@ -639,14 +664,14 @@ export function PropertyDetailModal({
     <div
       className={
         isModal
-          ? "fixed inset-0 z-[1300] flex items-center justify-center bg-black/85 px-0 py-0 sm:px-4 sm:py-8"
+          ? "fixed inset-0 z-[1300] flex items-center justify-center bg-black/90 px-0 py-0 backdrop-blur-sm sm:px-4 sm:py-8"
           : "w-full"
       }
     >
       <div
         className={
           isModal
-            ? "relative w-full max-w-4xl h-screen overflow-y-auto rounded-none border border-white/10 bg-night-900 shadow-card sm:h-[calc(100vh-2rem)] sm:rounded-3xl md:max-h-[90vh] md:overflow-hidden"
+            ? "relative w-full max-w-4xl h-screen overflow-y-auto rounded-none border border-white/10 bg-night-950/98 shadow-card sm:h-[calc(100vh-2rem)] sm:rounded-3xl md:max-h-[90vh] md:overflow-hidden"
             : "relative w-full overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card"
         }
       >
@@ -654,7 +679,7 @@ export function PropertyDetailModal({
         <div
           className={
             isModal
-              ? "relative flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-night-800/85 to-night-900 px-6 py-4 md:flex-row md:items-center md:justify-between"
+              ? "relative flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-night-900 to-night-950 px-6 py-4 md:flex-row md:items-center md:justify-between"
               : "relative flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-night-800/90 via-night-900 to-night-900 px-5 py-3 md:flex-row md:items-center md:justify-between md:px-6 md:py-4"
           }
         >
@@ -669,7 +694,7 @@ export function PropertyDetailModal({
               {listing.address}
             </p>
           </div>
-          <div className="flex items-center justify-between gap-2 rounded-full border border-white/10 bg-night-900/60 px-3 py-1.5 md:min-w-[280px] md:justify-end md:gap-4 md:rounded-2xl md:px-4 md:py-2">
+          <div className="flex items-center justify-between gap-2 rounded-full border border-white/10 bg-night-950/85 px-3 py-1.5 md:min-w-[280px] md:justify-end md:gap-4 md:rounded-2xl md:px-4 md:py-2">
             <div className="text-left md:text-right">
               <div className="hidden text-[10px] uppercase tracking-[0.16em] text-[#D1C7BD] md:block">
                 Precio
@@ -731,11 +756,13 @@ export function PropertyDetailModal({
               {activeImageUrl ? (
                 <img
                   key={activeImageUrl}
-                  className="h-56 w-full animate-fadeUp object-cover sm:h-64 md:h-72"
+                  className="h-56 w-full animate-fadeUp cursor-zoom-in object-cover sm:h-64 md:h-72"
                   src={activeImageUrl}
                   alt={listing.title}
                   loading="eager"
                   decoding="async"
+                  onClick={() => setShowImageZoom(true)}
+                  title="Click para ampliar"
                 />
               ) : (
                 <div className="flex h-56 items-center justify-center bg-night-800 text-xs text-[#D1C7BD] sm:h-64 md:h-72">
@@ -886,7 +913,7 @@ export function PropertyDetailModal({
                   <button
                     type="button"
                     onClick={() => setDetailsExpanded((prev) => !prev)}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/40 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
                   >
                     {detailsExpanded
                       ? "Ver menos"
@@ -910,7 +937,7 @@ export function PropertyDetailModal({
                 {detailRowsPrimary.map((item) => (
                   <div
                     key={item.key}
-                    className={`rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 ${
+                    className={`rounded-xl border border-white/10 bg-night-900/72 px-3 py-2 ${
                       item.full ? "md:col-span-2" : ""
                     }`}
                   >
@@ -935,7 +962,7 @@ export function PropertyDetailModal({
                     {detailRowsExtra.map((item) => (
                       <div
                         key={item.key}
-                        className={`rounded-xl border border-white/10 bg-night-900/40 px-3 py-2 ${
+                        className={`rounded-xl border border-white/10 bg-night-900/72 px-3 py-2 ${
                           item.full ? "md:col-span-2" : ""
                         }`}
                       >
@@ -1000,7 +1027,7 @@ export function PropertyDetailModal({
                         <button
                           type="button"
                           onClick={() => setAmenitiesExpanded((prev) => !prev)}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/40 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
+                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
                         >
                           {amenitiesExpanded
                             ? "Ver menos"
@@ -1024,7 +1051,7 @@ export function PropertyDetailModal({
                       {amenitiesPrimary.map((amenity) => (
                         <div
                           key={amenity}
-                          className="rounded-xl border border-white/10 bg-night-900/40 px-3 py-2"
+                          className="rounded-xl border border-white/10 bg-night-900/72 px-3 py-2"
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-[#D1C7BD]">{amenityIcons[amenity] ?? null}</span>
@@ -1045,7 +1072,7 @@ export function PropertyDetailModal({
                           {amenitiesExtra.map((amenity) => (
                             <div
                               key={amenity}
-                              className="rounded-xl border border-white/10 bg-night-900/40 px-3 py-2"
+                              className="rounded-xl border border-white/10 bg-night-900/72 px-3 py-2"
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-[#D1C7BD]">{amenityIcons[amenity] ?? null}</span>
@@ -1068,7 +1095,7 @@ export function PropertyDetailModal({
                         <button
                           type="button"
                           onClick={() => setServicesExpanded((prev) => !prev)}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/40 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
+                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
                         >
                           {servicesExpanded
                             ? "Ver menos"
@@ -1092,7 +1119,7 @@ export function PropertyDetailModal({
                       {servicesPrimary.map((service) => (
                           <div
                             key={service.key}
-                            className="rounded-xl border border-white/10 bg-night-900/40 px-3 py-2"
+                            className="rounded-xl border border-white/10 bg-night-900/72 px-3 py-2"
                           >
                             <div className="flex items-center gap-2">
                               <svg
@@ -1123,7 +1150,7 @@ export function PropertyDetailModal({
                           {servicesExtra.map((service) => (
                             <div
                               key={service.key}
-                              className="rounded-xl border border-white/10 bg-night-900/40 px-3 py-2"
+                              className="rounded-xl border border-white/10 bg-night-900/72 px-3 py-2"
                             >
                               <div className="flex items-center gap-2">
                                 <svg
@@ -1150,22 +1177,38 @@ export function PropertyDetailModal({
             )}
             {hasMapLocation && (
               <div className="rounded-2xl border border-white/10 bg-night-800 p-3 sm:p-4">
-                <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-                  Ubicación
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
+                    Ubicación
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 bg-night-900/70 px-3 py-1 text-[10px] text-[#E7E2DD]"
+                    onClick={() => setShowMapZoom(true)}
+                  >
+                    Ampliar mapa
+                  </button>
                 </div>
                 <div className="overflow-hidden rounded-2xl border border-white/10">
                   <MapContainer
-                    center={[listing.lat as number, listing.lng as number]}
+                    center={mapCenter as [number, number]}
                     zoom={15}
                     className="h-40 w-full"
                     scrollWheelZoom={false}
                   >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
+                    <LayersControl position="topleft">
+                      <LayersControl.BaseLayer checked name="Mapa">
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                      </LayersControl.BaseLayer>
+                      <LayersControl.BaseLayer name="Satélite">
+                        <TileLayer attribution={ESRI_ATTRIBUTION} url={ESRI_SATELLITE} />
+                      </LayersControl.BaseLayer>
+                    </LayersControl>
                     <CircleMarker
-                      center={[listing.lat as number, listing.lng as number]}
+                      center={mapCenter as [number, number]}
                       radius={8}
                       pathOptions={{ color: "#f4d19a", fillColor: "#AF8C5C", fillOpacity: 0.9 }}
                     />
@@ -1248,6 +1291,122 @@ export function PropertyDetailModal({
           </div>
         </div>
       </div>
+      {showImageZoom && activeImageUrl && (
+        <div
+          className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/92 p-3 sm:p-6"
+          onClick={() => setShowImageZoom(false)}
+        >
+          <div
+            className="relative w-full max-w-6xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-2 top-2 z-10 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-xs text-white"
+              onClick={() => setShowImageZoom(false)}
+            >
+              Cerrar
+            </button>
+            <img
+              src={activeImageUrl}
+              alt={listing.title}
+              className="max-h-[88vh] w-full rounded-2xl border border-white/10 object-contain bg-night-900"
+            />
+            {images.length > 1 && (
+              <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-between px-2 sm:px-4">
+                <button
+                  type="button"
+                  className="pointer-events-auto rounded-full border border-white/25 bg-black/60 px-3 py-2 text-xs text-white"
+                  onClick={() =>
+                    setActiveImage((prev) => (prev === 0 ? images.length - 1 : prev - 1))
+                  }
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  className="pointer-events-auto rounded-full border border-white/25 bg-black/60 px-3 py-2 text-xs text-white"
+                  onClick={() =>
+                    setActiveImage((prev) => (prev === images.length - 1 ? 0 : prev + 1))
+                  }
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
+            {images.length > 1 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {images.map((img, index) => (
+                  <button
+                    key={`${img}-zoom`}
+                    type="button"
+                    onClick={() => setActiveImage(index)}
+                    className={
+                      index === activeImage
+                        ? "h-14 w-20 overflow-hidden rounded-xl border border-gold-400/70"
+                        : "h-14 w-20 overflow-hidden rounded-xl border border-white/15"
+                    }
+                  >
+                    <img src={img} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {showMapZoom && hasMapLocation && mapCenter && (
+        <div
+          className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/90 p-3 backdrop-blur-sm sm:p-6"
+          onClick={() => setShowMapZoom(false)}
+        >
+          <div
+            className="w-full max-w-6xl rounded-3xl border border-white/10 bg-night-950/98 p-3 shadow-soft sm:p-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
+                  Ubicacion ampliada
+                </div>
+                <div className="text-sm text-[#E7E2DD]">{listing.address}</div>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-white/20 bg-night-900/70 px-3 py-1 text-xs text-[#E7E2DD]"
+                onClick={() => setShowMapZoom(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-white/10">
+              <MapContainer
+                center={mapCenter}
+                zoom={16}
+                className="h-[58vh] w-full sm:h-[68vh]"
+                scrollWheelZoom
+              >
+                <LayersControl position="topleft">
+                  <LayersControl.BaseLayer checked name="Mapa">
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                  </LayersControl.BaseLayer>
+                  <LayersControl.BaseLayer name="Satelite">
+                    <TileLayer attribution={ESRI_ATTRIBUTION} url={ESRI_SATELLITE} />
+                  </LayersControl.BaseLayer>
+                </LayersControl>
+                <CircleMarker
+                  center={mapCenter}
+                  radius={10}
+                  pathOptions={{ color: "#f4d19a", fillColor: "#AF8C5C", fillOpacity: 0.92 }}
+                />
+              </MapContainer>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

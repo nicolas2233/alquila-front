@@ -193,6 +193,28 @@ export function DashboardPage() {
     : isAgency
     ? "Inmobiliaria"
     : "Usuario";
+  const currentPlanCode =
+    (subscriptionInfo?.planCode as "FREE" | "BRONCE" | "PLATINUM" | "GOLD" | undefined) ??
+    undefined;
+  const currentBillingCycle = (subscriptionInfo?.billingCycle ?? "MONTHLY") as
+    | "MONTHLY"
+    | "ANNUAL";
+  const changePlanButtonClass =
+    currentPlanCode === "GOLD"
+      ? "rounded-full border border-gold-300/45 bg-gradient-to-r from-[#AF8C5C]/30 to-[#D1C7BD]/22 px-4 py-2 text-xs text-gold-100 shadow-[0_8px_22px_rgba(175,140,92,0.18)]"
+      : currentPlanCode === "PLATINUM"
+      ? "rounded-full border border-sky-300/35 bg-sky-500/12 px-4 py-2 text-xs text-sky-100 shadow-[0_8px_22px_rgba(56,189,248,0.12)]"
+      : currentPlanCode === "BRONCE"
+      ? "rounded-full border border-amber-300/35 bg-amber-500/10 px-4 py-2 text-xs text-amber-100 shadow-[0_8px_22px_rgba(245,158,11,0.1)]"
+      : "rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]";
+  const currentPlanCardClass =
+    currentPlanCode === "GOLD"
+      ? "rounded-2xl border border-gold-300/35 bg-gradient-to-br from-[#2a241e] via-[#211c18] to-[#1b1714] p-4 shadow-[0_20px_40px_rgba(175,140,92,0.14)]"
+      : currentPlanCode === "PLATINUM"
+      ? "rounded-2xl border border-sky-300/25 bg-gradient-to-br from-[#17232c] via-[#151b22] to-[#14171b] p-4 shadow-[0_20px_40px_rgba(56,189,248,0.08)]"
+      : currentPlanCode === "BRONCE"
+      ? "rounded-2xl border border-amber-300/25 bg-gradient-to-br from-[#231c15] via-[#1d1915] to-[#171412] p-4 shadow-[0_20px_40px_rgba(245,158,11,0.08)]"
+      : "rounded-2xl border border-white/10 bg-night-900/45 p-4";
 
   const [items, setItems] = useState<PropertyApiListItem[]>([]);
   const [propertyStatus, setPropertyStatus] = useState<"idle" | "loading" | "error">(
@@ -755,6 +777,34 @@ export function DashboardPage() {
     () => filteredPlanOptions.find((item) => item.code === selectedPlanCode) ?? null,
     [filteredPlanOptions, selectedPlanCode]
   );
+  const currentPlanOption = useMemo(
+    () =>
+      planOptions.find(
+        (item) => item.code === (subscriptionInfo?.planCode as "FREE" | "BRONCE" | "PLATINUM" | "GOLD" | undefined),
+      ) ?? null,
+    [planOptions, subscriptionInfo?.planCode]
+  );
+  const modalPreviewPlanOption = selectedPlanOption ?? currentPlanOption;
+  const nextSubscriptionCheckpoint = useMemo(() => {
+    if (!subscriptionInfo) return null;
+    const candidate =
+      subscriptionInfo.nextBillingAt ??
+      (subscriptionInfo.isTrialActive ? subscriptionInfo.trialEndsAt : null) ??
+      subscriptionInfo.endsAt ??
+      null;
+    return candidate ? new Date(candidate) : null;
+  }, [subscriptionInfo]);
+  const annualDaysRemaining = useMemo(() => {
+    if (!subscriptionInfo || currentBillingCycle !== "ANNUAL" || !nextSubscriptionCheckpoint) return null;
+    const diffMs = nextSubscriptionCheckpoint.getTime() - Date.now();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  }, [subscriptionInfo, currentBillingCycle, nextSubscriptionCheckpoint]);
+  const currentCycleChargeAmount = useMemo(() => {
+    if (!subscriptionInfo) return 0;
+    return currentBillingCycle === "ANNUAL"
+      ? Number(subscriptionInfo.annualPriceAmount ?? subscriptionInfo.priceAmount ?? 0)
+      : Number(subscriptionInfo.priceAmount ?? 0);
+  }, [subscriptionInfo, currentBillingCycle]);
 
   const isSelectedPlanDowngrade = useMemo(() => {
     if (!subscriptionInfo?.planCode || !selectedPlanCode) return false;
@@ -2779,12 +2829,19 @@ export function DashboardPage() {
           {subscriptionInfo &&
           Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
           !isPaymentMethodReadyForPaidPlan ? (
-            <div className="rounded-2xl border border-amber-300/25 bg-amber-500/8 p-4 text-sm text-amber-100">
-              <p className="font-medium text-white">Falta activar el medio de pago</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-                No te pedimos tarjeta para crear la cuenta. Para publicar con un plan pago
-                necesitas cargar un medio de pago. El primer mes gratis se activa en ese momento.
-              </p>
+            <div className="relative overflow-hidden rounded-2xl border border-amber-300/35 bg-gradient-to-r from-amber-500/16 via-[#2a241f] to-[#1f1b18] p-4 text-sm text-amber-100 shadow-[0_16px_35px_rgba(245,158,11,0.08)]">
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-300/80 to-gold-300/30" />
+              <div className="pl-2">
+                <p className="font-semibold text-white">Falta activar el medio de pago</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                  No te pedimos tarjeta para crear la cuenta. Para publicar con un plan pago
+                  necesitas cargar un medio de pago. <span className="font-semibold text-white">El primer mes gratis</span>{" "}
+                  se activa en ese momento.
+                </p>
+                <p className="mt-2 text-[11px] text-amber-100/80">
+                  Configura la facturación desde <span className="font-semibold text-white">Cambiar plan</span> antes de activar el cobro.
+                </p>
+              </div>
             </div>
           ) : null}
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2795,39 +2852,9 @@ export function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
-                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-night-900/55 px-3 py-2">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
-                    Facturación
-                  </span>
-                  {(["MONTHLY", "ANNUAL"] as const).map((cycle) => {
-                    const selected = (subscriptionInfo.billingCycle ?? "MONTHLY") === cycle;
-                    return (
-                      <label
-                        key={cycle}
-                        className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
-                          selected
-                            ? "border-gold-400/40 bg-gold-500/10 font-semibold text-white"
-                            : "border-white/10 text-[#E7E2DD]"
-                        } ${billingCycleStatus === "saving" ? "opacity-70" : ""}`}
-                      >
-                        <input
-                          type="radio"
-                          name="billingCycle"
-                          className="h-3.5 w-3.5 accent-[#AF8C5C]"
-                          checked={selected}
-                          disabled={billingCycleStatus === "saving"}
-                          onChange={() => void updateBillingCycle(cycle)}
-                        />
-                        {cycle === "MONTHLY" ? "Mensual" : "Anual"}
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
               <button
                 type="button"
-                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                className={changePlanButtonClass}
                 onClick={() => void openPlanModal("change")}
               >
                 Cambiar plan
@@ -2908,47 +2935,85 @@ export function DashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+            <div className={currentPlanCardClass}>
               <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Plan actual</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-gold-400/35 bg-gold-500/10 px-3 py-1 text-xs font-semibold text-gold-100">
                   {subscriptionInfo?.planCode ?? "SIN PLAN"}
                 </span>
                 <span className="text-white">{subscriptionInfo?.planName ?? "Sin suscripción"}</span>
+                {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
+                  <span className="rounded-full border border-white/10 bg-night-900/55 px-3 py-1 text-[11px] text-[#E7E2DD]">
+                    {currentBillingCycle === "ANNUAL" ? "Facturación anual" : "Facturación mensual"}
+                  </span>
+                )}
               </div>
               {subscriptionInfo ? (
                 <div className="mt-3 space-y-1 text-sm text-[#E7E2DD]">
-                  <p>
-                    Precio:{" "}
-                    <span className="text-white">
-                      {subscriptionInfo.priceCurrency}{" "}
-                      {(subscriptionInfo.billingCycle ?? "MONTHLY") === "ANNUAL"
-                        ? subscriptionInfo.annualMonthlyEquivalentAmount ?? subscriptionInfo.priceAmount
-                        : subscriptionInfo.priceAmount}
-                    </span>
-                    <span className="text-[#D1C7BD]">
-                      {" "}
-                      / {(subscriptionInfo.billingCycle ?? "MONTHLY") === "ANNUAL" ? "mes (equiv.)" : "mes"}
-                    </span>
-                  </p>
-                  {Number(subscriptionInfo.annualPriceAmount ?? 0) > 0 && (
-                    <>
-                      <p>
-                        Plan anual:{" "}
-                        <span className="text-white">
-                          {subscriptionInfo.priceCurrency} {subscriptionInfo.annualPriceAmount}
-                        </span>{" "}
-                        <span className="text-emerald-200">
-                          (-{subscriptionInfo.annualDiscountPercent ?? 0}%)
-                        </span>
+                  {Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                        {currentBillingCycle === "ANNUAL" ? "Total a pagar (12 meses)" : "Monto por ciclo"}
                       </p>
-                      <p className="text-xs text-[#D1C7BD]">
-                        Equivale a {subscriptionInfo.priceCurrency}{" "}
-                        {subscriptionInfo.annualMonthlyEquivalentAmount ?? subscriptionInfo.priceAmount} por mes
-                        y ahorras {subscriptionInfo.priceCurrency}{" "}
-                        {subscriptionInfo.annualSavingsAmount ?? 0} al año.
+                      <p className="mt-1 text-2xl font-semibold text-white">
+                        {subscriptionInfo.priceCurrency} {currentCycleChargeAmount}
                       </p>
-                    </>
+                      {currentBillingCycle === "ANNUAL" &&
+                        Number(subscriptionInfo.annualMonthlyEquivalentAmount ?? 0) > 0 && (
+                          <p className="mt-1 text-xs text-[#D1C7BD]">
+                            Equivale a {subscriptionInfo.priceCurrency}{" "}
+                            {subscriptionInfo.annualMonthlyEquivalentAmount} por mes · ahorro{" "}
+                            {subscriptionInfo.priceCurrency} {subscriptionInfo.annualSavingsAmount ?? 0} al año
+                          </p>
+                        )}
+                    </div>
+                  )}
+                  {Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
+                    <div className="rounded-xl border border-white/10 bg-night-900/35 px-3 py-2">
+                      {currentBillingCycle === "ANNUAL" ? (
+                        <>
+                          <p>
+                            Renovación anual:{" "}
+                            <span className="text-white">
+                              {!isPaymentMethodReadyForPaidPlan
+                                ? "Se define al cargar el medio de pago y activar el mes gratis"
+                                : nextSubscriptionCheckpoint
+                                ? nextSubscriptionCheckpoint.toLocaleDateString("es-AR")
+                                : "A definir"}
+                            </span>
+                          </p>
+                          <p className="text-xs text-[#D1C7BD]">
+                            Días restantes del plan:{" "}
+                            <span className="text-white">
+                              {!isPaymentMethodReadyForPaidPlan
+                                ? "Pendiente de activación"
+                                : annualDaysRemaining ?? "A definir"}
+                            </span>
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p>
+                            Próximo cobro:{" "}
+                            <span className="text-white">
+                              {!isPaymentMethodReadyForPaidPlan
+                                ? "Se define al cargar el medio de pago y activar el mes gratis"
+                                : nextSubscriptionCheckpoint
+                                ? nextSubscriptionCheckpoint.toLocaleDateString("es-AR")
+                                : "A definir"}
+                            </span>
+                          </p>
+                          <p className="text-xs text-[#D1C7BD]">
+                            Importe del próximo cobro:{" "}
+                            <span className="text-white">
+                              {!isPaymentMethodReadyForPaidPlan
+                                ? "Pendiente de activación"
+                                : `${subscriptionInfo.priceCurrency} ${subscriptionInfo.priceAmount}`}
+                            </span>
+                          </p>
+                        </>
+                      )}
+                    </div>
                   )}
                   <p>
                     {!isPaymentMethodReadyForPaidPlan && Number(subscriptionInfo.priceAmount ?? 0) > 0
@@ -2968,7 +3033,7 @@ export function DashboardPage() {
                       </p>
                     )}
                   <p>
-                    {subscriptionInfo.cancelAtPeriodEnd ? "Fecha de baja: " : "Próximo pago: "}
+                    {subscriptionInfo.cancelAtPeriodEnd ? "Fecha de baja: " : "Referencia de cobro: "}
                     <span className="text-white">
                       {!isPaymentMethodReadyForPaidPlan && Number(subscriptionInfo.priceAmount ?? 0) > 0
                         ? "Se define al cargar el medio de pago y activar el mes gratis"
@@ -3574,7 +3639,7 @@ export function DashboardPage() {
         </div>
       )}
       {planModalOpen && (
-        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/88 px-4 py-6 backdrop-blur-md">
           <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
             <div className="flex items-center justify-between border-b border-white/10 bg-[#211c18] px-6 py-4">
               <div>
@@ -3596,6 +3661,74 @@ export function DashboardPage() {
               </button>
             </div>
             <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+              {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
+                <div className="mb-4 rounded-2xl border border-white/10 bg-night-900/75 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                        Facturación
+                      </p>
+                      <p className="mt-1 text-xs text-[#D1C7BD]">
+                        Esto define el próximo cobro y el precio que verás en los planes.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-night-950/65 px-3 py-2">
+                      {(["MONTHLY", "ANNUAL"] as const).map((cycle) => {
+                        const selected = currentBillingCycle === cycle;
+                        return (
+                          <label
+                            key={cycle}
+                            className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
+                              selected
+                                ? "border-gold-400/40 bg-gold-500/10 font-semibold text-white"
+                                : "border-white/10 text-[#E7E2DD]"
+                            } ${billingCycleStatus === "saving" ? "opacity-70" : ""}`}
+                          >
+                            <input
+                              type="radio"
+                              name="billingCycleModal"
+                              className="h-3.5 w-3.5 accent-[#AF8C5C]"
+                              checked={selected}
+                              disabled={billingCycleStatus === "saving"}
+                              onChange={() => void updateBillingCycle(cycle)}
+                            />
+                            {cycle === "MONTHLY" ? "Mensual" : "Anual"}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {currentBillingCycle === "MONTHLY" &&
+                    subscriptionInfo.priceAmount > 0 &&
+                    subscriptionInfo.priceAmount < 15 && (
+                      <p className="mt-3 rounded-xl border border-amber-300/25 bg-amber-500/8 px-3 py-2 text-xs text-amber-100">
+                        Mercado Pago puede rechazar cobros mensuales menores a $15. Si pasa, cambia a{" "}
+                        <span className="font-semibold text-white">Anual</span>.
+                      </p>
+                    )}
+                  {modalPreviewPlanOption && (
+                    <div className="mt-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                        {currentBillingCycle === "ANNUAL"
+                          ? "Total a pagar al confirmar (12 meses)"
+                          : "Monto del próximo cobro"}
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {modalPreviewPlanOption.priceCurrency}{" "}
+                        {currentBillingCycle === "ANNUAL"
+                          ? modalPreviewPlanOption.annualPriceAmount ?? modalPreviewPlanOption.priceAmount
+                          : modalPreviewPlanOption.priceAmount}
+                      </p>
+                      {currentBillingCycle === "ANNUAL" && (
+                        <p className="mt-1 text-xs text-emerald-200/90">
+                          Pagas el total del año (12 meses) con{" "}
+                          {modalPreviewPlanOption.annualDiscountPercent ?? 0}% de descuento.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               {planOptionsStatus === "loading" ? (
                 <p className="text-sm text-[#D1C7BD]">Cargando planes...</p>
               ) : planOptionsStatus === "error" ? (
@@ -3615,7 +3748,7 @@ export function DashboardPage() {
                         className={`rounded-2xl border p-4 text-left transition ${
                           isSelected
                             ? "border-gold-400/50 bg-gold-500/10 ring-1 ring-gold-400/20"
-                            : "border-white/10 bg-night-900/35 hover:border-white/20"
+                            : "border-white/10 bg-night-900/70 hover:border-white/20"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -3632,15 +3765,26 @@ export function DashboardPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-base font-semibold text-white">
-                              {option.priceCurrency} {option.priceAmount}
+                              {option.priceCurrency}{" "}
+                              {currentBillingCycle === "ANNUAL"
+                                ? option.annualMonthlyEquivalentAmount ?? option.priceAmount
+                                : option.priceAmount}
                             </p>
-                            <p className="text-[10px] text-[#D1C7BD]">/mes</p>
+                            <p className="text-[10px] text-[#D1C7BD]">
+                              / {currentBillingCycle === "ANNUAL" ? "mes (equiv.)" : "mes"}
+                            </p>
                           </div>
                         </div>
                         <div className="mt-3 space-y-1 text-xs text-[#D1C7BD]">
                           <p>Hasta {option.maxProperties} inmuebles</p>
                           {Number(option.annualPriceAmount ?? 0) > 0 && (
-                            <p className="text-emerald-200/90">
+                            <p
+                              className={
+                                currentBillingCycle === "ANNUAL"
+                                  ? "rounded-lg border border-emerald-300/20 bg-emerald-500/8 px-2 py-1 text-emerald-100"
+                                  : "text-emerald-200/90"
+                              }
+                            >
                               Anual {option.priceCurrency} {option.annualPriceAmount} (-{option.annualDiscountPercent ?? 0}%)
                             </p>
                           )}
@@ -3651,7 +3795,7 @@ export function DashboardPage() {
                 </div>
               )}
               {selectedPlanOption && selectedPlanCode !== subscriptionInfo?.planCode && (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-night-900/35 p-4 text-xs text-[#D1C7BD]">
+                <div className="mt-4 rounded-2xl border border-white/10 bg-night-900/72 p-4 text-xs text-[#D1C7BD]">
                   {isSelectedPlanDowngrade ? (
                     <div className="space-y-2">
                       <p className="text-white">
@@ -3735,7 +3879,7 @@ export function DashboardPage() {
         </div>
       )}
       {quickEditOpen && (
-        <div className="fixed inset-0 z-[1300] flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
+        <div className="fixed inset-0 z-[1300] flex items-start justify-center overflow-y-auto bg-black/85 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
           <div className="my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-night-900/90 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
@@ -3759,7 +3903,7 @@ export function DashboardPage() {
               )}
               {quickEditStatus !== "loading" && quickEditItem && (
                 <>
-                  <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+                  <div className="rounded-2xl border border-white/10 bg-night-900/78 p-4">
                     <div className="text-sm text-white">{quickEditItem.title}</div>
                     {quickEditItem.location?.addressLine && (
                       <div className="text-xs text-[#D1C7BD]">{quickEditItem.location.addressLine}</div>
@@ -3839,7 +3983,7 @@ export function DashboardPage() {
                   )}
 
                   {quickEditOperationType === "RENT" && (
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/45 p-4">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/78 p-4">
                       <h4 className="text-sm font-semibold text-white">Requisitos del alquiler</h4>
                       <div className="grid gap-3 md:grid-cols-3">
                         <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -3930,7 +4074,7 @@ export function DashboardPage() {
                   )}
 
                   {quickEditOperationType === "SALE" && (
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/45 p-4">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/78 p-4">
                       <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
                         <input
                           type="checkbox"

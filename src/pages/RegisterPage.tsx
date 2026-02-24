@@ -78,7 +78,7 @@ const planOptions = [
   {
     key: "bronce",
     label: "Bronce",
-    price: "$9",
+    price: "$15000",
     description: "Hasta 3 inmuebles. Ideal para duenos directos.",
     promo: "Primer mes gratis",
     perks: ["Hasta 3 inmuebles", "Panel de gestion", "Contacto directo"],
@@ -86,18 +86,18 @@ const planOptions = [
   {
     key: "platinum",
     label: "Platinum",
-    price: "$19",
-    description: "Hasta 20 inmuebles. Para inmobiliarias chicas.",
+    price: "$30000",
+    description: "Plan superior con mayor capacidad y herramientas.",
     promo: "Primer mes gratis",
-    perks: ["Hasta 20 inmuebles", "Perfil de agencia", "Mayor visibilidad"],
+    perks: ["Capacidad ampliada", "Perfil profesional", "Mayor visibilidad"],
   },
   {
     key: "gold",
     label: "Gold",
-    price: "$49",
-    description: "Hasta 50 inmuebles. Para equipos grandes.",
+    price: "$45000",
+    description: "Mayor capacidad y soporte prioritario.",
     promo: "Primer mes gratis",
-    perks: ["Hasta 50 inmuebles", "Soporte prioritario", "Posicionamiento"],
+    perks: ["Capacidad máxima", "Soporte prioritario", "Posicionamiento"],
   },
 ];
 
@@ -111,17 +111,17 @@ const planOverridesByAccountType: Record<
       description: "Explora, guarda y recibe alertas. Sin publicaciones.",
     },
     bronce: {
-      price: "$9",
+      price: "$15000",
       description: "No disponible para buscador.",
       disabledHint: "Solo para dueños directos.",
     },
     platinum: {
-      price: "$49",
+      price: "$120000",
       description: "No disponible para buscador.",
       disabledHint: "Solo para perfiles publicadores.",
     },
     gold: {
-      price: "$89",
+      price: "$220000",
       description: "No disponible para buscador.",
       disabledHint: "Solo para perfiles publicadores.",
     },
@@ -132,17 +132,17 @@ const planOverridesByAccountType: Record<
       description: "Publica 1 inmueble gratis para probar la plataforma.",
     },
     bronce: {
-      price: "$9",
+      price: "$15000",
       description: "Hasta 3 inmuebles. Ideal para empezar.",
       promo: "Primer mes gratis",
     },
     platinum: {
-      price: "$19",
+      price: "$30000",
       description: "Hasta 6 inmuebles. Para propietarios con varias unidades.",
       promo: "Primer mes gratis",
     },
     gold: {
-      price: "$29",
+      price: "$45000",
       description: "Hasta 10 inmuebles. Para cartera personal amplia.",
       promo: "Primer mes gratis",
     },
@@ -154,17 +154,17 @@ const planOverridesByAccountType: Record<
       disabledHint: "Las inmobiliarias empiezan en Platinum.",
     },
     bronce: {
-      price: "$9",
+      price: "$15000",
       description: "No disponible para inmobiliarias.",
       disabledHint: "Las inmobiliarias usan planes de mayor capacidad.",
     },
     platinum: {
-      price: "$79",
+      price: "$120000",
       description: "Hasta 25 inmuebles. Para inmobiliarias chicas/medianas.",
       promo: "Primer mes gratis",
     },
     gold: {
-      price: "$149",
+      price: "$220000",
       description: "Hasta 50 inmuebles. Para inmobiliarias con mayor cartera.",
       promo: "Primer mes gratis",
     },

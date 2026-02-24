@@ -785,6 +785,11 @@ export function MapSearchPage() {
                       setSelectedId(null);
                     }
                   }}
+                  onOpen={(id) => {
+                    if (propertyIdSet.has(id)) {
+                      void openDetail(id);
+                    }
+                  }}
                 />
               </div>
               {listStatus === "error" && (

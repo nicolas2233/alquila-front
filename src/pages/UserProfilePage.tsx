@@ -26,6 +26,7 @@ export function UserProfilePage() {
   const [contrasena, setContrasena] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<"idle" | "sending">("idle");
+  const [verificationCooldown, setVerificationCooldown] = useState(0);
   const [isDirty, setIsDirty] = useState(false);
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const lockIcon = (
@@ -41,6 +42,31 @@ export function UserProfilePage() {
       </svg>
     </span>
   );
+  const emailVerifiedIcon = emailVerifiedAt ? (
+    <span
+      className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300"
+      title="Email verificado"
+      aria-label="Email verificado"
+    >
+      ✓
+    </span>
+  ) : (
+    <span
+      className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-500/15 text-rose-300"
+      title="Email pendiente"
+      aria-label="Email pendiente"
+    >
+      ✕
+    </span>
+  );
+
+  useEffect(() => {
+    if (verificationCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setVerificationCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [verificationCooldown]);
 
   useEffect(() => {
     if (!sessionUser) return;
@@ -150,6 +176,10 @@ export function UserProfilePage() {
 
   const resendVerificationEmail = async () => {
     if (!email) return;
+    if (verificationCooldown > 0) {
+      addToast(`Espera ${verificationCooldown}s para reenviar la verificacion.`, "warning");
+      return;
+    }
     setVerificationStatus("sending");
     try {
       const response = await fetch(`${env.apiUrl}/auth/verify-email/request`, {
@@ -165,6 +195,7 @@ export function UserProfilePage() {
         throw new Error(data?.message ?? "No pudimos reenviar el email de verificacion.");
       }
       addToast(data?.message ?? "Te enviamos un email de verificacion.", "success");
+      setVerificationCooldown(30);
     } catch (error) {
       addToast(
         error instanceof Error ? error.message : "No pudimos reenviar el email de verificacion.",
@@ -202,9 +233,13 @@ export function UserProfilePage() {
                 className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
                 type="button"
                 onClick={resendVerificationEmail}
-                disabled={verificationStatus === "sending"}
+                disabled={verificationStatus === "sending" || verificationCooldown > 0}
               >
-                {verificationStatus === "sending" ? "Enviando..." : "Reenviar verificacion"}
+                {verificationStatus === "sending"
+                  ? "Enviando..."
+                  : verificationCooldown > 0
+                  ? `Reenviar verificacion (${verificationCooldown}s)`
+                  : "Reenviar verificacion"}
               </button>
             )}
             <button
@@ -315,6 +350,7 @@ export function UserProfilePage() {
           <label className="space-y-2 text-xs text-[#D1C7BD]">
             Email
             {lockIcon}
+            {emailVerifiedIcon}
             <input
               className="w-full rounded-xl border border-white/10 bg-night-900/35 px-3 py-2 text-sm text-white/80"
               value={email}

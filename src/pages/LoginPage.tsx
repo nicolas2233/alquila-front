@@ -18,6 +18,7 @@ export function LoginPage() {
   const [switchingToRegister, setSwitchingToRegister] = useState(false);
   const [isEntering, setIsEntering] = useState(() => locationState?.from !== "register");
   const [verifyStatus, setVerifyStatus] = useState<"idle" | "loading">("idle");
+  const [verifyCooldown, setVerifyCooldown] = useState(0);
 
   useEffect(() => {
     if (locationState?.from === "register") {
@@ -33,6 +34,14 @@ export function LoginPage() {
       navigate("/login", { replace: true });
     }
   }, [location.search, addToast, navigate]);
+
+  useEffect(() => {
+    if (verifyCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setVerifyCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [verifyCooldown]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -147,6 +156,10 @@ export function LoginPage() {
   };
 
   const handleResendVerification = async (emailOverride?: string) => {
+    if (verifyCooldown > 0) {
+      addToast(`Espera ${verifyCooldown}s para reenviar la verificacion.`, "warning");
+      return;
+    }
     const normalizedEmail = (emailOverride ?? email).trim().toLowerCase();
     if (!normalizedEmail) {
       addToast("Ingresa tu email para reenviar la verificacion.", "warning");
@@ -164,6 +177,7 @@ export function LoginPage() {
         throw new Error(data?.message ?? "No pudimos reenviar el email de verificacion.");
       }
       addToast(data?.message ?? "Te enviamos un email de verificacion.", "success");
+      setVerifyCooldown(30);
     } catch (error) {
       addToast(
         error instanceof Error ? error.message : "No pudimos reenviar el email de verificacion.",
@@ -319,9 +333,13 @@ export function LoginPage() {
                 type="button"
                 className="text-xs text-[#D1C7BD] underline disabled:opacity-60"
                 onClick={() => void handleResendVerification()}
-                disabled={verifyStatus === "loading"}
+                disabled={verifyStatus === "loading" || verifyCooldown > 0}
               >
-                {verifyStatus === "loading" ? "Enviando verificacion..." : "Reenviar verificacion"}
+                {verifyStatus === "loading"
+                  ? "Enviando verificacion..."
+                  : verifyCooldown > 0
+                  ? `Reenviar verificacion (${verifyCooldown}s)`
+                  : "Reenviar verificacion"}
               </button>
             </div>
           </form>
@@ -330,4 +348,3 @@ export function LoginPage() {
     </div>
   );
 }
-

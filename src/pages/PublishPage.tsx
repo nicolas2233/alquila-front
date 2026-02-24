@@ -260,6 +260,9 @@ export function PublishPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [showLocationReviewModal, setShowLocationReviewModal] = useState(false);
+  const [pendingStepTarget, setPendingStepTarget] = useState<Step | null>(null);
+  const [locationReviewConfirmed, setLocationReviewConfirmed] = useState(false);
   const [summaryHighlights, setSummaryHighlights] = useState<string[]>([]);
   const [summaryEditorGroupsOpen, setSummaryEditorGroupsOpen] = useState<
     Record<SummaryHighlightGroup, boolean>
@@ -702,6 +705,7 @@ export function PublishPage() {
         setExistingPhotos(data.photos ?? []);
         setPhotos([]);
         setStep(0);
+        setLocationReviewConfirmed(false);
         setShowErrors(false);
         setShowPreview(false);
         setStatus("idle");
@@ -1293,6 +1297,35 @@ export function PublishPage() {
   );
   const completedCount = stepCompletion.filter(Boolean).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
+  const locationLockedInEdit = isEditMode;
+
+  const requestStepChange = (target: Step) => {
+    if (
+      !isEditMode &&
+      step === 1 &&
+      target !== 1 &&
+      !locationReviewConfirmed
+    ) {
+      setPendingStepTarget(target);
+      setShowLocationReviewModal(true);
+      return;
+    }
+    setStep(target);
+  };
+
+  const confirmLocationReviewAndContinue = () => {
+    setLocationReviewConfirmed(true);
+    setShowLocationReviewModal(false);
+    if (pendingStepTarget !== null) {
+      setStep(pendingStepTarget);
+      setPendingStepTarget(null);
+    }
+  };
+
+  const cancelLocationReviewModal = () => {
+    setShowLocationReviewModal(false);
+    setPendingStepTarget(null);
+  };
 
   const handleGoToStep = (target: Step) => {
     if (target > step && !canNext) {
@@ -1300,7 +1333,7 @@ export function PublishPage() {
       return;
     }
     setShowErrors(false);
-    setStep(target);
+    requestStepChange(target);
   };
 
   const handleNextStep = () => {
@@ -1309,7 +1342,7 @@ export function PublishPage() {
       return;
     }
     setShowErrors(false);
-    setStep((prev) => ((prev + 1) as Step));
+    requestStepChange((step + 1) as Step);
   };
 
   const applyGeocodeResult = (
@@ -2401,7 +2434,18 @@ export function PublishPage() {
 
         {step === 1 && (
           <div className="space-y-6">
-            {approximateAddressPanel}
+            {locationLockedInEdit && (
+              <div className="rounded-2xl border border-amber-300/25 bg-amber-500/8 p-4 text-xs text-amber-100">
+                <p className="font-medium text-white">Ubicación bloqueada en edición</p>
+                <p className="mt-1 leading-relaxed">
+                  Para evitar duplicados y posibles fraudes, una vez publicada no se puede cambiar
+                  la dirección, localidad, unidad ni el punto del mapa. Si se trata de otro
+                  inmueble, crea una nueva publicación.
+                </p>
+              </div>
+            )}
+            <fieldset disabled={locationLockedInEdit} className={locationLockedInEdit ? "opacity-70" : ""}>
+              {approximateAddressPanel}
             <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
                   Dirección
@@ -2531,6 +2575,7 @@ export function PublishPage() {
                   type="button"
                   className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                   onClick={() => setShowMapPicker(true)}
+                  disabled={locationLockedInEdit}
                 >
                   Marcar en el mapa
                 </button>
@@ -2551,10 +2596,12 @@ export function PublishPage() {
                 lat={lat}
                 lng={lng}
                 onChange={(nextLat, nextLng) => {
+                  if (locationLockedInEdit) return;
                   void handleMapPointChange(nextLat, nextLng);
                 }}
               />
             </div>
+            </fieldset>
 
           </div>
         )}
@@ -3523,7 +3570,7 @@ export function PublishPage() {
               }
             />
           )}
-          {showMapPicker && (
+          {showMapPicker && !locationLockedInEdit && (
             <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/70 p-4">
               <div className="glass-card w-full max-w-2xl max-h-[88vh] overflow-y-auto space-y-4 p-4 md:p-6">
                 <div className="flex items-center justify-between gap-3">
@@ -3576,7 +3623,7 @@ export function PublishPage() {
                 type="button"
                 onClick={() => {
                   setShowErrors(false);
-                  setStep((prev) => (prev > 0 ? ((prev - 1) as Step) : prev));
+                  requestStepChange(step > 0 ? ((step - 1) as Step) : step);
                 }}
                 disabled={step === 0}
               >
@@ -3612,6 +3659,15 @@ export function PublishPage() {
         </div>
       </form>
       </div>
+      <ConfirmLeaveModal
+        open={showLocationReviewModal}
+        title="Revisá bien la ubicación antes de continuar"
+        message="Después de publicar no vas a poder cambiar dirección, localidad, unidad ni el punto del mapa desde la edición. Esto ayuda a evitar duplicados y posibles estafas."
+        confirmLabel="Continuar"
+        cancelLabel="Revisar ubicación"
+        onConfirm={confirmLocationReviewAndContinue}
+        onCancel={cancelLocationReviewModal}
+      />
       <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );

@@ -7,6 +7,7 @@ import type { SessionUser } from "../auth/session";
 import { env } from "../config/env";
 import { ToastProvider } from "../ui/toast/ToastProvider";
 import { LegalModal } from "../ui/LegalModal";
+import { ConfirmLeaveModal } from "../ui/ConfirmLeaveModal";
 import { identifyUser, trackPageView } from "../analytics/posthog";
 import { SeoRouteMeta } from "../seo/SeoRouteMeta";
 import { LegalDocumentContent, legalDocuments } from "../legal/legalDocuments";
@@ -160,6 +161,7 @@ export function AppLayout() {
   const [token, setToken] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     setUser(getSessionUser());
@@ -207,9 +209,18 @@ export function AppLayout() {
   }, [token, location.pathname]);
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     clearSession();
     setUser(null);
+    setShowLogoutConfirm(false);
     navigate("/login");
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   const mobileLeftItems: MobileDockItem[] = [
@@ -548,6 +559,15 @@ export function AppLayout() {
       >
         <LegalDocumentContent document={legalDocuments.privacidad} />
       </LegalModal>
+      <ConfirmLeaveModal
+        open={showLogoutConfirm}
+        title="¿Cerrar sesion?"
+        message="Vas a salir de tu cuenta y volver a la pantalla de login. Podras ingresar nuevamente cuando quieras."
+        confirmLabel="Cerrar sesion"
+        cancelLabel="Cancelar"
+        onConfirm={confirmLogout}
+        onCancel={cancelLogout}
+      />
       </div>
     </ToastProvider>
   );
