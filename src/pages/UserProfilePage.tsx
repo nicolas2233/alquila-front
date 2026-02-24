@@ -18,12 +18,14 @@ export function UserProfilePage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailVerifiedAt, setEmailVerifiedAt] = useState<string>("");
   const [dni, setDni] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [verificationStatus, setVerificationStatus] = useState<"idle" | "sending">("idle");
   const [isDirty, setIsDirty] = useState(false);
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const lockIcon = (
@@ -61,6 +63,7 @@ export function UserProfilePage() {
           firstName?: string | null;
           lastName?: string | null;
           email?: string | null;
+          emailVerifiedAt?: string | null;
           dni?: string | null;
           birthDate?: string | null;
           phone?: string | null;
@@ -77,6 +80,7 @@ export function UserProfilePage() {
           setLastName(rest.join(" "));
         }
         setEmail(data.email ?? "");
+        setEmailVerifiedAt(data.emailVerifiedAt ?? "");
         setDni(data.dni ?? "");
         setBirthDate(
           data.birthDate ? new Date(data.birthDate).toISOString().slice(0, 10) : ""
@@ -125,7 +129,7 @@ export function UserProfilePage() {
       setContrasena("");
       setStatus("idle");
       localStorage.setItem(
-        "alquila_user",
+        "domusbrag_user",
         JSON.stringify({
           ...sessionUser,
           name,
@@ -144,6 +148,33 @@ export function UserProfilePage() {
     }
   };
 
+  const resendVerificationEmail = async () => {
+    if (!email) return;
+    setVerificationStatus("sending");
+    try {
+      const response = await fetch(`${env.apiUrl}/auth/verify-email/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message ?? "No pudimos reenviar el email de verificacion.");
+      }
+      addToast(data?.message ?? "Te enviamos un email de verificacion.", "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos reenviar el email de verificacion.",
+        "error"
+      );
+    } finally {
+      setVerificationStatus("idle");
+    }
+  };
+
   return (
     <div className="space-y-6" onChange={() => setIsDirty(true)}>
       <div>
@@ -156,14 +187,35 @@ export function UserProfilePage() {
       <div className="glass-card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-xs text-[#D1C7BD]">Datos personales</div>
-          <button
-            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
-            type="button"
-            onClick={saveProfile}
-            disabled={status === "saving"}
-          >
-            {status === "saving" ? "Guardando..." : "Guardar cambios"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full border px-3 py-1 text-[11px] ${
+                emailVerifiedAt
+                  ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+                  : "border-amber-400/35 bg-amber-500/10 text-amber-200"
+              }`}
+            >
+              {emailVerifiedAt ? "Email verificado" : "Email pendiente"}
+            </span>
+            {!emailVerifiedAt && (
+              <button
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                type="button"
+                onClick={resendVerificationEmail}
+                disabled={verificationStatus === "sending"}
+              >
+                {verificationStatus === "sending" ? "Enviando..." : "Reenviar verificacion"}
+              </button>
+            )}
+            <button
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+              type="button"
+              onClick={saveProfile}
+              disabled={status === "saving"}
+            >
+              {status === "saving" ? "Guardando..." : "Guardar cambios"}
+            </button>
+          </div>
         </div>
 
         {status === "loading" && (

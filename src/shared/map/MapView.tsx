@@ -26,7 +26,7 @@ const defaultCenter: LatLngExpression = [-35.1197, -60.4899];
 
 const createMarkerIcon = (color: string, isSelected: boolean, count?: number) =>
   L.divIcon({
-    className: "alquila-marker",
+    className: "domusbrag-marker",
     html: `
       ${
         typeof count === "number" && count > 1
@@ -113,7 +113,7 @@ export function MapView({ points, selectedId, onSelect }: MapViewProps) {
               mouseover: (event) => event.target.openPopup(),
             }}
           >
-            <Popup className="alquila-popup" closeButton={false} offset={[0, -28]}>
+            <Popup className="domusbrag-popup" closeButton={false} offset={[0, -28]}>
               <div className="map-popup-body w-52 space-y-2">
                 {point.count && point.count > 1 ? (
                   <>

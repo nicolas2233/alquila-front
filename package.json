@@ -1,11 +1,14 @@
 {
-  "name": "alquila-front",
+  "name": "domusbrag-front",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "packageManager": "npm@11.6.2",
   "scripts": {
     "dev": "vite",
+    "seo:sitemap": "node ./scripts/generate-sitemap.mjs",
+    "seo:sitemap:strict": "node ./scripts/generate-sitemap.mjs --strict",
+    "prebuild": "npm run seo:sitemap",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

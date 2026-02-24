@@ -65,7 +65,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-2 top-2 z-[120] flex flex-col items-center gap-2 pt-[env(safe-area-inset-top)] sm:inset-x-auto sm:left-1/2 sm:top-6 sm:-translate-x-1/2">
+      <div
+        className="pointer-events-none fixed inset-x-2 z-[1400] flex flex-col items-center gap-2 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2"
+        style={{ top: "calc(var(--app-toast-top) + env(safe-area-inset-top))" }}
+      >
         {items.map((item) => (
           <div
             key={item.id}

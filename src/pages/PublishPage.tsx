@@ -1,5 +1,5 @@
 ﻿
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import { geocodeAddress, geocodeSuggestions, reverseGeocode } from "../shared/map/geocode";
 import type { GeocodeResult } from "../shared/map/geocode";
@@ -14,6 +14,7 @@ import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 type Step = 0 | 1 | 2 | 3 | 4;
+const PLAN_LIMIT_COUNTED_STATUSES = ["DRAFT", "ACTIVE", "PAUSED", "TEMPORARILY_UNAVAILABLE"];
 
 const steps = [
   {
@@ -239,6 +240,7 @@ export function PublishPage() {
   const { addToast } = useToast();
   const sessionUser = getSessionUser();
   const sessionToken = getToken();
+  const subscriptionInfo = sessionUser?.subscription ?? null;
   const isOwner = sessionUser?.role === "OWNER";
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
@@ -250,6 +252,9 @@ export function PublishPage() {
   const [initialStatus, setInitialStatus] = useState<"idle" | "loading" | "error">("idle");
   const [initialError, setInitialError] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [planUsageCount, setPlanUsageCount] = useState(0);
+  const [planUsageStatus, setPlanUsageStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [planUsageError, setPlanUsageError] = useState("");
   const [step, setStep] = useState<Step>(0);
   const [showErrors, setShowErrors] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -302,6 +307,17 @@ export function PublishPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<{ id: string; url: string }[]>([]);
 
+  const maxPropertiesByPlan = subscriptionInfo?.maxProperties ?? 0;
+  const planHasLimit = maxPropertiesByPlan > 0;
+  const planSlotsRemaining = planHasLimit ? Math.max(0, maxPropertiesByPlan - planUsageCount) : null;
+  const subscriptionMonthlyPrice = Number(subscriptionInfo?.priceAmount ?? 0);
+  const paidPlanRequiresPaymentMethod =
+    !isEditMode &&
+    (isOwner || isAgency) &&
+    !!subscriptionInfo &&
+    subscriptionMonthlyPrice > 0 &&
+    !subscriptionInfo.hasPaymentMethod;
+
   const photoPreviews = useMemo(
     () => photos.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [photos]
@@ -313,11 +329,48 @@ export function PublishPage() {
     };
   }, [photoPreviews]);
 
+  const loadPlanUsage = useCallback(async () => {
+    if (!sessionUser || (!isOwner && !isAgency) || !planHasLimit) return;
+    setPlanUsageStatus("loading");
+    setPlanUsageError("");
+    try {
+      const params = new URLSearchParams({ pageSize: "100" });
+      if (isOwner) {
+        params.set("ownerUserId", sessionUser.id);
+      }
+      if (isAgency && sessionUser.agencyId) {
+        params.set("agencyId", sessionUser.agencyId);
+      }
+      const response = await fetch(`${env.apiUrl}/properties?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("No pudimos verificar el cupo de tu plan.");
+      }
+      const data = (await response.json()) as { items?: Array<{ status?: string | null }> };
+      const usedCount = (data.items ?? []).filter((item) =>
+        item.status ? PLAN_LIMIT_COUNTED_STATUSES.includes(item.status) : false
+      ).length;
+      setPlanUsageCount(usedCount);
+      setPlanUsageStatus("idle");
+    } catch (error) {
+      setPlanUsageStatus("error");
+      setPlanUsageError(
+        error instanceof Error ? error.message : "No pudimos verificar el cupo."
+      );
+    }
+  }, [sessionUser, isOwner, isAgency, planHasLimit]);
+
   useEffect(() => {
     if (showErrors || status === "error") {
       scrollToFirstError(formRef.current);
     }
   }, [showErrors, status, step]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (!(isOwner || isAgency)) return;
+    if (!planHasLimit) return;
+    void loadPlanUsage();
+  }, [isEditMode, isOwner, isAgency, planHasLimit, loadPlanUsage]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -1552,6 +1605,17 @@ export function PublishPage() {
         throw new Error("Necesitas iniciar sesión.");
       }
 
+      if (!isEditMode && planHasLimit && planSlotsRemaining !== null && planSlotsRemaining <= 0) {
+        throw new Error(
+          `Alcanzaste el limite de tu plan (${subscriptionInfo?.planName ?? subscriptionInfo?.planCode ?? "actual"}). Libera una publicacion o mejora tu plan.`
+        );
+      }
+      if (paidPlanRequiresPaymentMethod) {
+        throw new Error(
+          `Tu plan (${subscriptionInfo?.planName ?? subscriptionInfo?.planCode ?? "actual"}) requiere cargar un medio de pago antes de publicar. El primer mes gratis se activa cuando completas ese paso desde Mi suscripción.`
+        );
+      }
+
       if (!isOwner && !isAgency) {
         throw new Error("Solo dueños o inmobiliarias pueden publicar.");
       }
@@ -1898,6 +1962,46 @@ export function PublishPage() {
                 {String(step + 1).padStart(2, "0")} · {steps[step]?.title}
               </p>
             </div>
+            {!isEditMode && (isOwner || isAgency) && subscriptionInfo && (
+              <div className="rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD] md:px-4 md:py-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#AF8C5C]">
+                  Plan y cupo
+                </p>
+                <p className="mt-1 text-sm text-white">
+                  {subscriptionInfo.planCode}
+                  {planHasLimit ? ` · ${planUsageCount}/${maxPropertiesByPlan}` : ""}
+                </p>
+                {planHasLimit && planSlotsRemaining !== null && (
+                  <p
+                    className={`mt-1 text-[11px] ${
+                      planSlotsRemaining <= 0
+                        ? "text-rose-300"
+                        : planSlotsRemaining <= 1
+                        ? "text-amber-200"
+                        : "text-[#D1C7BD]"
+                    }`}
+                  >
+                    {planSlotsRemaining <= 0
+                      ? "Sin cupo disponible para nuevas publicaciones."
+                      : `${planSlotsRemaining} cupo(s) libre(s).`}
+                  </p>
+                )}
+                {subscriptionInfo.isTrialActive && (
+                  <p className="mt-1 text-[11px] text-[#9fe0c0]">
+                    Primer mes gratis activo · {subscriptionInfo.trialDaysRemaining} dias restantes
+                  </p>
+                )}
+                {paidPlanRequiresPaymentMethod && (
+                  <p className="mt-1 text-[11px] text-amber-200">
+                    Falta cargar medio de pago. El mes gratis se activa cuando lo configures en Mi
+                    suscripción.
+                  </p>
+                )}
+                {planUsageStatus === "error" && (
+                  <p className="mt-1 text-[11px] text-[#AF8C5C]">{planUsageError}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -2028,6 +2132,16 @@ export function PublishPage() {
             </span>
           </div>
         </div>
+        {paidPlanRequiresPaymentMethod && (
+          <div className="rounded-2xl border border-amber-300/25 bg-amber-500/8 p-4 text-xs text-amber-100">
+            <p className="font-medium text-white">Antes de publicar: activa tu medio de pago</p>
+            <p className="mt-1 leading-relaxed">
+              No te pedimos tarjeta para crear la cuenta. Como elegiste un plan pago, ahora debes
+              cargar un medio de pago desde <span className="text-white">Panel → Mi suscripción</span>.
+              Cuando completes ese paso, se activa el primer mes gratis y podrás publicar con normalidad.
+            </p>
+          </div>
+        )}
         {step === 0 && (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">

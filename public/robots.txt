@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /panel
+Disallow: /perfil
+Disallow: /publicar
+Disallow: /notificaciones
+Disallow: /mis-solicitudes
+Disallow: /busquedas
+Disallow: /login
+Disallow: /registro
+Disallow: /recuperar
+Disallow: /reset-password
+Disallow: /change-password
+
+Sitemap: https://domusbrag.com/sitemap.xml

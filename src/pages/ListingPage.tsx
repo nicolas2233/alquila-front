@@ -8,6 +8,7 @@ import { LazySection } from "../shared/ui/LazySection";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { useSeo } from "../shared/seo/useSeo";
 
 const PropertyDetailModal = lazy(() =>
   import("../shared/properties/PropertyDetailModal").then((m) => ({
@@ -90,6 +91,45 @@ export function ListingPage() {
     () => (property ? mapPropertyToDetailListing(property) : null),
     [property]
   );
+  useSeo({
+    title: listing ? `${listing.operation} ${listing.propertyType} en Bragado` : "Ficha de inmueble",
+    description: property
+      ? `${property.title}. ${property.description || "Propiedad en Bragado"}`
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 160)
+      : "Detalle de inmueble en DomusBrag.",
+    canonicalPath: id ? `/publicacion/${id}` : "/publicacion",
+    image: property?.photos?.[0]?.url,
+    type: "article",
+    noindex: false,
+    structuredData:
+      property && listing
+        ? {
+            "@context": "https://schema.org",
+            "@type": "Offer",
+            name: property.title,
+            description: property.description,
+            url:
+              typeof window !== "undefined"
+                ? `${window.location.origin}/publicacion/${property.id}`
+                : undefined,
+            price: String(property.priceAmount),
+            priceCurrency: property.priceCurrency,
+            itemOffered: {
+              "@type": "Residence",
+              name: `${listing.propertyType} en Bragado`,
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: property.location.addressLine,
+                addressLocality: property.location.locality?.name ?? "Bragado",
+                addressCountry: "AR",
+              },
+            },
+            image: property.photos?.map((photo) => photo.url) ?? undefined,
+          }
+        : undefined,
+  });
   const contactMethods = property?.contactMethods ?? ([] as PropertyApiDetail["contactMethods"]);
   const alreadySentInterest = listing
     ? hasSentContactRequest({ propertyId: listing.id, type: "INTEREST" })

@@ -22,6 +22,22 @@ type AdminUser = {
   role: string;
   status: string;
   createdAt: string;
+  legalAcceptances?: Array<{
+    documentKey: string;
+    version: string;
+    acceptedAt: string;
+  }>;
+  subscription?: {
+    planCode: string;
+    planName: string;
+    maxProperties: number;
+    priceAmount: number;
+    priceCurrency: string;
+    status?: string;
+    trialEndsAt?: string | null;
+    isTrialActive: boolean;
+    trialDaysRemaining: number;
+  } | null;
 };
 
 type AdminReport = {
@@ -133,6 +149,26 @@ function normalizePoi(poi: AdminPoiApi): AdminPoi {
     lat: Number(poi.lat),
     lng: Number(poi.lng),
   };
+}
+
+function formatShortDateTime(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getLatestAcceptance(
+  acceptances: AdminUser["legalAcceptances"] | undefined,
+  documentKey: "TERMS" | "PRIVACY"
+) {
+  return (acceptances ?? []).find((item) => item.documentKey === documentKey) ?? null;
 }
 
 function PoiLocationPicker({
@@ -667,7 +703,7 @@ export function AdminPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl text-white">Panel admin</h2>
-          <p className="text-sm text-[#D1C7BD]">Control total de Brupi.</p>
+          <p className="text-sm text-[#D1C7BD]">Control total de DomusBrag.</p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
           {(
@@ -742,6 +778,56 @@ export function AdminPage() {
                 <div className="text-sm text-white">{user.name ?? "Sin nombre"}</div>
                 <div className="text-[#D1C7BD]">{user.email}</div>
                 <div className="text-[#D1C7BD]">{user.role}</div>
+                {user.subscription && (
+                  <div className="mt-2 rounded-xl border border-white/10 bg-night-900/36 px-2.5 py-2 text-[11px] text-[#ddd5c9]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-gold-400/30 bg-gold-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-gold-300">
+                        {user.subscription.planCode}
+                      </span>
+                      <span>{user.subscription.planName}</span>
+                      {user.subscription.maxProperties > 0 && (
+                        <span className="text-[#9f988d]">
+                          Hasta {user.subscription.maxProperties} inmuebles
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-[#cfc7ba]">
+                      {user.subscription.isTrialActive
+                        ? `Primer mes gratis activo · ${user.subscription.trialDaysRemaining} dias restantes`
+                        : user.subscription.trialEndsAt
+                        ? `Trial finalizado · vencio ${formatShortDateTime(user.subscription.trialEndsAt)}`
+                        : "Sin trial activo"}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-2 grid gap-1 text-[11px] text-[#cfc7ba]">
+                  {(() => {
+                    const terms = getLatestAcceptance(user.legalAcceptances, "TERMS");
+                    const privacy = getLatestAcceptance(user.legalAcceptances, "PRIVACY");
+                    return (
+                      <>
+                        <div className="inline-flex items-center gap-2">
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                            TyC
+                          </span>
+                          <span>{terms ? `v${terms.version}` : "Sin registro"}</span>
+                          {terms ? (
+                            <span className="text-[#9f988d]">{formatShortDateTime(terms.acceptedAt)}</span>
+                          ) : null}
+                        </div>
+                        <div className="inline-flex items-center gap-2">
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                            Priv
+                          </span>
+                          <span>{privacy ? `v${privacy.version}` : "Sin registro"}</span>
+                          {privacy ? (
+                            <span className="text-[#9f988d]">{formatShortDateTime(privacy.acceptedAt)}</span>
+                          ) : null}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
@@ -1200,5 +1286,6 @@ export function AdminPage() {
     </div>
   );
 }
+
 
 

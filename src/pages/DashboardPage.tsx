@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leafl
 import { geocodeAddress, reverseGeocode } from "../shared/map/geocode";
 import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
-import { getSessionUser, getToken } from "../shared/auth/session";
+import { getSessionUser, getToken, saveSession } from "../shared/auth/session";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type {
   PropertyApiDetail,
@@ -147,7 +147,8 @@ type AgencyProfile = {
   lng?: number | null;
 };
 
-type PanelSection = "profile" | "listings" | "requests" | "my-requests";
+type PanelSection = "profile" | "subscription" | "listings" | "requests" | "my-requests";
+const planCountedStatuses = ["DRAFT", "ACTIVE", "PAUSED", "TEMPORARILY_UNAVAILABLE"];
 
 export function DashboardPage() {
   const location = useLocation();
@@ -159,6 +160,34 @@ export function DashboardPage() {
   const isAgency = sessionUser?.role?.startsWith("AGENCY") ?? false;
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
   const agencyId = isAgency ? sessionUser?.agencyId : undefined;
+  const [subscriptionInfo, setSubscriptionInfo] = useState(sessionUser?.subscription ?? null);
+  const [billingCycleStatus, setBillingCycleStatus] = useState<"idle" | "saving">("idle");
+  const [subscriptionActionStatus, setSubscriptionActionStatus] = useState<"idle" | "saving">("idle");
+  const [subscriptionRefreshStatus, setSubscriptionRefreshStatus] = useState<"idle" | "loading">("idle");
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planModalMode, setPlanModalMode] = useState<"change" | "downgrade">("change");
+  const [planOptionsStatus, setPlanOptionsStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [planOptionsError, setPlanOptionsError] = useState("");
+  const [planOptions, setPlanOptions] = useState<
+    Array<{
+      code: "FREE" | "BRONCE" | "PLATINUM" | "GOLD";
+      internalCode: string;
+      name: string;
+      priceAmount: number;
+      priceCurrency: string;
+      maxProperties: number;
+      annualDiscountPercent?: number;
+      annualPriceAmount?: number;
+      annualMonthlyEquivalentAmount?: number;
+      annualSavingsAmount?: number;
+    }>
+  >([]);
+  const [selectedPlanCode, setSelectedPlanCode] = useState<"FREE" | "BRONCE" | "PLATINUM" | "GOLD" | "">("");
+  const [planChangeStatus, setPlanChangeStatus] = useState<"idle" | "saving">("idle");
+  const [planChangeInlineMessage, setPlanChangeInlineMessage] = useState("");
+  const [planChangeInlineTone, setPlanChangeInlineTone] = useState<"info" | "success" | "error">(
+    "info"
+  );
   const roleLabel = isOwner
     ? "Dueño directo"
     : isAgency
@@ -172,6 +201,9 @@ export function DashboardPage() {
   const [propertyError, setPropertyError] = useState("");
   const [propertyFilterType, setPropertyFilterType] = useState("");
   const [propertyFilterOperation, setPropertyFilterOperation] = useState("");
+  const [planUsageCount, setPlanUsageCount] = useState(0);
+  const [planUsageStatus, setPlanUsageStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [planUsageError, setPlanUsageError] = useState("");
   const [agencyStatus, setAgencyStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
   );
@@ -347,6 +379,12 @@ export function DashboardPage() {
   const [highlightPulse, setHighlightPulse] = useState(false);
   // chat in-app lives in floating widget
 
+  const maxPropertiesByPlan = subscriptionInfo?.maxProperties ?? 0;
+  const planHasPropertyLimit = maxPropertiesByPlan > 0;
+  const planSlotsRemaining = planHasPropertyLimit
+    ? Math.max(0, maxPropertiesByPlan - planUsageCount)
+    : null;
+
   const loadProperties = useCallback(async () => {
     if (!sessionUser) {
       setPropertyStatus("error");
@@ -400,6 +438,453 @@ export function DashboardPage() {
       clearTimeout(timeout);
     }
   }, [agencyId, ownerUserId, sessionUser, propertyFilterType, propertyFilterOperation]);
+
+  const loadPlanUsage = useCallback(async () => {
+    if (!sessionUser || (!ownerUserId && !agencyId)) {
+      return;
+    }
+    setPlanUsageStatus("loading");
+    setPlanUsageError("");
+    try {
+      const params = new URLSearchParams();
+      if (ownerUserId) params.set("ownerUserId", ownerUserId);
+      if (agencyId) params.set("agencyId", agencyId);
+      params.set("pageSize", "100");
+      const response = await fetch(`${env.apiUrl}/properties?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("No pudimos cargar el uso de tu plan.");
+      }
+      const data = (await response.json()) as { items?: Array<{ status?: string | null }> };
+      const usedCount = (data.items ?? []).filter((item) =>
+        item.status ? planCountedStatuses.includes(item.status) : false
+      ).length;
+      setPlanUsageCount(usedCount);
+      setPlanUsageStatus("idle");
+    } catch (error) {
+      setPlanUsageStatus("error");
+      setPlanUsageError(
+        error instanceof Error ? error.message : "No pudimos calcular el cupo utilizado."
+      );
+    }
+  }, [agencyId, ownerUserId, sessionUser]);
+
+  const updateBillingCycle = useCallback(
+    async (billingCycle: "MONTHLY" | "ANNUAL") => {
+      if (!sessionToken) {
+        addToast("Necesitas iniciar sesión.", "warning");
+        return;
+      }
+      if (!subscriptionInfo || subscriptionInfo.billingCycle === billingCycle) {
+        return;
+      }
+      setBillingCycleStatus("saving");
+      try {
+        const response = await fetch(`${env.apiUrl}/subscriptions/current`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({ billingCycle }),
+        });
+        const data = (await response.json().catch(() => null)) as
+          | { subscription?: typeof subscriptionInfo; message?: string; error?: string }
+          | null;
+        if (!response.ok || !data?.subscription) {
+          throw new Error(
+            (data && typeof data.message === "string" && data.message) ||
+              "No pudimos guardar el ciclo de facturación."
+          );
+        }
+        setSubscriptionInfo(data.subscription);
+        if (sessionUser && sessionToken) {
+          saveSession(sessionToken, { ...sessionUser, subscription: data.subscription });
+        }
+        addToast(
+          data.message ??
+            (billingCycle === "ANNUAL"
+              ? "Preferencia anual guardada."
+              : "Preferencia mensual guardada."),
+          "success",
+        );
+      } catch (error) {
+        addToast(
+          error instanceof Error
+            ? error.message
+            : "No pudimos guardar el ciclo de facturación.",
+          "error",
+        );
+      } finally {
+        setBillingCycleStatus("idle");
+      }
+    },
+    [addToast, sessionToken, sessionUser, subscriptionInfo]
+  );
+
+  const updateSubscriptionFromResponse = useCallback(
+    (nextSubscription: NonNullable<typeof subscriptionInfo>) => {
+      setSubscriptionInfo(nextSubscription);
+      if (sessionUser && sessionToken) {
+        saveSession(sessionToken, { ...sessionUser, subscription: nextSubscription });
+      }
+    },
+    [sessionToken, sessionUser]
+  );
+
+  const refreshCurrentSubscription = useCallback(async () => {
+    if (!sessionToken) return;
+    setSubscriptionRefreshStatus("loading");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current`, {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { subscription?: typeof subscriptionInfo; message?: string }
+        | null;
+      if (!response.ok || !data?.subscription) {
+        throw new Error(data?.message || "No pudimos actualizar la suscripción.");
+      }
+      updateSubscriptionFromResponse(data.subscription as NonNullable<typeof subscriptionInfo>);
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos actualizar la suscripción.",
+        "error"
+      );
+    } finally {
+      setSubscriptionRefreshStatus("idle");
+    }
+  }, [addToast, sessionToken, updateSubscriptionFromResponse]);
+
+  const syncPaymentStatusWithMercadoPago = useCallback(async () => {
+    if (!sessionToken) return;
+    setSubscriptionActionStatus("saving");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current/payment-sync`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { subscription?: typeof subscriptionInfo; message?: string }
+        | null;
+      if (!response.ok || !data?.subscription) {
+        throw new Error(data?.message || "No pudimos verificar el estado con Mercado Pago.");
+      }
+      updateSubscriptionFromResponse(data.subscription);
+      addToast(data.message ?? "Estado de Mercado Pago sincronizado.", "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos verificar el estado con Mercado Pago.",
+        "error"
+      );
+    } finally {
+      setSubscriptionActionStatus("idle");
+    }
+  }, [addToast, sessionToken, updateSubscriptionFromResponse]);
+
+  const scheduleSubscriptionCancellation = useCallback(async () => {
+    if (!sessionToken || !subscriptionInfo) return;
+    setSubscriptionActionStatus("saving");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { subscription?: typeof subscriptionInfo; message?: string }
+        | null;
+      if (!response.ok || !data?.subscription) {
+        throw new Error(
+          (data && typeof data.message === "string" && data.message) ||
+            "No pudimos programar la baja."
+        );
+      }
+      updateSubscriptionFromResponse(data.subscription);
+      addToast(data.message ?? "Baja programada al fin del período actual.", "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos programar la baja.",
+        "error"
+      );
+    } finally {
+      setSubscriptionActionStatus("idle");
+    }
+  }, [addToast, sessionToken, subscriptionInfo, updateSubscriptionFromResponse]);
+
+  const resumeSubscriptionRenewal = useCallback(async () => {
+    if (!sessionToken || !subscriptionInfo) return;
+    setSubscriptionActionStatus("saving");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current/resume`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { subscription?: typeof subscriptionInfo; message?: string }
+        | null;
+      if (!response.ok || !data?.subscription) {
+        throw new Error(
+          (data && typeof data.message === "string" && data.message) ||
+            "No pudimos reactivar la renovación."
+        );
+      }
+      updateSubscriptionFromResponse(data.subscription);
+      addToast(data.message ?? "Renovación automática reactivada.", "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos reactivar la renovación.",
+        "error"
+      );
+    } finally {
+      setSubscriptionActionStatus("idle");
+    }
+  }, [addToast, sessionToken, subscriptionInfo, updateSubscriptionFromResponse]);
+
+  const activatePaymentMethodAndTrial = useCallback(async () => {
+    if (!sessionToken || !subscriptionInfo) return;
+    setSubscriptionActionStatus("saving");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current/payment-checkout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { subscription?: typeof subscriptionInfo; message?: string; checkoutUrl?: string }
+        | null;
+      if (!response.ok) {
+        throw new Error(
+          (data && typeof data.message === "string" && data.message) ||
+            "No pudimos iniciar el checkout."
+        );
+      }
+      if (data?.subscription) {
+        updateSubscriptionFromResponse(data.subscription);
+      }
+      if (data?.checkoutUrl) {
+        addToast(
+          data.message ??
+            "Te redirigimos a Mercado Pago para cargar el medio de pago. El mes gratis se activará cuando la suscripción quede confirmada.",
+          "success"
+        );
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      throw new Error(data?.message || "No pudimos obtener la URL de checkout.");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos iniciar el checkout.",
+        "error"
+      );
+    } finally {
+      setSubscriptionActionStatus("idle");
+    }
+  }, [addToast, sessionToken, subscriptionInfo, updateSubscriptionFromResponse]);
+
+  const planRank: Record<string, number> = {
+    FREE: 0,
+    BRONCE: 1,
+    PLATINUM: 2,
+    GOLD: 3,
+  };
+
+  const loadPlanOptions = useCallback(async () => {
+    if (!sessionToken) return;
+    setPlanOptionsStatus("loading");
+    setPlanOptionsError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current/options`, {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as
+        | {
+            items?: Array<{
+              code: "FREE" | "BRONCE" | "PLATINUM" | "GOLD";
+              internalCode: string;
+              name: string;
+              priceAmount: number;
+              priceCurrency: string;
+              maxProperties: number;
+              annualDiscountPercent?: number;
+              annualPriceAmount?: number;
+              annualMonthlyEquivalentAmount?: number;
+              annualSavingsAmount?: number;
+            }>;
+            message?: string;
+          }
+        | null;
+      if (!response.ok) {
+        throw new Error(data?.message || "No pudimos cargar los planes.");
+      }
+      const items = data?.items ?? [];
+      setPlanOptions(items);
+      setSelectedPlanCode((prev) => {
+        if (prev && items.some((item) => item.code === prev)) return prev;
+        return (subscriptionInfo?.planCode as "FREE" | "BRONCE" | "PLATINUM" | "GOLD" | undefined) ?? "";
+      });
+      setPlanOptionsStatus("idle");
+    } catch (error) {
+      setPlanOptionsStatus("error");
+      setPlanOptionsError(error instanceof Error ? error.message : "No pudimos cargar los planes.");
+    }
+  }, [sessionToken, subscriptionInfo?.planCode]);
+
+  const openPlanModal = useCallback(
+    async (mode: "change" | "downgrade") => {
+      setPlanModalMode(mode);
+      setPlanModalOpen(true);
+      setPlanChangeInlineMessage("");
+      setPlanChangeInlineTone("info");
+      if (!planOptions.length) {
+        await loadPlanOptions();
+      } else {
+        setSelectedPlanCode(
+          (subscriptionInfo?.planCode as "FREE" | "BRONCE" | "PLATINUM" | "GOLD" | undefined) ?? "",
+        );
+      }
+    },
+    [loadPlanOptions, planOptions.length, subscriptionInfo?.planCode]
+  );
+
+  const filteredPlanOptions = useMemo(() => {
+    if (!subscriptionInfo?.planCode) return planOptions;
+    if (planModalMode !== "downgrade") return planOptions;
+    const currentRank = planRank[subscriptionInfo.planCode] ?? 999;
+    return planOptions.filter((item) => (planRank[item.code] ?? 999) <= currentRank);
+  }, [planModalMode, planOptions, subscriptionInfo?.planCode]);
+
+  const selectedPlanOption = useMemo(
+    () => filteredPlanOptions.find((item) => item.code === selectedPlanCode) ?? null,
+    [filteredPlanOptions, selectedPlanCode]
+  );
+
+  const isSelectedPlanDowngrade = useMemo(() => {
+    if (!subscriptionInfo?.planCode || !selectedPlanCode) return false;
+    const currentRank = planRank[subscriptionInfo.planCode] ?? 999;
+    const nextRank = planRank[selectedPlanCode] ?? 999;
+    return nextRank < currentRank;
+  }, [selectedPlanCode, subscriptionInfo?.planCode]);
+
+  const selectedPlanExcessCount = useMemo(() => {
+    if (!selectedPlanOption) return 0;
+    return Math.max(0, planUsageCount - selectedPlanOption.maxProperties);
+  }, [planUsageCount, selectedPlanOption]);
+
+  const isPaymentMethodReadyForPaidPlan = useMemo(() => {
+    if (!subscriptionInfo) return false;
+    if (Number(subscriptionInfo.priceAmount ?? 0) <= 0) return false;
+    return (
+      Boolean(subscriptionInfo.hasPaymentMethod) &&
+      subscriptionInfo.paymentProvider === "MERCADO_PAGO" &&
+      subscriptionInfo.paymentProviderStatus !== "cancelled"
+    );
+  }, [subscriptionInfo]);
+
+  const selectedPlanNeedsPaymentValidation = useMemo(() => {
+    if (!selectedPlanOption || !subscriptionInfo) return false;
+    return (
+      !isSelectedPlanDowngrade &&
+      Number(selectedPlanOption.priceAmount ?? 0) > 0 &&
+      !isPaymentMethodReadyForPaidPlan
+    );
+  }, [isPaymentMethodReadyForPaidPlan, isSelectedPlanDowngrade, selectedPlanOption, subscriptionInfo]);
+
+  const submitPlanChange = useCallback(async () => {
+    if (!sessionToken || !selectedPlanCode) return;
+    setPlanChangeStatus("saving");
+    setPlanChangeInlineMessage("");
+    setPlanChangeInlineTone("info");
+    try {
+      const response = await fetch(`${env.apiUrl}/subscriptions/current/change-plan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ planCode: selectedPlanCode }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | {
+            subscription?: typeof subscriptionInfo;
+            message?: string;
+            changeMode?: "IMMEDIATE_UPGRADE" | "IMMEDIATE_CHANGE" | "SCHEDULED_DOWNGRADE";
+            overage?: { currentUsageCount?: number; nextPlanLimit?: number; excessCount?: number };
+          }
+        | null;
+      if (!response.ok || !data?.subscription) {
+        throw new Error(
+          (data && typeof data.message === "string" && data.message) ||
+            "No pudimos cambiar el plan."
+        );
+      }
+      updateSubscriptionFromResponse(data.subscription);
+
+      if (
+        selectedPlanOption &&
+        !isSelectedPlanDowngrade &&
+        Number(selectedPlanOption.priceAmount ?? 0) > 0 &&
+        !isPaymentMethodReadyForPaidPlan
+      ) {
+        const checkoutResponse = await fetch(`${env.apiUrl}/subscriptions/current/payment-checkout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+        const checkoutData = (await checkoutResponse.json().catch(() => null)) as
+          | { subscription?: typeof subscriptionInfo; message?: string; checkoutUrl?: string }
+          | null;
+        if (!checkoutResponse.ok) {
+          setPlanChangeInlineTone("error");
+          setPlanChangeInlineMessage(
+            checkoutData?.message ||
+              "Plan actualizado, pero no pudimos iniciar la validación del medio de pago."
+          );
+          throw new Error(
+            checkoutData?.message ||
+              "Plan actualizado, pero no pudimos iniciar la validación del medio de pago."
+          );
+        }
+        if (checkoutData?.subscription) {
+          updateSubscriptionFromResponse(checkoutData.subscription);
+        }
+        addToast(
+          checkoutData?.message ??
+            "Ahora validaremos tu medio de pago en Mercado Pago. No se te cobrará este mes: se activa el mes gratis y el primer cobro será al finalizar.",
+          "success"
+        );
+        setPlanChangeInlineTone("success");
+        setPlanChangeInlineMessage(
+          checkoutData?.message ??
+            "Redirigiendo a Mercado Pago para validar el medio de pago y activar el mes gratis..."
+        );
+        setPlanModalOpen(false);
+        if (checkoutData?.checkoutUrl) {
+          window.location.href = checkoutData.checkoutUrl;
+          return;
+        }
+        return;
+      }
+
+      setPlanModalOpen(false);
+      setPlanChangeInlineTone("success");
+      setPlanChangeInlineMessage(data.message ?? "Plan actualizado.");
+      addToast(data.message ?? "Plan actualizado.", "success");
+    } catch (error) {
+      setPlanChangeInlineTone("error");
+      setPlanChangeInlineMessage(
+        error instanceof Error ? error.message : "No pudimos cambiar el plan."
+      );
+      addToast(error instanceof Error ? error.message : "No pudimos cambiar el plan.", "error");
+    } finally {
+      setPlanChangeStatus("idle");
+    }
+  }, [
+    addToast,
+    isSelectedPlanDowngrade,
+    selectedPlanCode,
+    selectedPlanOption,
+    sessionToken,
+    subscriptionInfo,
+    isPaymentMethodReadyForPaidPlan,
+    updateSubscriptionFromResponse,
+  ]);
 
   const loadRequests = useCallback(async () => {
     if (!sessionToken) {
@@ -567,7 +1052,13 @@ export function DashboardPage() {
     if (activeSection === "listings") {
       void loadProperties();
     }
-  }, [activeSection, loadProperties]);
+    if (activeSection === "listings" || activeSection === "subscription") {
+      void loadPlanUsage();
+    }
+    if (activeSection === "subscription") {
+      void refreshCurrentSubscription();
+    }
+  }, [activeSection, loadProperties, loadPlanUsage, refreshCurrentSubscription]);
 
   useEffect(() => {
     if (activeSection !== "requests") {
@@ -587,6 +1078,7 @@ export function DashboardPage() {
     const params = new URLSearchParams(location.search);
     const tab = params.get("tab");
     const requestId = params.get("requestId");
+    const mpReturn = params.get("mpReturn");
     if (tab === "profile") {
       setActiveSection("profile");
       setAgencyProfileTab("data");
@@ -598,6 +1090,19 @@ export function DashboardPage() {
       setPendingRequestId(null);
       return;
     }
+    if (tab === "subscription") {
+      setActiveSection("subscription");
+      setPendingRequestId(null);
+      if (mpReturn === "1") {
+        setTimeout(() => {
+          void syncPaymentStatusWithMercadoPago();
+        }, 250);
+        const nextParams = new URLSearchParams(location.search);
+        nextParams.delete("mpReturn");
+        navigate(`${location.pathname}?${nextParams.toString()}`, { replace: true });
+      }
+      return;
+    }
     if (tab === "my-requests") {
       setActiveSection("my-requests");
       setPendingRequestId(null);
@@ -607,7 +1112,7 @@ export function DashboardPage() {
       setActiveSection("requests");
       setPendingRequestId(requestId);
     }
-  }, [location.search]);
+  }, [location.pathname, location.search, navigate, syncPaymentStatusWithMercadoPago]);
 
   useEffect(() => {
     if (!pendingRequestId || requestStatus !== "idle") {
@@ -740,7 +1245,7 @@ export function DashboardPage() {
 
   const updateStatus = async (propertyId: string, nextStatus: string) => {
     try {
-      await fetch(`${env.apiUrl}/properties/${propertyId}/status`, {
+      const response = await fetch(`${env.apiUrl}/properties/${propertyId}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -748,10 +1253,14 @@ export function DashboardPage() {
         },
         body: JSON.stringify({ status: nextStatus }),
       });
+      if (!response.ok) {
+        throw new Error("No pudimos actualizar el estado.");
+      }
       await loadProperties();
+      await loadPlanUsage();
     } catch (error) {
       setPropertyStatus("error");
-      setPropertyError("No pudimos actualizar el estado.");
+      setPropertyError(error instanceof Error ? error.message : "No pudimos actualizar el estado.");
     }
   };
 
@@ -1217,7 +1726,7 @@ export function DashboardPage() {
       const currentUser = getSessionUser();
       if (currentUser && currentUser.id === ownerUserId) {
         localStorage.setItem(
-          "alquila_user",
+          "domusbrag_user",
           JSON.stringify({
             ...currentUser,
             name: ownerFullName || ownerName,
@@ -1286,6 +1795,11 @@ export function DashboardPage() {
         ? "Configura identidad, canales y hero público de tu agencia."
         : "Gestiona tus datos personales y de contacto.",
     },
+    subscription: {
+      badge: "Plan",
+      title: "Mi suscripción",
+      description: "Revisa tu plan, cupo, trial y próximos pasos de cobro.",
+    },
     listings: {
       badge: "Publicaciones",
       title: "Mis inmuebles",
@@ -1304,12 +1818,17 @@ export function DashboardPage() {
   };
   const currentSectionMeta = sectionMeta[activeSection];
   const isPremiumPanelHero =
-    activeSection === "profile" || activeSection === "listings" || activeSection === "requests";
+    activeSection === "profile" ||
+    activeSection === "subscription" ||
+    activeSection === "listings" ||
+    activeSection === "requests";
   const isProfileHero = activeSection === "profile";
   const premiumHeroTitle = isProfileHero
     ? isAgency
       ? "Tu marca inmobiliaria, clara y confiable"
       : "Tu perfil de dueño, listo para convertir"
+    : activeSection === "subscription"
+    ? "Controlá tu plan y el cupo disponible"
     : activeSection === "listings"
     ? "Gestioná tus inmuebles con foco comercial"
     : "Respondé solicitudes sin perder contexto";
@@ -1317,6 +1836,8 @@ export function DashboardPage() {
     ? isAgency
       ? "Mostrá identidad, canales de contacto y una presencia profesional para reforzar confianza."
       : "Configurá tus datos públicos y privados para publicar con mejor presentación y contacto más rápido."
+    : activeSection === "subscription"
+    ? "Verificá días de trial, cupo de inmuebles y prepará el método de pago para la continuidad del servicio."
     : activeSection === "listings"
     ? "Controlá estados, ediciones y publicaciones desde un flujo más claro, rápido y ordenado."
     : "Centralizá consultas, seguimiento y contacto con interesados desde un solo lugar.";
@@ -1408,6 +1929,19 @@ export function DashboardPage() {
                     </span>
                   </>
                 )}
+                {activeSection === "subscription" && (
+                  <>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Trial
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Cupo
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
+                      Facturación
+                    </span>
+                  </>
+                )}
                 {activeSection === "requests" && (
                   <>
                     <span className="rounded-full border border-white/10 bg-night-900/45 px-3 py-1 text-xs text-[#E7E2DD]">
@@ -1431,6 +1965,15 @@ export function DashboardPage() {
           >
             <span className="rounded-full border border-white/15 bg-night-900/50 px-3 py-1 text-xs text-[#E7E2DD]">
               Cuenta: {roleLabel}
+            </span>
+            <span
+              className={`rounded-full border px-3 py-1 text-xs ${
+                sessionUser?.emailVerifiedAt
+                  ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+                  : "border-amber-400/35 bg-amber-500/10 text-amber-200"
+              }`}
+            >
+              {sessionUser?.emailVerifiedAt ? "Email verificado" : "Email pendiente"}
             </span>
             <button
               type="button"
@@ -1485,6 +2028,15 @@ export function DashboardPage() {
           >
             {isAgency ? "Perfil inmobiliaria" : "Perfil dueño"}
           </button>
+          {(isOwner || isAgency) && (
+            <button
+              type="button"
+              onClick={() => handleSelectSection("subscription")}
+              className={sidebarButtonClass("subscription")}
+            >
+              Mi suscripción
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleSelectSection("listings")}
@@ -2222,12 +2774,332 @@ export function DashboardPage() {
         </div>
       )}
 
+      {activeSection === "subscription" && (isOwner || isAgency) && (
+        <div className="glass-card space-y-5 p-6">
+          {subscriptionInfo &&
+          Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
+          !isPaymentMethodReadyForPaidPlan ? (
+            <div className="rounded-2xl border border-amber-300/25 bg-amber-500/8 p-4 text-sm text-amber-100">
+              <p className="font-medium text-white">Falta activar el medio de pago</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                No te pedimos tarjeta para crear la cuenta. Para publicar con un plan pago
+                necesitas cargar un medio de pago. El primer mes gratis se activa en ese momento.
+              </p>
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Mi suscripción</h3>
+              <p className="text-xs text-[#D1C7BD]">
+                Estado del plan, primer mes gratis y capacidad disponible.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-night-900/55 px-3 py-2">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                    Facturación
+                  </span>
+                  {(["MONTHLY", "ANNUAL"] as const).map((cycle) => {
+                    const selected = (subscriptionInfo.billingCycle ?? "MONTHLY") === cycle;
+                    return (
+                      <label
+                        key={cycle}
+                        className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
+                          selected
+                            ? "border-gold-400/40 bg-gold-500/10 font-semibold text-white"
+                            : "border-white/10 text-[#E7E2DD]"
+                        } ${billingCycleStatus === "saving" ? "opacity-70" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="billingCycle"
+                          className="h-3.5 w-3.5 accent-[#AF8C5C]"
+                          checked={selected}
+                          disabled={billingCycleStatus === "saving"}
+                          onChange={() => void updateBillingCycle(cycle)}
+                        />
+                        {cycle === "MONTHLY" ? "Mensual" : "Anual"}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                onClick={() => void openPlanModal("change")}
+              >
+                Cambiar plan
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                onClick={() => void openPlanModal("downgrade")}
+              >
+                Volver de plan
+              </button>
+              {subscriptionInfo &&
+                Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
+                isPaymentMethodReadyForPaidPlan && (
+                <button
+                  type="button"
+                  disabled={subscriptionActionStatus === "saving"}
+                  className={`rounded-full px-4 py-2 text-xs ${
+                    subscriptionInfo.cancelAtPeriodEnd
+                      ? "border border-emerald-300/35 bg-emerald-500/10 text-emerald-100"
+                      : "border border-rose-300/35 bg-rose-500/10 text-rose-100"
+                  } ${subscriptionActionStatus === "saving" ? "opacity-70" : ""}`}
+                  onClick={() =>
+                    void (subscriptionInfo.cancelAtPeriodEnd
+                      ? resumeSubscriptionRenewal()
+                      : scheduleSubscriptionCancellation())
+                  }
+                >
+                  {subscriptionInfo.cancelAtPeriodEnd ? "Reactivar renovación" : "Cancelar suscripción"}
+                </button>
+              )}
+              {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 ? (
+                isPaymentMethodReadyForPaidPlan ? (
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                    onClick={() =>
+                      addToast("Pronto vas a poder cambiar tu medio de pago desde aquí.", "warning")
+                    }
+                  >
+                    Cambiar forma de pago
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={subscriptionActionStatus === "saving"}
+                    className={`rounded-full border border-emerald-300/35 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-100 ${
+                      subscriptionActionStatus === "saving" ? "opacity-70" : ""
+                    }`}
+                    onClick={() => void activatePaymentMethodAndTrial()}
+                  >
+                    Agregar medio de pago (Mercado Pago) y activar mes gratis
+                  </button>
+                )
+              ) : (
+                <span className="rounded-full border border-white/10 bg-night-900/35 px-4 py-2 text-[11px] text-[#D1C7BD]">
+                  El medio de pago se solicita al pasar a un plan pago.
+                </span>
+              )}
+              {subscriptionInfo &&
+                Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
+                !isPaymentMethodReadyForPaidPlan &&
+                subscriptionInfo.paymentProvider === "MERCADO_PAGO" && (
+                  <button
+                    type="button"
+                    disabled={subscriptionActionStatus === "saving" || subscriptionRefreshStatus === "loading"}
+                    className={`rounded-full border border-sky-300/35 bg-sky-500/10 px-4 py-2 text-xs text-sky-100 ${
+                      subscriptionActionStatus === "saving" || subscriptionRefreshStatus === "loading"
+                        ? "opacity-70"
+                        : ""
+                    }`}
+                    onClick={() => void syncPaymentStatusWithMercadoPago()}
+                  >
+                    Verificar estado de Mercado Pago
+                  </button>
+                )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Plan actual</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-gold-400/35 bg-gold-500/10 px-3 py-1 text-xs font-semibold text-gold-100">
+                  {subscriptionInfo?.planCode ?? "SIN PLAN"}
+                </span>
+                <span className="text-white">{subscriptionInfo?.planName ?? "Sin suscripción"}</span>
+              </div>
+              {subscriptionInfo ? (
+                <div className="mt-3 space-y-1 text-sm text-[#E7E2DD]">
+                  <p>
+                    Precio:{" "}
+                    <span className="text-white">
+                      {subscriptionInfo.priceCurrency}{" "}
+                      {(subscriptionInfo.billingCycle ?? "MONTHLY") === "ANNUAL"
+                        ? subscriptionInfo.annualMonthlyEquivalentAmount ?? subscriptionInfo.priceAmount
+                        : subscriptionInfo.priceAmount}
+                    </span>
+                    <span className="text-[#D1C7BD]">
+                      {" "}
+                      / {(subscriptionInfo.billingCycle ?? "MONTHLY") === "ANNUAL" ? "mes (equiv.)" : "mes"}
+                    </span>
+                  </p>
+                  {Number(subscriptionInfo.annualPriceAmount ?? 0) > 0 && (
+                    <>
+                      <p>
+                        Plan anual:{" "}
+                        <span className="text-white">
+                          {subscriptionInfo.priceCurrency} {subscriptionInfo.annualPriceAmount}
+                        </span>{" "}
+                        <span className="text-emerald-200">
+                          (-{subscriptionInfo.annualDiscountPercent ?? 0}%)
+                        </span>
+                      </p>
+                      <p className="text-xs text-[#D1C7BD]">
+                        Equivale a {subscriptionInfo.priceCurrency}{" "}
+                        {subscriptionInfo.annualMonthlyEquivalentAmount ?? subscriptionInfo.priceAmount} por mes
+                        y ahorras {subscriptionInfo.priceCurrency}{" "}
+                        {subscriptionInfo.annualSavingsAmount ?? 0} al año.
+                      </p>
+                    </>
+                  )}
+                  <p>
+                    {!isPaymentMethodReadyForPaidPlan && Number(subscriptionInfo.priceAmount ?? 0) > 0
+                      ? "Mes gratis pendiente de activación (se activa al cargar medio de pago)."
+                      : subscriptionInfo.isTrialActive
+                      ? `Mes gratis en curso · ${subscriptionInfo.trialDaysRemaining} dias restantes (no se cobra ahora)`
+                      : subscriptionInfo.trialEndsAt
+                      ? `Trial finalizado · vencio ${new Date(subscriptionInfo.trialEndsAt).toLocaleDateString("es-AR")}`
+                      : "Sin periodo promocional activo"}
+                  </p>
+                  {!isPaymentMethodReadyForPaidPlan &&
+                    Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
+                    subscriptionInfo.paymentProviderStatus && (
+                      <p className="text-xs text-[#D1C7BD]">
+                        Estado Mercado Pago:{" "}
+                        <span className="text-white">{subscriptionInfo.paymentProviderStatus}</span>
+                      </p>
+                    )}
+                  <p>
+                    {subscriptionInfo.cancelAtPeriodEnd ? "Fecha de baja: " : "Próximo pago: "}
+                    <span className="text-white">
+                      {!isPaymentMethodReadyForPaidPlan && Number(subscriptionInfo.priceAmount ?? 0) > 0
+                        ? "Se define al cargar el medio de pago y activar el mes gratis"
+                        : subscriptionInfo.nextBillingAt
+                        ? new Date(subscriptionInfo.nextBillingAt).toLocaleDateString("es-AR")
+                        : subscriptionInfo.isTrialActive && subscriptionInfo.trialEndsAt
+                        ? new Date(subscriptionInfo.trialEndsAt).toLocaleDateString("es-AR")
+                        : "A definir al configurar cobro recurrente"}
+                    </span>
+                  </p>
+                  {subscriptionInfo.isTrialActive && subscriptionInfo.nextBillingAt && (
+                    <p className="text-xs text-[#D1C7BD]">
+                      El primer cobro se realizará al finalizar el mes gratis (si mantienes la renovación activa).
+                    </p>
+                  )}
+                  {subscriptionInfo.cancelAtPeriodEnd && (
+                    <div className="mt-2 rounded-xl border border-amber-300/25 bg-amber-500/8 px-3 py-2 text-xs text-amber-100">
+                      La suscripción está programada para darse de baja al finalizar el período
+                      actual{subscriptionInfo.endsAt
+                        ? ` (${new Date(subscriptionInfo.endsAt).toLocaleDateString("es-AR")})`
+                        : ""}.
+                      {" "}Podés usar el plan con normalidad hasta esa fecha. El próximo período ya no se renovará.
+                    </div>
+                  )}
+                  {subscriptionInfo.pendingPlan && subscriptionInfo.pendingPlanEffectiveAt && (
+                    <div className="mt-2 rounded-xl border border-sky-300/25 bg-sky-500/8 px-3 py-2 text-xs text-sky-100">
+                      <p className="font-medium text-white">
+                        Cambio de plan programado: {subscriptionInfo.pendingPlan.planCode} ·{" "}
+                        {subscriptionInfo.pendingPlan.planName}
+                      </p>
+                      <p className="mt-1">
+                        Se aplicará en la próxima renovación (
+                        {new Date(subscriptionInfo.pendingPlanEffectiveAt).toLocaleDateString("es-AR")}
+                        ). Hasta esa fecha mantienes tu plan actual. No se realizan reintegros por
+                        tiempo no utilizado del período actual.
+                      </p>
+                      {Math.max(
+                        0,
+                        planUsageCount - (subscriptionInfo.pendingPlan.maxProperties ?? 0),
+                      ) > 0 && (
+                        <p className="mt-1 text-amber-100">
+                          Exceso para el nuevo plan:{" "}
+                          {Math.max(
+                            0,
+                            planUsageCount - (subscriptionInfo.pendingPlan.maxProperties ?? 0),
+                          )}{" "}
+                          publicación(es). Debes pausar o dar de baja publicaciones antes de la
+                          fecha de cambio.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-[#AF8C5C]">
+                  No encontramos una suscripción asociada. Si tu cuenta es antigua, la podemos regularizar.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Cupo de inmuebles</p>
+              {planUsageStatus === "loading" ? (
+                <p className="mt-3 text-sm text-[#D1C7BD]">Calculando cupo...</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {planUsageError ? (
+                    <p className="text-xs text-[#AF8C5C]">{planUsageError}</p>
+                  ) : null}
+                  {planHasPropertyLimit ? (
+                    <>
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-2xl font-semibold text-white">
+                            {planUsageCount}/{maxPropertiesByPlan}
+                          </p>
+                          <p className="text-xs text-[#D1C7BD]">Inmuebles ocupando cupo</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-white">{planSlotsRemaining} libres</p>
+                          <p className="text-xs text-[#D1C7BD]">Disponibles para publicar</p>
+                        </div>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full border border-white/10 bg-night-950/70">
+                        <div
+                          className={`h-full rounded-full ${
+                            planSlotsRemaining === 0
+                              ? "bg-rose-400"
+                              : (planSlotsRemaining ?? 0) <= 1
+                              ? "bg-amber-400"
+                              : "bg-emerald-400"
+                          }`}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.round((planUsageCount / Math.max(1, maxPropertiesByPlan)) * 100),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#E7E2DD]">
+                      Tu plan no tiene un cupo fijo de inmuebles configurado.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeSection === "listings" && (
         <div className="glass-card space-y-4 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
             <h3 className="text-lg text-white">Mis inmuebles</h3>
             <p className="text-xs text-[#D1C7BD]">Publicaciones creadas por tu cuenta.</p>
+            {isOwner || isAgency ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="rounded-full border border-white/10 bg-night-900/40 px-3 py-1 text-[#E7E2DD]">
+                  Plan: {subscriptionInfo?.planCode ?? "Sin plan"}
+                </span>
+                {planHasPropertyLimit && (
+                  <span className="rounded-full border border-gold-400/30 bg-gold-500/10 px-3 py-1 text-gold-100">
+                    Cupo: {planUsageCount}/{maxPropertiesByPlan} · {planSlotsRemaining} libres
+                  </span>
+                )}
+              </div>
+            ) : null}
             </div>
             <button
               className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
@@ -2699,6 +3571,167 @@ export function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {planModalOpen && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[#211c18] px-6 py-4">
+              <div>
+                <h3 className="text-lg text-white">
+                  {planModalMode === "downgrade" ? "Volver de plan" : "Cambiar plan"}
+                </h3>
+                <p className="text-xs text-[#D1C7BD]">
+                  Si mejoras el plan, el cambio se aplica de inmediato. Si bajas de plan, se
+                  programa para la próxima renovación y mantienes el plan actual hasta esa fecha.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                onClick={() => setPlanModalOpen(false)}
+                disabled={planChangeStatus === "saving"}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+              {planOptionsStatus === "loading" ? (
+                <p className="text-sm text-[#D1C7BD]">Cargando planes...</p>
+              ) : planOptionsStatus === "error" ? (
+                <p className="text-sm text-[#AF8C5C]">{planOptionsError}</p>
+              ) : filteredPlanOptions.length === 0 ? (
+                <p className="text-sm text-[#D1C7BD]">No hay planes disponibles para mostrar.</p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {filteredPlanOptions.map((option) => {
+                    const isCurrent = subscriptionInfo?.planCode === option.code;
+                    const isSelected = selectedPlanCode === option.code;
+                    return (
+                      <button
+                        key={option.internalCode}
+                        type="button"
+                        onClick={() => setSelectedPlanCode(option.code)}
+                        className={`rounded-2xl border p-4 text-left transition ${
+                          isSelected
+                            ? "border-gold-400/50 bg-gold-500/10 ring-1 ring-gold-400/20"
+                            : "border-white/10 bg-night-900/35 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-white">{option.code}</span>
+                              {isCurrent && (
+                                <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-100">
+                                  Plan actual
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-[#D1C7BD]">{option.name}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-base font-semibold text-white">
+                              {option.priceCurrency} {option.priceAmount}
+                            </p>
+                            <p className="text-[10px] text-[#D1C7BD]">/mes</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 space-y-1 text-xs text-[#D1C7BD]">
+                          <p>Hasta {option.maxProperties} inmuebles</p>
+                          {Number(option.annualPriceAmount ?? 0) > 0 && (
+                            <p className="text-emerald-200/90">
+                              Anual {option.priceCurrency} {option.annualPriceAmount} (-{option.annualDiscountPercent ?? 0}%)
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {selectedPlanOption && selectedPlanCode !== subscriptionInfo?.planCode && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-night-900/35 p-4 text-xs text-[#D1C7BD]">
+                  {isSelectedPlanDowngrade ? (
+                    <div className="space-y-2">
+                      <p className="text-white">
+                        Este cambio se programará para la próxima renovación (no se aplica ahora).
+                      </p>
+                      <p>
+                        No se realizan reintegros por tiempo no utilizado del período actual.
+                      </p>
+                      {selectedPlanExcessCount > 0 ? (
+                        <p className="text-amber-200">
+                          Con {selectedPlanOption.code} te excederías en {selectedPlanExcessCount} publicación(es).
+                          Deberás pausar o dar de baja publicaciones antes de la fecha de cambio.
+                        </p>
+                      ) : (
+                        <p className="text-emerald-200">
+                          Con este plan no tendrías excedente de publicaciones.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-white">El upgrade se aplica de inmediato y aumenta tu límite de publicaciones.</p>
+                      <p>No se realizan reintegros por tiempo no utilizado del período actual.</p>
+                      {selectedPlanNeedsPaymentValidation && (
+                        <p className="text-emerald-200">
+                          Al confirmar, cambiaremos tu plan y luego te redirigiremos a Mercado Pago
+                          para validar tarjeta/débito. No se te cobrará ahora: se activa el mes
+                          gratis y el primer cobro será al finalizar el período promocional.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {planChangeInlineMessage && (
+                <div
+                  className={`mt-4 rounded-2xl border px-4 py-3 text-xs leading-relaxed ${
+                    planChangeInlineTone === "error"
+                      ? "border-rose-300/25 bg-rose-500/10 text-rose-100"
+                      : planChangeInlineTone === "success"
+                      ? "border-emerald-300/25 bg-emerald-500/10 text-emerald-100"
+                      : "border-sky-300/20 bg-sky-500/8 text-sky-100"
+                  }`}
+                >
+                  {planChangeInlineMessage}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-night-900/90 px-6 py-4">
+              <p className="text-xs text-[#D1C7BD]">
+                Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en cualquier momento.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                  onClick={() => setPlanModalOpen(false)}
+                  disabled={planChangeStatus === "saving"}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 disabled:opacity-70"
+                  onClick={() => void submitPlanChange()}
+                  disabled={
+                    planChangeStatus === "saving" ||
+                    !selectedPlanCode ||
+                    selectedPlanCode === subscriptionInfo?.planCode
+                  }
+                >
+                  {planChangeStatus === "saving"
+                    ? "Guardando..."
+                    : isSelectedPlanDowngrade
+                    ? "Programar cambio"
+                    : "Confirmar plan"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {quickEditOpen && (

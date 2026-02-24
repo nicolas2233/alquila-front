@@ -23,6 +23,9 @@ const ForgotPasswordPage = lazy(() =>
 const ResetPasswordPage = lazy(() =>
   import("../pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage }))
 );
+const VerifyEmailPage = lazy(() =>
+  import("../pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage }))
+);
 const ChangePasswordPage = lazy(() =>
   import("../pages/ChangePasswordPage").then((m) => ({ default: m.ChangePasswordPage }))
 );
@@ -41,6 +44,7 @@ const MyRequestsPage = lazy(() =>
 const UserProfilePage = lazy(() =>
   import("../pages/UserProfilePage").then((m) => ({ default: m.UserProfilePage }))
 );
+const LegalPage = lazy(() => import("../pages/LegalPage").then((m) => ({ default: m.LegalPage })));
 const AdminPage = lazy(() => import("../pages/AdminPage").then((m) => ({ default: m.AdminPage })));
 const NotFoundPage = lazy(() =>
   import("../pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage }))
@@ -108,6 +112,7 @@ export const router = createBrowserRouter([
       { path: "login", element: withSuspense(<LoginPage />) },
       { path: "recuperar", element: withSuspense(<ForgotPasswordPage />) },
       { path: "reset-password", element: withSuspense(<ResetPasswordPage />) },
+      { path: "verificar-email", element: withSuspense(<VerifyEmailPage />) },
       {
         path: "change-password",
         element: withSuspense(
@@ -119,6 +124,7 @@ export const router = createBrowserRouter([
       { path: "agencia/:slug", element: withSuspense(<AgencyProfilePage />) },
       { path: "publicacion/:id", element: withSuspense(<ListingPage />) },
       { path: "publicación/:id", element: withSuspense(<ListingPage />) },
+      { path: "legal/:doc", element: withSuspense(<LegalPage />) },
       {
         path: "admin",
         element: withSuspense(

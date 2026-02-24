@@ -10,6 +10,7 @@ import { fetchJson } from "../shared/api/http";
 import { getSessionUser } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { useSeo } from "../shared/seo/useSeo";
 
 const normalizeExternalUrl = (value?: string | null) => {
   if (!value) return null;
@@ -454,6 +455,39 @@ export function AgencyProfilePage() {
     .slice(0, 2)
     .map((part) => part.charAt(0))
     .join("");
+  useSeo({
+    title: agency?.name ? `${agency.name} | Inmobiliaria en Bragado` : "Perfil de inmobiliaria",
+    description: agency?.description?.trim()
+      ? agency.description.trim().slice(0, 160)
+      : "Perfil publico de inmobiliaria en Bragado con propiedades activas y datos de contacto.",
+    canonicalPath: slug ? `/agencia/${slug}` : "/agencia",
+    image: agency?.logo ?? agency?.heroImage ?? undefined,
+    noindex: false,
+    structuredData: agency
+      ? {
+          "@context": "https://schema.org",
+          "@type": "RealEstateAgent",
+          name: agency.name,
+          image: agency.logo ?? agency.heroImage ?? undefined,
+          description: agency.description ?? undefined,
+          telephone: agency.phone ?? undefined,
+          email: agency.email ?? undefined,
+          address: agency.address
+            ? {
+                "@type": "PostalAddress",
+                streetAddress: agency.address,
+                addressLocality: "Bragado",
+                addressCountry: "AR",
+              }
+            : undefined,
+          sameAs: [agency.website, agency.instagram, agency.facebook].filter(Boolean),
+          url:
+            typeof window !== "undefined" && slug
+              ? `${window.location.origin}/agencia/${slug}`
+              : undefined,
+        }
+      : undefined,
+  });
 
   return (
     <div className="space-y-8 md:space-y-10">

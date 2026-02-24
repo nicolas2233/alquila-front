@@ -8,6 +8,8 @@ import { env } from "../config/env";
 import { ToastProvider } from "../ui/toast/ToastProvider";
 import { LegalModal } from "../ui/LegalModal";
 import { identifyUser, trackPageView } from "../analytics/posthog";
+import { SeoRouteMeta } from "../seo/SeoRouteMeta";
+import { LegalDocumentContent, legalDocuments } from "../legal/legalDocuments";
 // import { FloatingChat } from "../ui/chat/FloatingChat";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -283,6 +285,7 @@ export function AppLayout() {
 
   return (
     <ToastProvider>
+      <SeoRouteMeta />
       <div className="min-h-screen">
       <header className="sticky top-0 z-[1200] hidden border-b border-gold-500/20 bg-night-900/82 backdrop-blur-xl lg:block">
         <Container>
@@ -291,7 +294,7 @@ export function AppLayout() {
               to="/"
               className="text-center font-display text-xl tracking-wide text-white sm:text-2xl lg:text-left"
             >
-              Brupi
+              DomusBrag
             </Link>
             <nav className="flex flex-wrap justify-center gap-3 text-xs sm:gap-6 sm:text-sm">
               <NavLink to="/buscar" className={navClass}>
@@ -431,12 +434,12 @@ export function AppLayout() {
         <Container>
           <div className="grid gap-8 md:grid-cols-[1.2fr_1fr_1fr]">
             <div className="space-y-3">
-              <div className="font-display text-xl text-white">Brupi</div>
+              <div className="font-display text-xl text-white">DomusBrag</div>
               <p className="text-sm text-[#D1C7BD]">
-                Plataforma inmobiliaria local para Bragado. Conectamos personas con su
+                Plataforma digital de publicaciones y contacto inmobiliario para Bragado. Conectamos personas con su
                 proxima vivienda de forma clara y directa.
               </p>
-              <div className="text-xs text-[#7b756d]">© 2026 Brupi. Todos los derechos reservados.</div>
+              <div className="text-xs text-[#7b756d]">© 2026 DomusBrag. Todos los derechos reservados.</div>
             </div>
             <div className="space-y-3">
               <div className="text-sm text-white">Legal</div>
@@ -455,13 +458,32 @@ export function AppLayout() {
                 >
                   Politica de privacidad
                 </button>
+                <Link to="/legal/publicaciones" className="text-left text-[#E7E2DD] hover:text-white">
+                  Publicaciones y denuncias
+                </Link>
+                <Link to="/legal/planes" className="text-left text-[#E7E2DD] hover:text-white">
+                  Planes, cancelacion y reembolsos
+                </Link>
+                <Link
+                  to="/legal/arrepentimiento"
+                  className="text-left text-[#E7E2DD] hover:text-white"
+                >
+                  Boton de arrepentimiento
+                </Link>
+                <Link
+                  to="/legal/baja-servicio"
+                  className="text-left text-[#E7E2DD] hover:text-white"
+                >
+                  Baja de servicio
+                </Link>
               </div>
             </div>
             <div className="space-y-3">
               <div className="text-sm text-white">Ayuda</div>
               <div className="flex flex-col gap-2 text-xs">
-                <span>Contacto: contacto@brupi.com</span>
-                <span>Soporte: soporte@brupi.com</span>
+                <span>Contacto: contacto@domusbrag.com</span>
+                <span>Soporte: soporte@domusbrag.com</span>
+                <span>Legal / Copyright: legal@domusbrag.com</span>
                 <span>Bragado, Buenos Aires</span>
               </div>
             </div>
@@ -513,86 +535,25 @@ export function AppLayout() {
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        title="Terminos y condiciones"
-        subtitle="Lineamientos de uso de Brupi."
+        title={legalDocuments.terminos.title}
+        subtitle={legalDocuments.terminos.subtitle}
       >
-        <div className="space-y-3">
-          <h4 className="text-base text-white">1. Uso responsable</h4>
-          <p>
-            Brupi es una plataforma para conectar personas que buscan propiedades con
-            propietarios e inmobiliarias. No se permite publicar informacion falsa,
-            engañosa o duplicada.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">2. Contenido y veracidad</h4>
-          <p>
-            Cada usuario es responsable de la informacion que publica. Brupi puede
-            solicitar datos para validar publicaciones, pero no garantiza la veracidad
-            total de cada anuncio.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">3. Responsabilidad</h4>
-          <p>
-            Brupi no se hace responsable por operaciones, transacciones o acuerdos entre
-            usuarios. La plataforma actua unicamente como un canal de contacto.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">4. No somos corredores</h4>
-          <p>
-            Brupi no es una inmobiliaria ni corredor inmobiliario. No gestionamos
-            operaciones ni cobramos comisiones por los acuerdos entre usuarios.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">5. Buenas practicas</h4>
-          <p>
-            Esperamos un comportamiento respetuoso entre usuarios. Las cuentas con uso
-            abusivo, fraudulento o spam podran ser suspendidas.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">6. Privacidad</h4>
-          <p>
-            Los datos personales se utilizan solo para gestionar publicaciones y
-            contactos. No compartimos informacion con terceros sin consentimiento.
-          </p>
-        </div>
+        <LegalDocumentContent document={legalDocuments.terminos} />
       </LegalModal>
       <LegalModal
         open={showPrivacy}
         onClose={() => setShowPrivacy(false)}
-        title="Politica de privacidad"
-        subtitle="Como cuidamos tus datos en Brupi."
+        title={legalDocuments.privacidad.title}
+        subtitle={legalDocuments.privacidad.subtitle}
       >
-        <div className="space-y-3">
-          <h4 className="text-base text-white">Datos que recopilamos</h4>
-          <p>
-            Solo pedimos la informacion necesaria para crear una cuenta, publicar y
-            contactar. Nunca vendemos datos a terceros.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">Uso de la informacion</h4>
-          <p>
-            Utilizamos tus datos para facilitar el contacto y mejorar la calidad de las
-            publicaciones. Puedes solicitar la eliminacion de tu cuenta cuando quieras.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">Seguridad</h4>
-          <p>
-            Aplicamos buenas practicas de seguridad y controlamos accesos para proteger tu
-            informacion.
-          </p>
-        </div>
+        <LegalDocumentContent document={legalDocuments.privacidad} />
       </LegalModal>
       </div>
     </ToastProvider>
   );
 }
+
+
 
 
 

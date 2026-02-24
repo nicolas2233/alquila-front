@@ -3,10 +3,19 @@ type ContactKey = {
   type: "INTEREST" | "VISIT";
 };
 
-const STORAGE_KEY = "alquila_contact_requests";
+const STORAGE_KEY = "domusbrag_contact_requests";
+const LEGACY_STORAGE_KEY = "alquila_contact_requests";
 
 function readStore(): Record<string, boolean> {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyRaw) {
+      localStorage.setItem(STORAGE_KEY, legacyRaw);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      raw = legacyRaw;
+    }
+  }
   if (!raw) {
     return {};
   }
@@ -19,6 +28,7 @@ function readStore(): Record<string, boolean> {
 
 function writeStore(next: Record<string, boolean>) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 function keyFor({ propertyId, type }: ContactKey) {

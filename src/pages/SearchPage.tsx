@@ -10,6 +10,7 @@ import { getSessionUser } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { trackEvent } from "../shared/analytics/posthog";
+import { useSeo } from "../shared/seo/useSeo";
 
 type AdItem = {
   id: string;
@@ -263,6 +264,77 @@ export function SearchPage() {
     }
     return chips;
   }, [operationType, propertyType, publisherType, localityId, localities, priceCurrency, minPriceInput, maxPriceInput]);
+  const selectedLocalityName = useMemo(
+    () => localities.find((item) => item.id === localityId)?.name ?? "Bragado",
+    [localities, localityId]
+  );
+  const searchSeo = useMemo(() => {
+    const canonicalParams = new URLSearchParams();
+    if (operationType) canonicalParams.set("operationType", operationType);
+    if (propertyType) canonicalParams.set("propertyType", propertyType);
+    if (publisherType) canonicalParams.set("publisherType", publisherType);
+    if (localityId) canonicalParams.set("localityId", localityId);
+    const canonicalQuery = canonicalParams.toString();
+
+    const primaryFilterCount = [operationType, propertyType, publisherType, localityId].filter(Boolean).length;
+    const hasPriceFilters = Boolean(minPriceInput || maxPriceInput);
+    const hasSecondaryFilters = Boolean(priceCurrency || hasPriceFilters);
+    const noindex = page > 1 || hasSecondaryFilters || primaryFilterCount > 3;
+
+    const operationLabel = operationType ? operationFilterLabels[operationType] : null;
+    const propertyLabel = propertyType ? propertyFilterLabels[propertyType] : "propiedades";
+    const localityLabel = localityId ? selectedLocalityName : "Bragado";
+    const publisherLabel = publisherType ? publisherFilterLabels[publisherType] : null;
+
+    const titleParts = ["Buscar"];
+    if (propertyType) titleParts.push(propertyLabel.toLowerCase());
+    else titleParts.push("propiedades");
+    if (operationLabel) titleParts.push(operationLabel.toLowerCase());
+    titleParts.push("en", localityLabel);
+
+    const descriptionParts = [
+      `Explora ${propertyType ? propertyLabel.toLowerCase() : "propiedades"}${
+        operationLabel ? ` en ${operationLabel.toLowerCase()}` : ""
+      } en ${localityLabel}`,
+    ];
+    if (publisherLabel) {
+      descriptionParts.push(`publicadas por ${publisherLabel.toLowerCase()}`);
+    }
+    descriptionParts.push("con filtros claros, mapa y contacto rapido en DomusBrag.");
+
+    return {
+      title: titleParts.join(" "),
+      description: descriptionParts.join(" "),
+      canonicalPath: canonicalQuery ? `/buscar?${canonicalQuery}` : "/buscar",
+      noindex,
+      structuredData: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: titleParts.join(" "),
+        description: descriptionParts.join(" "),
+        url:
+          typeof window !== "undefined"
+            ? `${window.location.origin}${canonicalQuery ? `/buscar?${canonicalQuery}` : "/buscar"}`
+            : undefined,
+        isPartOf: {
+          "@type": "WebSite",
+          name: "DomusBrag",
+          url: env.siteUrl,
+        },
+      },
+    };
+  }, [
+    operationType,
+    propertyType,
+    publisherType,
+    localityId,
+    selectedLocalityName,
+    minPriceInput,
+    maxPriceInput,
+    priceCurrency,
+    page,
+  ]);
+  useSeo(searchSeo);
   const pageProgress = totalPages > 1 ? Math.min(100, Math.max(0, (page / totalPages) * 100)) : 100;
 
   useEffect(() => {
@@ -785,7 +857,7 @@ export function SearchPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/62" />
         <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-4 text-center sm:px-6">
           <div className="space-y-3 md:space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Brupi Search</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">DomusBrag Search</p>
             <h2 className="font-display text-3xl leading-tight text-white sm:text-4xl md:text-5xl">
               Búsqueda en Bragado
             </h2>
@@ -1528,6 +1600,7 @@ export function SearchPage() {
     </div>
   );
 }
+
 
 
 

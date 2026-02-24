@@ -693,7 +693,7 @@ export function MapSearchPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/45 to-black/68" />
         <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-4 text-center sm:px-6">
           <div className="space-y-3 md:space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Brupi Map</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">DomusBrag Map</p>
             <h2 className="font-display text-2xl leading-tight text-white sm:text-3xl md:text-5xl">
               Explora Bragado en el mapa
             </h2>
@@ -1051,6 +1051,7 @@ export function MapSearchPage() {
     </div>
   );
 }
+
 
 
 

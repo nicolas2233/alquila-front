@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { saveSession } from "../shared/auth/session";
@@ -17,6 +17,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [switchingToRegister, setSwitchingToRegister] = useState(false);
   const [isEntering, setIsEntering] = useState(() => locationState?.from !== "register");
+  const [verifyStatus, setVerifyStatus] = useState<"idle" | "loading">("idle");
 
   useEffect(() => {
     if (locationState?.from === "register") {
@@ -28,7 +29,7 @@ export function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("registered") === "1") {
-      addToast("Cuenta creada. Ahora inicia sesion.", "success");
+      addToast("Cuenta creada. Revisa tu email para validarla y luego inicia sesion.", "success");
       navigate("/login", { replace: true });
     }
   }, [location.search, addToast, navigate]);
@@ -61,8 +62,23 @@ export function LoginPage() {
           name?: string | null;
           role: string;
           status: string;
+          agencyId?: string | null;
           avatarUrl?: string | null;
+          emailVerifiedAt?: string | null;
           mustChangePassword?: boolean;
+          subscription?: {
+            planCode: string;
+            planName: string;
+            maxProperties: number;
+            priceAmount: number;
+            priceCurrency: string;
+            status?: string;
+            startsAt?: string | null;
+            endsAt?: string | null;
+            trialEndsAt?: string | null;
+            isTrialActive: boolean;
+            trialDaysRemaining: number;
+          } | null;
         };
         message?: string;
       };
@@ -85,6 +101,17 @@ export function LoginPage() {
       saveSession(data.token, sessionUser);
       setStatus("idle");
       addToast("Sesion iniciada correctamente.", "success");
+      if (!sessionUser.emailVerifiedAt && sessionUser.email) {
+        addToast(
+          "Tu email aun no esta verificado. Puedes seguir usando la cuenta y validarlo cuando quieras.",
+          "warning",
+          6000,
+          "Reenviar verificacion",
+          () => {
+            void handleResendVerification(normalizedEmail);
+          }
+        );
+      }
       if (data.message) {
         addToast(data.message, "warning");
       }
@@ -116,6 +143,34 @@ export function LoginPage() {
         return;
       }
       addToast(message, "error");
+    }
+  };
+
+  const handleResendVerification = async (emailOverride?: string) => {
+    const normalizedEmail = (emailOverride ?? email).trim().toLowerCase();
+    if (!normalizedEmail) {
+      addToast("Ingresa tu email para reenviar la verificacion.", "warning");
+      return;
+    }
+    setVerifyStatus("loading");
+    try {
+      const response = await fetch(`${env.apiUrl}/auth/verify-email/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message ?? "No pudimos reenviar el email de verificacion.");
+      }
+      addToast(data?.message ?? "Te enviamos un email de verificacion.", "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "No pudimos reenviar el email de verificacion.",
+        "error"
+      );
+    } finally {
+      setVerifyStatus("idle");
     }
   };
 
@@ -154,7 +209,7 @@ export function LoginPage() {
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Acceso seguro</p>
             <h2 className="font-display text-3xl leading-tight text-white">
-              Bienvenido de nuevo a Brupi
+              Bienvenido de nuevo a DomusBrag
             </h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
               Ingresa para gestionar tus publicaciones, solicitudes y panel de forma
@@ -252,13 +307,21 @@ export function LoginPage() {
               </div>
             </div>
 
-            <div className="text-center lg:text-left">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center lg:justify-start lg:text-left">
               <button
                 type="button"
                 className="text-xs text-gold-400 underline"
                 onClick={() => navigate("/recuperar")}
               >
                 Olvide mi contrasena
+              </button>
+              <button
+                type="button"
+                className="text-xs text-[#D1C7BD] underline disabled:opacity-60"
+                onClick={() => void handleResendVerification()}
+                disabled={verifyStatus === "loading"}
+              >
+                {verifyStatus === "loading" ? "Enviando verificacion..." : "Reenviar verificacion"}
               </button>
             </div>
           </form>
@@ -267,3 +330,4 @@ export function LoginPage() {
     </div>
   );
 }
+

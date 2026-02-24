@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
+import { useSeo } from "../shared/seo/useSeo";
 
 type RevealProps = {
   children: React.ReactNode;
@@ -54,6 +55,35 @@ export function HomePage() {
     setToken(getToken());
   }, []);
 
+  useSeo({
+    title: "DomusBrag | Propiedades en Bragado",
+    description:
+      "Plataforma digital de publicaciones y contacto inmobiliario para buscar, publicar y contactar propiedades en Bragado con filtros claros y mapa interactivo.",
+    canonicalPath: "/",
+    noindex: false,
+    structuredData: [
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        name: "DomusBrag",
+        url: env.siteUrl,
+        description:
+          "Plataforma digital de publicaciones y contacto inmobiliario en Bragado para conectar buscadores, dueños directos e inmobiliarias.",
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "DomusBrag",
+        url: env.siteUrl,
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${env.siteUrl}/buscar`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  });
+
   useEffect(() => {
     let ignore = false;
     const loadAlerts = async () => {
@@ -95,10 +125,10 @@ export function HomePage() {
         <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-6 text-center">
           <div className="space-y-5">
             <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">
-              Plataforma inmobiliaria local
+              Plataforma digital de publicaciones y contacto inmobiliario
             </p>
             <h1 className="font-display text-4xl leading-tight text-white md:text-6xl">
-              Brupi conecta Bragado con su proximo hogar
+              DomusBrag conecta Bragado con su proximo hogar
             </h1>
             <p className="mx-auto max-w-2xl text-sm text-[#E7E2DD] md:text-base">
               Menos ruido, menos duplicados y contacto real entre quienes buscan, duenios
@@ -159,7 +189,7 @@ export function HomePage() {
             <span className="gold-pill">Quienes somos</span>
             <h2 className="text-2xl text-white">Un proyecto local, pensado para crecer.</h2>
             <p className="text-sm text-[#D1C7BD]">
-              Brupi nace para ordenar el mercado inmobiliario local con informacion clara,
+              DomusBrag nace para ordenar el mercado inmobiliario local con informacion clara,
               una experiencia moderna y foco en confianza.
             </p>
           </div>
@@ -280,3 +310,4 @@ export function HomePage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { useToast } from "../shared/ui/toast/ToastProvider";
@@ -75,7 +75,7 @@ export function ResetPasswordPage() {
               Configura una clave segura
             </h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
-              Crea una nueva contrasena para recuperar el acceso a tu cuenta y continuar en Brupi.
+              Crea una nueva contrasena para recuperar el acceso a tu cuenta y continuar en DomusBrag.
             </p>
           </div>
 
@@ -179,4 +179,5 @@ export function ResetPasswordPage() {
     </div>
   );
 }
+
 

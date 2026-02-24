@@ -1,13 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { LegalModal } from "../shared/ui/LegalModal";
+import { Link } from "react-router-dom";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { trackEvent } from "../shared/analytics/posthog";
+import {
+  LEGAL_PRIVACY_VERSION,
+  LEGAL_TERMS_VERSION,
+  LegalDocumentContent,
+  legalDocuments,
+} from "../shared/legal/legalDocuments";
 
 type AccountType = "viewer" | "owner" | "agency";
 type PlanKey = "free" | "bronce" | "platinum" | "gold";
+
+const planCodeByKey: Record<PlanKey, "FREE" | "BRONCE" | "PLATINUM" | "GOLD"> = {
+  free: "FREE",
+  bronce: "BRONCE",
+  platinum: "PLATINUM",
+  gold: "GOLD",
+};
+
+const ANNUAL_DISCOUNT_PERCENT = 20;
+
+function getAnnualOffer(priceLabel: string) {
+  const numeric = Number.parseFloat(priceLabel.replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+  const annualBase = numeric * 12;
+  const annualPrice = Math.round(annualBase * (1 - ANNUAL_DISCOUNT_PERCENT / 100) * 100) / 100;
+  const monthlyEquivalent = Math.round((annualPrice / 12) * 100) / 100;
+  return {
+    annualPriceLabel: `$${annualPrice}`,
+    monthlyEquivalentLabel: `$${monthlyEquivalent}`,
+  };
+}
 
 function extractApiErrorMessage(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "No pudimos completar el registro.";
@@ -70,6 +100,76 @@ const planOptions = [
     perks: ["Hasta 50 inmuebles", "Soporte prioritario", "Posicionamiento"],
   },
 ];
+
+const planOverridesByAccountType: Record<
+  AccountType,
+  Record<PlanKey, { price: string; description: string; promo?: string; disabledHint?: string }>
+> = {
+  viewer: {
+    free: {
+      price: "$0",
+      description: "Explora, guarda y recibe alertas. Sin publicaciones.",
+    },
+    bronce: {
+      price: "$9",
+      description: "No disponible para buscador.",
+      disabledHint: "Solo para dueños directos.",
+    },
+    platinum: {
+      price: "$49",
+      description: "No disponible para buscador.",
+      disabledHint: "Solo para perfiles publicadores.",
+    },
+    gold: {
+      price: "$89",
+      description: "No disponible para buscador.",
+      disabledHint: "Solo para perfiles publicadores.",
+    },
+  },
+  owner: {
+    free: {
+      price: "$0",
+      description: "Publica 1 inmueble gratis para probar la plataforma.",
+    },
+    bronce: {
+      price: "$9",
+      description: "Hasta 3 inmuebles. Ideal para empezar.",
+      promo: "Primer mes gratis",
+    },
+    platinum: {
+      price: "$19",
+      description: "Hasta 6 inmuebles. Para propietarios con varias unidades.",
+      promo: "Primer mes gratis",
+    },
+    gold: {
+      price: "$29",
+      description: "Hasta 10 inmuebles. Para cartera personal amplia.",
+      promo: "Primer mes gratis",
+    },
+  },
+  agency: {
+    free: {
+      price: "$0",
+      description: "No disponible para inmobiliarias.",
+      disabledHint: "Las inmobiliarias empiezan en Platinum.",
+    },
+    bronce: {
+      price: "$9",
+      description: "No disponible para inmobiliarias.",
+      disabledHint: "Las inmobiliarias usan planes de mayor capacidad.",
+    },
+    platinum: {
+      price: "$79",
+      description: "Hasta 25 inmuebles. Para inmobiliarias chicas/medianas.",
+      promo: "Primer mes gratis",
+    },
+    gold: {
+      price: "$149",
+      description: "Hasta 50 inmuebles. Para inmobiliarias con mayor cartera.",
+      promo: "Primer mes gratis",
+    },
+  },
+};
 
 const accountTypeOptions: Array<{
   key: AccountType;
@@ -138,9 +238,15 @@ export function RegisterPage() {
   const planChoices = useMemo(() => planOptions, []);
   const availablePlans = useMemo<PlanKey[]>(() => {
     if (accountType === "viewer") return ["free"];
-    if (accountType === "owner") return ["bronce"];
+    if (accountType === "owner") return ["free", "bronce", "platinum", "gold"];
     return ["platinum", "gold"];
   }, [accountType]);
+
+  const planDisplayConfig = useMemo(() => planOverridesByAccountType[accountType], [accountType]);
+  const visiblePlanChoices = useMemo(
+    () => planChoices.filter((item) => availablePlans.includes(item.key as PlanKey)),
+    [planChoices, availablePlans]
+  );
 
   useEffect(() => {
     if (locationState?.from === "login") {
@@ -233,7 +339,7 @@ export function RegisterPage() {
       }
 
       let endpoint = "";
-      let payload: Record<string, string> = {};
+      let payload: Record<string, string | boolean> = {};
 
       if (accountType === "viewer") {
         endpoint = "/users";
@@ -244,6 +350,11 @@ export function RegisterPage() {
           lastName,
           dni,
           phone,
+          planCode: planCodeByKey[plan],
+          termsAccepted: true,
+          termsVersion: LEGAL_TERMS_VERSION,
+          privacyAccepted: true,
+          privacyVersion: LEGAL_PRIVACY_VERSION,
         };
       } else if (accountType === "owner") {
         endpoint = "/owners";
@@ -255,6 +366,11 @@ export function RegisterPage() {
           lastName: ownerLastName,
           dni: ownerDni,
           birthDate: ownerBirthDate,
+          planCode: planCodeByKey[plan],
+          termsAccepted: true,
+          termsVersion: LEGAL_TERMS_VERSION,
+          privacyAccepted: true,
+          privacyVersion: LEGAL_PRIVACY_VERSION,
         };
       } else {
         endpoint = "/agencies";
@@ -266,6 +382,11 @@ export function RegisterPage() {
           legalName: agencyLegalName,
           cuit: agencyCuit,
           licenseNumber: agencyLicense,
+          planCode: planCodeByKey[plan],
+          termsAccepted: true,
+          termsVersion: LEGAL_TERMS_VERSION,
+          privacyAccepted: true,
+          privacyVersion: LEGAL_PRIVACY_VERSION,
         };
       }
 
@@ -275,13 +396,16 @@ export function RegisterPage() {
         body: JSON.stringify(payload),
       });
 
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const data = await response.json().catch(() => null);
         throw new Error(extractApiErrorMessage(data));
       }
 
       setStatus("success");
-      addToast("Cuenta creada correctamente.", "success");
+      const successMsg =
+        (typeof data?.verificationMessage === "string" && data.verificationMessage) ||
+        "Cuenta creada correctamente. Revisa tu email para validarla.";
+      addToast(successMsg, "success");
       window.setTimeout(() => {
         trackEvent("sign_up", { accountType, plan });
         navigate("/login?registered=1", { state: { from: "register" } });
@@ -326,7 +450,7 @@ export function RegisterPage() {
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-soft">
             <p className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">Crear cuenta</p>
             <h2 className="mt-2 font-display text-[2rem] leading-tight text-white">
-              Empeza en Brupi con el perfil correcto
+              Empeza en DomusBrag con el perfil correcto
             </h2>
             <p className="mt-2 max-w-sm text-sm text-[#E7E2DD]">
               Buscador, dueno directo o inmobiliaria. Un flujo claro y rapido para arrancar.
@@ -377,48 +501,72 @@ export function RegisterPage() {
                 {planChoices.find((item) => item.key === plan)?.label}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {planChoices.map((item) => (
-                (() => {
-                  const disabled = !availablePlans.includes(item.key as PlanKey);
-                  const selected = !disabled && plan === item.key;
-                  return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => {
-                    if (!disabled) setPlan(item.key as PlanKey);
-                  }}
-                  disabled={disabled}
-                  className={
-                    selected
-                      ? "rounded-2xl border border-gold-500/60 bg-gradient-to-br from-[#4a433c]/60 to-[#2b2723]/80 p-2.5 text-left ring-1 ring-gold-500/25 transition-all duration-300"
-                      : disabled
-                        ? "cursor-not-allowed rounded-2xl border border-white/10 bg-black/10 p-2.5 text-left opacity-40 grayscale"
+            {accountType !== "viewer" && (
+              <div className="space-y-1">
+                <p className="text-[11px] leading-tight text-[#D1C7BD]">
+                  Podes mejorar el plan, volver a uno anterior o cancelar la suscripcion en
+                  cualquier momento.
+                </p>
+                <p className="text-[11px] leading-tight text-[#D1C7BD]">
+                  No te pedimos tarjeta para crear la cuenta. En planes pagos se solicita el medio
+                  de pago al momento de publicar y ahi se activa el primer mes gratis.
+                </p>
+              </div>
+            )}
+            {accountType === "viewer" ? (
+              <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/8 p-3">
+                <div className="text-xs font-semibold text-white">Plan Free incluido</div>
+                <p className="mt-1 text-[11px] leading-tight text-[#D1C7BD]">
+                  Como buscador accedes al plan Free sin costo: explorar, guardar y recibir alertas.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5">
+                {visiblePlanChoices.map((item) => (
+                  (() => {
+                    const disabled = false;
+                    const selected = plan === item.key;
+                    const planView = planDisplayConfig[item.key as PlanKey];
+                    const annualOffer = getAnnualOffer(planView.price);
+                    return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      if (!disabled) setPlan(item.key as PlanKey);
+                    }}
+                    disabled={disabled}
+                    className={
+                      selected
+                        ? "rounded-2xl border border-gold-500/60 bg-gradient-to-br from-[#4a433c]/60 to-[#2b2723]/80 p-2.5 text-left ring-1 ring-gold-500/25 transition-all duration-300"
                         : "rounded-2xl border border-white/10 bg-black/20 p-2.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20"
-                  }
-                >
-                  {item.promo ? (
-                    <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
-                      {item.promo}
-                    </span>
-                  ) : null}
-                  <div className="text-xs font-medium text-white">{item.label}</div>
-                  <div className="mt-0.5 text-xl font-semibold text-white">
-                    {item.price}
-                    <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-[#D1C7BD]">
-                    {item.description}
-                  </p>
-                  {disabled && (
-                    <p className="mt-1 text-[10px] text-[#D1C7BD]">No disponible para este perfil.</p>
-                  )}
-                </button>
-                  );
-                })()
-              ))}
-            </div>
+                    }
+                  >
+                    {planView.promo ? (
+                      <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
+                        {planView.promo}
+                      </span>
+                    ) : null}
+                    <div className="text-xs font-medium text-white">{item.label}</div>
+                    <div className="mt-0.5 text-xl font-semibold text-white">
+                      {planView.price}
+                      <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-[#D1C7BD]">
+                      {planView.description}
+                    </p>
+                    {annualOffer && (
+                      <p className="mt-1 text-[10px] leading-tight text-emerald-200/90">
+                        Anual {annualOffer.annualPriceLabel} (-{ANNUAL_DISCOUNT_PERCENT}%) · equiv.{" "}
+                        {annualOffer.monthlyEquivalentLabel}/mes
+                      </p>
+                    )}
+                  </button>
+                    );
+                  })()
+                ))}
+              </div>
+            )}
           </div>
         </aside>
 
@@ -566,47 +714,71 @@ export function RegisterPage() {
             </section>
 
             <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 lg:hidden">
-              <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Plan mensual</div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {planChoices.map((item) => (
+              <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</div>
+              {accountType !== "viewer" && (
+                <div className="space-y-1">
+                  <p className="text-[11px] leading-tight text-[#D1C7BD]">
+                    Podes mejorar el plan, volver a uno anterior o cancelar la suscripcion en
+                    cualquier momento.
+                  </p>
+                  <p className="text-[11px] leading-tight text-[#D1C7BD]">
+                    No te pedimos tarjeta para crear la cuenta. En planes pagos se solicita el
+                    medio de pago al momento de publicar y ahi se activa el primer mes gratis.
+                  </p>
+                </div>
+              )}
+              {accountType === "viewer" ? (
+                <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/8 p-3">
+                  <div className="text-sm font-semibold text-white">Plan Free incluido</div>
+                  <p className="mt-1 text-[11px] text-[#D1C7BD]">
+                    Como buscador accedes sin costo para explorar, guardar y recibir alertas.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                {visiblePlanChoices.map((item) => (
                   (() => {
-                    const disabled = !availablePlans.includes(item.key as PlanKey);
-                    const selected = !disabled && plan === item.key;
+                    const disabled = false;
+                    const selected = plan === item.key;
+                    const planView = planDisplayConfig[item.key as PlanKey];
+                    const annualOffer = getAnnualOffer(planView.price);
                     return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => {
-                      if (!disabled) setPlan(item.key as PlanKey);
-                    }}
-                    disabled={disabled}
-                    className={
-                      selected
-                        ? "rounded-2xl border border-gold-500/60 bg-emerald-500/10 p-3 text-left shadow-[0_0_0_1px_rgba(16,185,129,0.35)] transition-all duration-300"
-                        : disabled
-                          ? "cursor-not-allowed rounded-2xl border border-white/10 bg-black/10 p-3 text-left opacity-40 grayscale"
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => {
+                        if (!disabled) setPlan(item.key as PlanKey);
+                      }}
+                      disabled={disabled}
+                      className={
+                        selected
+                          ? "rounded-2xl border border-gold-500/60 bg-emerald-500/10 p-3 text-left shadow-[0_0_0_1px_rgba(16,185,129,0.35)] transition-all duration-300"
                           : "rounded-2xl border border-white/10 bg-night-900/24 p-3 text-left transition-all duration-300"
-                    }
-                  >
-                    {item.promo ? (
-                      <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
-                        {item.promo}
-                      </span>
-                    ) : null}
-                    <div className="text-sm text-white">{item.label}</div>
-                    <div className="mt-1 text-xl font-semibold text-white">
-                      {item.price}
-                      <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#D1C7BD]">{item.description}</p>
-                    {disabled && (
-                      <p className="mt-1 text-[10px] text-[#D1C7BD]">No disponible para este perfil.</p>
-                    )}
-                  </button>
-                    );
-                  })()
-                ))}
-              </div>
+                      }
+                    >
+                      {planView.promo ? (
+                        <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
+                          {planView.promo}
+                        </span>
+                      ) : null}
+                      <div className="text-sm text-white">{item.label}</div>
+                      <div className="mt-1 text-xl font-semibold text-white">
+                        {planView.price}
+                        <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-[#D1C7BD]">{planView.description}</p>
+                      {annualOffer && (
+                        <p className="mt-1 text-[10px] text-emerald-200/90">
+                          Anual {annualOffer.annualPriceLabel} (-{ANNUAL_DISCOUNT_PERCENT}%) · equiv.{" "}
+                          {annualOffer.monthlyEquivalentLabel}/mes
+                        </p>
+                      )}
+                    </button>
+                      );
+                    })()
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
@@ -621,15 +793,23 @@ export function RegisterPage() {
                   }}
                 />
                 <span>
-                  Acepto los terminos y condiciones de Brupi.{" "}
+                  Acepto los terminos y condiciones y la politica de privacidad de DomusBrag.{" "}
                   <button type="button" className="underline text-[#d8c5a4]" onClick={() => setShowTerms(true)}>
                     Leer terminos
                   </button>
+                  {" · "}
+                  <Link to="/legal/privacidad" target="_blank" className="underline text-[#d8c5a4]">
+                    privacidad
+                  </Link>
+                  {" · "}
+                  <Link to="/legal/terminos" target="_blank" className="underline text-[#d8c5a4]">
+                    version completa
+                  </Link>
                 </span>
               </label>
               {fieldErrors.termsAccepted && (
                 <p className="text-[11px] text-[#AF8C5C]">
-                  Debes aceptar los terminos y condiciones para continuar.
+                  Debes aceptar terminos y privacidad para continuar.
                 </p>
               )}
             </section>
@@ -667,39 +847,13 @@ export function RegisterPage() {
       <LegalModal
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        title="Terminos y condiciones"
-        subtitle="Lineamientos de uso de Brupi."
+        title={legalDocuments.terminos.title}
+        subtitle={legalDocuments.terminos.subtitle}
       >
-        <div className="space-y-3">
-          <h4 className="text-base text-white">1. Uso responsable</h4>
-          <p>
-            Brupi conecta personas que buscan propiedades con propietarios e inmobiliarias.
-            No se permite publicar informacion falsa, enganosa o duplicada.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">2. Contenido y veracidad</h4>
-          <p>
-            Cada usuario es responsable de su contenido. Brupi puede solicitar datos para
-            validar publicaciones, pero no garantiza la veracidad total de cada anuncio.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">3. Responsabilidad</h4>
-          <p>
-            Brupi no se hace responsable por transacciones o acuerdos entre usuarios. La
-            plataforma actua como canal de contacto.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-base text-white">4. No somos corredores</h4>
-          <p>
-            Brupi no es una inmobiliaria ni corredor inmobiliario. No gestionamos
-            operaciones ni cobramos comisiones por acuerdos entre usuarios.
-          </p>
-        </div>
+        <LegalDocumentContent document={legalDocuments.terminos} />
       </LegalModal>
     </div>
   );
 }
+
 
