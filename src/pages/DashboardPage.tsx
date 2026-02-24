@@ -161,6 +161,7 @@ export function DashboardPage() {
   const ownerUserId = isOwner ? sessionUser?.id : undefined;
   const agencyId = isAgency ? sessionUser?.agencyId : undefined;
   const [subscriptionInfo, setSubscriptionInfo] = useState(sessionUser?.subscription ?? null);
+  const [subscriptionHasFreshLoad, setSubscriptionHasFreshLoad] = useState(false);
   const [billingCycleStatus, setBillingCycleStatus] = useState<"idle" | "saving">("idle");
   const [subscriptionActionStatus, setSubscriptionActionStatus] = useState<"idle" | "saving">("idle");
   const [subscriptionRefreshStatus, setSubscriptionRefreshStatus] = useState<"idle" | "loading">("idle");
@@ -567,7 +568,9 @@ export function DashboardPage() {
         throw new Error(data?.message || "No pudimos actualizar la suscripción.");
       }
       updateSubscriptionFromResponse(data.subscription as NonNullable<typeof subscriptionInfo>);
+      setSubscriptionHasFreshLoad(true);
     } catch (error) {
+      setSubscriptionHasFreshLoad(true);
       addToast(
         error instanceof Error ? error.message : "No pudimos actualizar la suscripción.",
         "error"
@@ -1106,9 +1109,19 @@ export function DashboardPage() {
       void loadPlanUsage();
     }
     if (activeSection === "subscription") {
+      if (!subscriptionHasFreshLoad && sessionUser?.subscription) {
+        setSubscriptionInfo(null);
+      }
       void refreshCurrentSubscription();
     }
-  }, [activeSection, loadProperties, loadPlanUsage, refreshCurrentSubscription]);
+  }, [
+    activeSection,
+    loadProperties,
+    loadPlanUsage,
+    refreshCurrentSubscription,
+    sessionUser?.subscription,
+    subscriptionHasFreshLoad,
+  ]);
 
   useEffect(() => {
     if (activeSection !== "requests") {
@@ -2826,6 +2839,11 @@ export function DashboardPage() {
 
       {activeSection === "subscription" && (isOwner || isAgency) && (
         <div className="glass-card space-y-5 p-6">
+          {subscriptionRefreshStatus === "loading" && !subscriptionInfo ? (
+            <div className="rounded-2xl border border-white/10 bg-night-900/45 px-4 py-3 text-sm text-[#D1C7BD]">
+              Actualizando tu suscripción...
+            </div>
+          ) : null}
           {subscriptionInfo &&
           Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
           !isPaymentMethodReadyForPaidPlan ? (
