@@ -927,6 +927,23 @@ export function DashboardPage() {
     setPaymentSecureFieldsCycle((value) => value + 1);
   }, [sessionUser?.email, sessionUser?.name, subscriptionInfo?.paymentPayerEmail]);
 
+  const mercadoPagoSecureFieldStyle = useMemo(
+    () => ({
+      color: "#151515",
+      fontSize: "16px",
+      placeholderColor: "#9a948a",
+      height: "24px",
+    }),
+    []
+  );
+
+  const markPaymentFieldReady = useCallback(
+    (field: "cardNumber" | "expirationDate" | "securityCode") => {
+      setPaymentFieldsReady((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+    },
+    []
+  );
+
   const loadMercadoPagoIdentificationTypes = useCallback(async () => {
     if (!hasMercadoPagoEmbeddedCheckout || paymentIdentificationLoadedRef.current) return;
     try {
@@ -4157,56 +4174,35 @@ export function DashboardPage() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1">
                       <label className="text-xs text-[#D1C7BD]">Número de tarjeta</label>
-                      <div className="rounded-xl border border-white/10 bg-white px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
+                      <div className="flex h-12 items-center rounded-xl border border-white/10 bg-white px-3 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
                         <CardNumber
                           key={`card-number-${paymentSecureFieldsCycle}`}
                           placeholder="1234 1234 1234 1234"
-                          style={{
-                            color: "#151515",
-                            fontSize: "16px",
-                            placeholderColor: "#9a948a",
-                            height: "24px",
-                          }}
-                          onReady={() =>
-                            setPaymentFieldsReady((prev) => ({ ...prev, cardNumber: true }))
-                          }
+                          style={mercadoPagoSecureFieldStyle}
+                          onReady={() => markPaymentFieldReady("cardNumber")}
                         />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs text-[#D1C7BD]">Vencimiento</label>
-                        <div className="rounded-xl border border-white/10 bg-white px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
+                        <div className="flex h-12 items-center rounded-xl border border-white/10 bg-white px-3 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
                           <ExpirationDate
                             key={`expiration-date-${paymentSecureFieldsCycle}`}
                             placeholder="MM/AA"
-                            style={{
-                              color: "#151515",
-                              fontSize: "16px",
-                              placeholderColor: "#9a948a",
-                              height: "24px",
-                            }}
-                            onReady={() =>
-                              setPaymentFieldsReady((prev) => ({ ...prev, expirationDate: true }))
-                            }
+                            style={mercadoPagoSecureFieldStyle}
+                            onReady={() => markPaymentFieldReady("expirationDate")}
                           />
                         </div>
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-[#D1C7BD]">Código</label>
-                        <div className="rounded-xl border border-white/10 bg-white px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
+                        <div className="flex h-12 items-center rounded-xl border border-white/10 bg-white px-3 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
                           <SecurityCode
                             key={`security-code-${paymentSecureFieldsCycle}`}
                             placeholder="123"
-                            style={{
-                              color: "#151515",
-                              fontSize: "16px",
-                              placeholderColor: "#9a948a",
-                              height: "24px",
-                            }}
-                            onReady={() =>
-                              setPaymentFieldsReady((prev) => ({ ...prev, securityCode: true }))
-                            }
+                            style={mercadoPagoSecureFieldStyle}
+                            onReady={() => markPaymentFieldReady("securityCode")}
                           />
                         </div>
                       </div>
