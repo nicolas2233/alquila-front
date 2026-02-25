@@ -944,6 +944,47 @@ export function DashboardPage() {
     []
   );
 
+  const paymentSecureFieldsBlock = useMemo(
+    () => (
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 space-y-1.5">
+          <label className="text-xs font-medium text-slate-700">Número de tarjeta</label>
+          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+            <CardNumber
+              key={`card-number-${paymentSecureFieldsCycle}`}
+              placeholder="1234 1234 1234 1234"
+              style={mercadoPagoSecureFieldStyle}
+              onReady={() => markPaymentFieldReady("cardNumber")}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-700">Vencimiento</label>
+          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+            <ExpirationDate
+              key={`expiration-date-${paymentSecureFieldsCycle}`}
+              placeholder="MM/AA"
+              style={mercadoPagoSecureFieldStyle}
+              onReady={() => markPaymentFieldReady("expirationDate")}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-700">Código</label>
+          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+            <SecurityCode
+              key={`security-code-${paymentSecureFieldsCycle}`}
+              placeholder="123"
+              style={mercadoPagoSecureFieldStyle}
+              onReady={() => markPaymentFieldReady("securityCode")}
+            />
+          </div>
+        </div>
+      </div>
+    ),
+    [markPaymentFieldReady, mercadoPagoSecureFieldStyle, paymentSecureFieldsCycle]
+  );
+
   const loadMercadoPagoIdentificationTypes = useCallback(async () => {
     if (!hasMercadoPagoEmbeddedCheckout || paymentIdentificationLoadedRef.current) return;
     try {
@@ -1109,6 +1150,9 @@ export function DashboardPage() {
 
     if (message.includes("card token service not found")) {
       return "Mercado Pago no pudo tokenizar la tarjeta con este formulario. Intenta nuevamente o usa el flujo por redirección como respaldo.";
+    }
+    if (message.includes("no primary field found")) {
+      return "El formulario de tarjeta aún no terminó de inicializarse. Espera un segundo e inténtalo de nuevo. Si persiste, cierra y vuelve a abrir el modal.";
     }
     if (message.includes("payer_email is required")) {
       return "Mercado Pago requiere un email válido para asociar la suscripción. Revisa el campo “Email de Mercado Pago”.";
@@ -4112,123 +4156,141 @@ export function DashboardPage() {
                   el flujo por redirección como respaldo.
                 </div>
               ) : (
-                <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/35 p-3 sm:space-y-4 sm:p-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="space-y-1 text-xs text-[#D1C7BD]">
-                      Email de Mercado Pago
-                      <input
-                        type="email"
-                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none ring-0 placeholder:text-[#9a948a]"
-                        value={paymentPayerEmail}
-                        onChange={(event) => setPaymentPayerEmail(event.target.value)}
-                        placeholder="ejemplo@email.com"
-                        disabled={paymentMethodModalStatus === "submitting"}
-                      />
-                      <span className="block text-[11px] leading-relaxed text-[#9a948a]">
-                        Lo usaremos como referencia para próximos intentos con Mercado Pago.
-                      </span>
-                    </label>
-                    <label className="space-y-1 text-xs text-[#D1C7BD]">
-                      Titular de la tarjeta
-                      <input
-                        type="text"
-                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none ring-0 placeholder:text-[#9a948a]"
-                        value={paymentCardholderName}
-                        onChange={(event) => setPaymentCardholderName(event.target.value)}
-                        placeholder="Como figura en la tarjeta"
-                        disabled={paymentMethodModalStatus === "submitting"}
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs text-[#D1C7BD]">
-                      Tipo de documento
-                      <select
-                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none"
-                        value={paymentIdentificationType}
-                        onChange={(event) => setPaymentIdentificationType(event.target.value)}
-                        disabled={paymentMethodModalStatus === "submitting"}
-                      >
-                        {(paymentIdentificationTypes.length > 0
-                          ? paymentIdentificationTypes
-                          : [{ id: "DNI", name: "DNI" }]
-                        ).map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
+                <div className="space-y-4 rounded-2xl border border-white/10 bg-night-900/35 p-3 sm:space-y-5 sm:p-5">
+                  <div className="relative mx-auto w-full max-w-lg rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_18%_22%,rgba(97,126,255,0.28),transparent_42%),radial-gradient(circle_at_78%_18%,rgba(175,140,92,0.24),transparent_45%),linear-gradient(135deg,#111827_0%,#151225_45%,#1a1410_100%)] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.38)] sm:p-5">
+                    <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-white/80">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                      Mercado Pago
+                    </div>
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div className="h-11 w-14 rounded-lg border border-white/15 bg-gradient-to-br from-white/20 to-white/5" />
+                      <div className="text-right text-[10px] uppercase tracking-[0.18em] text-white/70">
+                        {currentBillingCycle === "ANNUAL" ? "Plan anual" : "Plan mensual"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-white/15 bg-black/15 px-3 py-2 text-lg tracking-[0.2em] text-white shadow-inner sm:text-xl">
+                      •••• •••• •••• ••••
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-white/60">
+                          Titular
+                        </div>
+                        <div className="mt-1 truncate text-sm text-white">
+                          {(paymentCardholderName || sessionUser?.name || "NOMBRE APELLIDO").toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-white/60">
+                          Vence
+                        </div>
+                        <div className="mt-1 text-sm text-white">MM/AA</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white px-4 py-4 shadow-[0_18px_35px_rgba(0,0,0,0.2)] sm:px-5 sm:py-5">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-base font-semibold text-[#1f1b18]">
+                        Tarjeta de crédito o débito
+                      </h4>
+                      <div className="flex items-center gap-1.5">
+                        {["VISA", "MC", "AMEX", "NARANJA", "CABAL"].map((brand) => (
+                          <span
+                            key={brand}
+                            className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600"
+                          >
+                            {brand}
+                          </span>
                         ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-xs text-[#D1C7BD]">
-                      Número de documento
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none ring-0 placeholder:text-[#9a948a]"
-                        value={paymentIdentificationNumber}
-                        onChange={(event) => setPaymentIdentificationNumber(event.target.value)}
-                        placeholder="Ej: 30111222"
-                        disabled={paymentMethodModalStatus === "submitting"}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <label className="text-xs text-[#D1C7BD]">Número de tarjeta</label>
-                      <div className="flex h-12 items-center rounded-xl border border-white/10 bg-white px-3 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
-                        <CardNumber
-                          key={`card-number-${paymentSecureFieldsCycle}`}
-                          placeholder="1234 1234 1234 1234"
-                          style={mercadoPagoSecureFieldStyle}
-                          onReady={() => markPaymentFieldReady("cardNumber")}
-                        />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-[#D1C7BD]">Vencimiento</label>
-                        <div className="flex h-12 items-center rounded-xl border border-white/10 bg-white px-3 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
-                          <ExpirationDate
-                            key={`expiration-date-${paymentSecureFieldsCycle}`}
-                            placeholder="MM/AA"
-                            style={mercadoPagoSecureFieldStyle}
-                            onReady={() => markPaymentFieldReady("expirationDate")}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-[#D1C7BD]">Código</label>
-                        <div className="flex h-12 items-center rounded-xl border border-white/10 bg-white px-3 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
-                          <SecurityCode
-                            key={`security-code-${paymentSecureFieldsCycle}`}
-                            placeholder="123"
-                            style={mercadoPagoSecureFieldStyle}
-                            onReady={() => markPaymentFieldReady("securityCode")}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/10 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs text-[#D1C7BD]">
-                      Mercado Pago tokeniza la tarjeta y la asocia a tu suscripción. No se cobra ahora:
-                      se activa tu mes gratis.
-                    </p>
-                    <button
-                      type="button"
-                      className="rounded-full border border-emerald-300/30 bg-emerald-500/12 px-4 py-2 text-xs font-semibold text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      onClick={() => void submitEmbeddedSecureFieldsPayment()}
-                      disabled={
-                        paymentMethodModalStatus === "submitting" ||
-                        !paymentFieldsReady.cardNumber ||
-                        !paymentFieldsReady.expirationDate ||
-                        !paymentFieldsReady.securityCode
-                      }
-                    >
-                      {paymentMethodModalStatus === "submitting"
-                        ? "Validando..."
-                        : "Vincular medio de pago"}
-                    </button>
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-medium text-slate-700">Titular de la tarjeta</span>
+                          <input
+                            type="text"
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none ring-0 placeholder:text-slate-400"
+                            value={paymentCardholderName}
+                            onChange={(event) => setPaymentCardholderName(event.target.value)}
+                            placeholder="Como figura en la tarjeta"
+                            disabled={paymentMethodModalStatus === "submitting"}
+                          />
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-medium text-slate-700">Email de Mercado Pago</span>
+                          <input
+                            type="email"
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none ring-0 placeholder:text-slate-400"
+                            value={paymentPayerEmail}
+                            onChange={(event) => setPaymentPayerEmail(event.target.value)}
+                            placeholder="ejemplo@email.com"
+                            disabled={paymentMethodModalStatus === "submitting"}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-[1fr_1.2fr]">
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-medium text-slate-700">Tipo de documento</span>
+                          <select
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none"
+                            value={paymentIdentificationType}
+                            onChange={(event) => setPaymentIdentificationType(event.target.value)}
+                            disabled={paymentMethodModalStatus === "submitting"}
+                          >
+                            {(paymentIdentificationTypes.length > 0
+                              ? paymentIdentificationTypes
+                              : [{ id: "DNI", name: "DNI" }]
+                            ).map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-medium text-slate-700">Número de documento</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none ring-0 placeholder:text-slate-400"
+                            value={paymentIdentificationNumber}
+                            onChange={(event) => setPaymentIdentificationNumber(event.target.value)}
+                            placeholder="Ej: 30111222"
+                            disabled={paymentMethodModalStatus === "submitting"}
+                          />
+                        </label>
+                      </div>
+
+                      {paymentSecureFieldsBlock}
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[11px] leading-relaxed text-slate-600">
+                          Mercado Pago tokeniza la tarjeta y la asocia a tu suscripción.{" "}
+                          <span className="font-semibold text-slate-800">No se cobra ahora:</span>{" "}
+                          se activa tu mes gratis.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="w-full rounded-xl border border-blue-600/20 bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_24px_rgba(37,99,235,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => void submitEmbeddedSecureFieldsPayment()}
+                        disabled={
+                          paymentMethodModalStatus === "submitting" ||
+                          !paymentFieldsReady.cardNumber ||
+                          !paymentFieldsReady.expirationDate ||
+                          !paymentFieldsReady.securityCode
+                        }
+                      >
+                        {paymentMethodModalStatus === "submitting"
+                          ? "Validando medio de pago..."
+                          : "Vincular medio de pago"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
