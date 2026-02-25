@@ -1,6 +1,13 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
-import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react";
+import {
+  CardNumber,
+  ExpirationDate,
+  SecurityCode,
+  createCardToken,
+  getIdentificationTypes,
+  initMercadoPago,
+} from "@mercadopago/sdk-react";
 import { geocodeAddress, reverseGeocode } from "../shared/map/geocode";
 import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
@@ -195,7 +202,21 @@ export function DashboardPage() {
     "idle" | "submitting" | "success" | "error"
   >("idle");
   const [paymentMethodModalMessage, setPaymentMethodModalMessage] = useState("");
+  const [paymentPayerEmail, setPaymentPayerEmail] = useState("");
+  const [paymentCardholderName, setPaymentCardholderName] = useState("");
+  const [paymentIdentificationType, setPaymentIdentificationType] = useState("DNI");
+  const [paymentIdentificationNumber, setPaymentIdentificationNumber] = useState("");
+  const [paymentIdentificationTypes, setPaymentIdentificationTypes] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [paymentFieldsReady, setPaymentFieldsReady] = useState({
+    cardNumber: false,
+    expirationDate: false,
+    securityCode: false,
+  });
+  const [paymentSecureFieldsCycle, setPaymentSecureFieldsCycle] = useState(0);
   const mercadoPagoSdkInitializedRef = useRef(false);
+  const paymentIdentificationLoadedRef = useRef(false);
   const roleLabel = isOwner
     ? "Dueño directo"
     : isAgency
@@ -598,20 +619,44 @@ export function DashboardPage() {
     }
   }, [addToast, sessionToken, updateSubscriptionFromResponse]);
 
+  const requestMercadoPagoPaymentSync = useCallback(async () => {
+    if (!sessionToken) {
+      throw new Error("Necesitas iniciar sesión.");
+    }
+    const response = await fetch(`${env.apiUrl}/subscriptions/current/payment-sync`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    });
+    const data = (await response.json().catch(() => null)) as
+      | { subscription?: typeof subscriptionInfo; message?: string }
+      | null;
+    if (!response.ok || !data?.subscription) {
+      throw new Error(data?.message || "No pudimos verificar el estado con Mercado Pago.");
+    }
+    return {
+      subscription: data.subscription as NonNullable<typeof subscriptionInfo>,
+      message: data.message,
+    };
+  }, [sessionToken]);
+
+  const isSubscriptionPaymentReady = useCallback(
+    (subscription: typeof subscriptionInfo | null | undefined) => {
+      if (!subscription) return false;
+      if (Number(subscription.priceAmount ?? 0) <= 0) return false;
+      return (
+        Boolean(subscription.hasPaymentMethod) &&
+        subscription.paymentProvider === "MERCADO_PAGO" &&
+        subscription.paymentProviderStatus !== "cancelled"
+      );
+    },
+    []
+  );
+
   const syncPaymentStatusWithMercadoPago = useCallback(async () => {
     if (!sessionToken) return;
     setSubscriptionActionStatus("saving");
     try {
-      const response = await fetch(`${env.apiUrl}/subscriptions/current/payment-sync`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${sessionToken}` },
-      });
-      const data = (await response.json().catch(() => null)) as
-        | { subscription?: typeof subscriptionInfo; message?: string }
-        | null;
-      if (!response.ok || !data?.subscription) {
-        throw new Error(data?.message || "No pudimos verificar el estado con Mercado Pago.");
-      }
+      const data = await requestMercadoPagoPaymentSync();
       updateSubscriptionFromResponse(data.subscription);
       addToast(data.message ?? "Estado de Mercado Pago sincronizado.", "success");
     } catch (error) {
@@ -622,7 +667,7 @@ export function DashboardPage() {
     } finally {
       setSubscriptionActionStatus("idle");
     }
-  }, [addToast, sessionToken, updateSubscriptionFromResponse]);
+  }, [addToast, requestMercadoPagoPaymentSync, sessionToken, updateSubscriptionFromResponse]);
 
   const scheduleSubscriptionCancellation = useCallback(async () => {
     if (!sessionToken || !subscriptionInfo) return;
@@ -682,13 +727,18 @@ export function DashboardPage() {
     }
   }, [addToast, sessionToken, subscriptionInfo, updateSubscriptionFromResponse]);
 
-  const startMercadoPagoRedirectCheckout = useCallback(async () => {
+  const startMercadoPagoRedirectCheckout = useCallback(async (payerEmailOverride?: string) => {
     if (!sessionToken || !subscriptionInfo) return;
     setSubscriptionActionStatus("saving");
     try {
+      const payerEmail = payerEmailOverride?.trim();
       const response = await fetch(`${env.apiUrl}/subscriptions/current/payment-checkout`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${sessionToken}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: payerEmail ? JSON.stringify({ payerEmail }) : JSON.stringify({}),
       });
       const data = (await response.json().catch(() => null)) as
         | { subscription?: typeof subscriptionInfo; message?: string; checkoutUrl?: string }
@@ -862,11 +912,49 @@ export function DashboardPage() {
     );
   }, [isPaymentMethodReadyForPaidPlan, isSelectedPlanDowngrade, selectedPlanOption, subscriptionInfo]);
 
-  const openEmbeddedPaymentMethodModal = useCallback(() => {
-    setPaymentMethodModalMessage("");
+  const resetEmbeddedPaymentForm = useCallback(() => {
     setPaymentMethodModalStatus("idle");
+    setPaymentMethodModalMessage("");
+    setPaymentPayerEmail((subscriptionInfo?.paymentPayerEmail ?? sessionUser?.email ?? "").trim());
+    setPaymentCardholderName((sessionUser?.name ?? "").trim());
+    setPaymentIdentificationType("DNI");
+    setPaymentIdentificationNumber("");
+    setPaymentFieldsReady({
+      cardNumber: false,
+      expirationDate: false,
+      securityCode: false,
+    });
+    setPaymentSecureFieldsCycle((value) => value + 1);
+  }, [sessionUser?.email, sessionUser?.name, subscriptionInfo?.paymentPayerEmail]);
+
+  const loadMercadoPagoIdentificationTypes = useCallback(async () => {
+    if (!hasMercadoPagoEmbeddedCheckout || paymentIdentificationLoadedRef.current) return;
+    try {
+      const response = await getIdentificationTypes();
+      const mapped = Array.isArray(response)
+        ? response
+            .filter((item) => Boolean(item && typeof item.id === "string" && typeof item.name === "string"))
+            .map((item) => ({ id: String(item.id), name: String(item.name) }))
+        : [];
+      if (mapped.length > 0) {
+        setPaymentIdentificationTypes(mapped);
+        if (mapped.some((item) => item.id === "DNI")) {
+          setPaymentIdentificationType("DNI");
+        } else {
+          setPaymentIdentificationType(mapped[0].id);
+        }
+      }
+      paymentIdentificationLoadedRef.current = true;
+    } catch (error) {
+      console.error("[mercadopago-sdk] getIdentificationTypes failed", error);
+    }
+  }, [hasMercadoPagoEmbeddedCheckout]);
+
+  const openEmbeddedPaymentMethodModal = useCallback(() => {
+    resetEmbeddedPaymentForm();
+    void loadMercadoPagoIdentificationTypes();
     setPaymentMethodModalOpen(true);
-  }, []);
+  }, [loadMercadoPagoIdentificationTypes, resetEmbeddedPaymentForm]);
 
   const submitTokenizedPaymentMethod = useCallback(
     async (formData: { token?: string; payer?: { email?: string } | null }) => {
@@ -902,17 +990,56 @@ export function DashboardPage() {
           );
         }
         updateSubscriptionFromResponse(data.subscription);
-        setPaymentMethodModalStatus("success");
+
+        if (isSubscriptionPaymentReady(data.subscription)) {
+          setPaymentMethodModalStatus("success");
+          setPaymentMethodModalMessage(
+            data.message ?? "Medio de pago registrado y suscripción activa. Tu mes gratis ya está en curso."
+          );
+          addToast(data.message ?? "Medio de pago vinculado. Mes gratis activo.", "success");
+          window.setTimeout(() => {
+            setPaymentMethodModalOpen(false);
+            resetEmbeddedPaymentForm();
+          }, 1000);
+          return;
+        }
+
+        setPaymentMethodModalStatus("submitting");
         setPaymentMethodModalMessage(
-          data.message ??
-            "Medio de pago registrado. Si Mercado Pago confirma la suscripción, se activará tu mes gratis."
+          "Tarjeta enviada. Estamos confirmando la suscripción con Mercado Pago..."
+        );
+
+        for (let attempt = 1; attempt <= 4; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, attempt === 1 ? 1200 : 1800));
+          try {
+            const syncData = await requestMercadoPagoPaymentSync();
+            updateSubscriptionFromResponse(syncData.subscription);
+            if (isSubscriptionPaymentReady(syncData.subscription)) {
+              setPaymentMethodModalStatus("success");
+              setPaymentMethodModalMessage(
+                syncData.message ??
+                  "¡Listo! Mercado Pago confirmó tu suscripción y se activó el mes gratis."
+              );
+              addToast(syncData.message ?? "Mes gratis activo. Ya puedes publicar.", "success");
+              window.setTimeout(() => {
+                setPaymentMethodModalOpen(false);
+                resetEmbeddedPaymentForm();
+              }, 1200);
+              return;
+            }
+            setPaymentMethodModalMessage(
+              `Tarjeta vinculada. Esperando confirmación de Mercado Pago (${attempt}/4)...`
+            );
+          } catch {
+            // mantenemos polling; el usuario aún puede verificar manualmente
+          }
+        }
+
+        setPaymentMethodModalStatus("idle");
+        setPaymentMethodModalMessage(
+          "Recibimos los datos de tu tarjeta, pero la confirmación aún está pendiente. Puedes esperar unos segundos o usar “Verificar ahora”."
         );
         addToast(data.message ?? "Medio de pago enviado a Mercado Pago.", "success");
-        window.setTimeout(() => {
-          setPaymentMethodModalOpen(false);
-          setPaymentMethodModalStatus("idle");
-          setPaymentMethodModalMessage("");
-        }, 900);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "No pudimos validar el medio de pago.";
@@ -921,8 +1048,137 @@ export function DashboardPage() {
         addToast(message, "error");
       }
     },
-    [addToast, sessionToken, subscriptionInfo, updateSubscriptionFromResponse]
+    [
+      addToast,
+      isSubscriptionPaymentReady,
+      requestMercadoPagoPaymentSync,
+      resetEmbeddedPaymentForm,
+      sessionToken,
+      subscriptionInfo,
+      updateSubscriptionFromResponse,
+    ]
   );
+
+  const getMercadoPagoEmbeddedErrorMessage = useCallback((error: unknown) => {
+    const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+    const rawFromObject = (() => {
+      if (error instanceof Error) return error.message;
+      if (typeof error === "string") return error;
+      if (error && typeof error === "object") {
+        const anyError = error as {
+          message?: unknown;
+          error?: unknown;
+          cause?: Array<{ code?: unknown; description?: unknown; message?: unknown }>;
+        };
+        const causeMessages = Array.isArray(anyError.cause)
+          ? anyError.cause
+              .map((item) =>
+                [item?.code, item?.description, item?.message]
+                  .filter((part) => typeof part === "string" && part.trim().length > 0)
+                  .join(" · "),
+              )
+              .filter(Boolean)
+              .join(" | ")
+          : "";
+        if (typeof anyError.message === "string" && anyError.message.trim()) return anyError.message;
+        if (typeof anyError.error === "string" && anyError.error.trim()) return anyError.error;
+        if (causeMessages) return causeMessages;
+      }
+      return "No pudimos procesar la tarjeta con Mercado Pago.";
+    })();
+
+    const raw = rawFromObject.trim();
+    const message = normalize(raw);
+
+    if (message.includes("card token service not found")) {
+      return "Mercado Pago no pudo tokenizar la tarjeta con este formulario. Intenta nuevamente o usa el flujo por redirección como respaldo.";
+    }
+    if (message.includes("payer_email is required")) {
+      return "Mercado Pago requiere un email válido para asociar la suscripción. Revisa el campo “Email de Mercado Pago”.";
+    }
+    if (message.includes("identification") && message.includes("number")) {
+      return "Revisa el tipo y número de documento del titular. Mercado Pago no pudo validarlos.";
+    }
+    if (message.includes("security code") || message.includes("cvv")) {
+      return "Revisa el código de seguridad (CVV) de la tarjeta e inténtalo de nuevo.";
+    }
+    if (message.includes("expiration") || message.includes("vencimiento")) {
+      return "Revisa la fecha de vencimiento de la tarjeta.";
+    }
+    if (message.includes("card number") || message.includes("numero de tarjeta")) {
+      return "Revisa el número de tarjeta. Mercado Pago no pudo validarlo.";
+    }
+    if (message.includes("timeout")) {
+      return "Mercado Pago demoró en responder. Intenta nuevamente en unos segundos.";
+    }
+    if (message.includes("invalid")) {
+      return `Mercado Pago rechazó algunos datos de la tarjeta. ${raw}`;
+    }
+    return raw;
+  }, []);
+
+  const submitEmbeddedSecureFieldsPayment = useCallback(async () => {
+    if (!hasMercadoPagoEmbeddedCheckout) {
+      setPaymentMethodModalStatus("error");
+      setPaymentMethodModalMessage(
+        "No encontramos la configuración pública de Mercado Pago para el formulario embebido.",
+      );
+      return;
+    }
+
+    const payerEmail = paymentPayerEmail.trim();
+    const cardholderName = paymentCardholderName.trim();
+    const identificationType = paymentIdentificationType.trim();
+    const identificationNumber = paymentIdentificationNumber.trim();
+
+    if (!payerEmail || !/^\S+@\S+\.\S+$/.test(payerEmail)) {
+      setPaymentMethodModalStatus("error");
+      setPaymentMethodModalMessage("Ingresa un email válido para Mercado Pago.");
+      return;
+    }
+    if (!cardholderName) {
+      setPaymentMethodModalStatus("error");
+      setPaymentMethodModalMessage("Ingresa el nombre del titular de la tarjeta.");
+      return;
+    }
+    if (!identificationType || !identificationNumber) {
+      setPaymentMethodModalStatus("error");
+      setPaymentMethodModalMessage("Completa tipo y número de documento del titular.");
+      return;
+    }
+
+    setPaymentMethodModalStatus("submitting");
+    setPaymentMethodModalMessage("Generando token de tarjeta en Mercado Pago...");
+    try {
+      const cardToken = await createCardToken({
+        cardholderName,
+        identificationType,
+        identificationNumber,
+      });
+      const tokenId = typeof cardToken?.id === "string" ? cardToken.id : "";
+      if (!tokenId) {
+        throw new Error("Mercado Pago no devolvió un token de tarjeta válido.");
+      }
+      await submitTokenizedPaymentMethod({
+        token: tokenId,
+        payer: { email: payerEmail },
+      });
+    } catch (error) {
+      const message = getMercadoPagoEmbeddedErrorMessage(error);
+      setPaymentMethodModalStatus("error");
+      setPaymentMethodModalMessage(message);
+      addToast(message, "error");
+    }
+  }, [
+    addToast,
+    getMercadoPagoEmbeddedErrorMessage,
+    hasMercadoPagoEmbeddedCheckout,
+    paymentCardholderName,
+    paymentIdentificationNumber,
+    paymentIdentificationType,
+    paymentPayerEmail,
+    submitTokenizedPaymentMethod,
+  ]);
 
   const activatePaymentMethodAndTrial = useCallback(async () => {
     if (!sessionToken || !subscriptionInfo) return;
@@ -2991,22 +3247,6 @@ export function DashboardPage() {
                 <p className="mt-2 text-[11px] text-amber-100/80">
                   Configura la facturación desde <span className="font-semibold text-white">Cambiar plan</span> antes de activar el cobro.
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[10px] ${
-                      hasMercadoPagoEmbeddedCheckout
-                        ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-100"
-                        : "border-rose-300/30 bg-rose-500/10 text-rose-100"
-                    }`}
-                  >
-                    Pago embebido: {hasMercadoPagoEmbeddedCheckout ? "activo" : "inactivo"}
-                  </span>
-                  {!hasMercadoPagoEmbeddedCheckout && (
-                    <span className="rounded-full border border-white/10 bg-black/15 px-2.5 py-1 text-[10px] text-amber-100/85">
-                      Configura <code className="font-mono text-white">VITE_MERCADOPAGO_PUBLIC_KEY</code> y reinicia el front
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
           ) : null}
@@ -3806,8 +4046,8 @@ export function DashboardPage() {
       )}
       {paymentMethodModalOpen && (
         <div className="fixed inset-0 z-[1320] flex items-end justify-center bg-black/90 px-3 py-3 backdrop-blur-md sm:items-center sm:px-4 sm:py-6">
-          <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#191613] shadow-[0_30px_80px_rgba(0,0,0,0.58)] sm:max-h-[calc(100svh-3rem)]">
-            <div className="shrink-0 border-b border-white/10 bg-[#211c18] px-4 py-4 sm:px-6">
+          <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#191613] shadow-[0_30px_80px_rgba(0,0,0,0.58)] sm:max-h-[calc(100svh-3rem)] sm:rounded-3xl">
+            <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-[#211c18]/98 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="text-lg text-white">Agregar medio de pago</h3>
@@ -3823,8 +4063,7 @@ export function DashboardPage() {
                   onClick={() => {
                     if (paymentMethodModalStatus === "submitting") return;
                     setPaymentMethodModalOpen(false);
-                    setPaymentMethodModalStatus("idle");
-                    setPaymentMethodModalMessage("");
+                    resetEmbeddedPaymentForm();
                   }}
                   disabled={paymentMethodModalStatus === "submitting"}
                 >
@@ -3832,9 +4071,9 @@ export function DashboardPage() {
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-6 sm:py-5">
               {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
-                <div className="mb-4 rounded-2xl border border-emerald-300/20 bg-emerald-500/8 p-4 text-xs text-emerald-100">
+                <div className="mb-3 rounded-2xl border border-emerald-300/20 bg-emerald-500/8 p-3 text-xs text-emerald-100 sm:mb-4 sm:p-4">
                   <p className="font-semibold text-white">Mes gratis pendiente de activación</p>
                   <p className="mt-1 leading-relaxed">
                     Al validar el medio de pago, Mercado Pago asociará la suscripción a tu plan{" "}
@@ -3856,41 +4095,150 @@ export function DashboardPage() {
                   el flujo por redirección como respaldo.
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.18)] sm:p-3">
-                  <CardPayment
-                    locale="es-AR"
-                    initialization={{
-                      amount: Math.max(1, Number(currentCycleChargeAmount || 1)),
-                      payer: {
-                        email: sessionUser?.email ?? undefined,
-                      },
-                    }}
-                    customization={{
-                      paymentMethods: {
-                        minInstallments: 1,
-                        maxInstallments: 1,
-                      },
-                    }}
-                    onSubmit={async (param) => {
-                      await submitTokenizedPaymentMethod({
-                        token: param?.token,
-                        payer: { email: param?.payer?.email },
-                      });
-                    }}
-                    onError={(brickError) => {
-                      const message =
-                        typeof brickError?.message === "string"
-                          ? brickError.message
-                          : "No pudimos cargar el formulario de Mercado Pago.";
-                      setPaymentMethodModalStatus("error");
-                      setPaymentMethodModalMessage(message);
-                    }}
-                  />
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/35 p-3 sm:space-y-4 sm:p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="space-y-1 text-xs text-[#D1C7BD]">
+                      Email de Mercado Pago
+                      <input
+                        type="email"
+                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none ring-0 placeholder:text-[#9a948a]"
+                        value={paymentPayerEmail}
+                        onChange={(event) => setPaymentPayerEmail(event.target.value)}
+                        placeholder="ejemplo@email.com"
+                        disabled={paymentMethodModalStatus === "submitting"}
+                      />
+                      <span className="block text-[11px] leading-relaxed text-[#9a948a]">
+                        Lo usaremos como referencia para próximos intentos con Mercado Pago.
+                      </span>
+                    </label>
+                    <label className="space-y-1 text-xs text-[#D1C7BD]">
+                      Titular de la tarjeta
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none ring-0 placeholder:text-[#9a948a]"
+                        value={paymentCardholderName}
+                        onChange={(event) => setPaymentCardholderName(event.target.value)}
+                        placeholder="Como figura en la tarjeta"
+                        disabled={paymentMethodModalStatus === "submitting"}
+                      />
+                    </label>
+                    <label className="space-y-1 text-xs text-[#D1C7BD]">
+                      Tipo de documento
+                      <select
+                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none"
+                        value={paymentIdentificationType}
+                        onChange={(event) => setPaymentIdentificationType(event.target.value)}
+                        disabled={paymentMethodModalStatus === "submitting"}
+                      >
+                        {(paymentIdentificationTypes.length > 0
+                          ? paymentIdentificationTypes
+                          : [{ id: "DNI", name: "DNI" }]
+                        ).map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-xs text-[#D1C7BD]">
+                      Número de documento
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="w-full rounded-xl border border-white/10 bg-night-950/70 px-3 py-2 text-sm text-white outline-none ring-0 placeholder:text-[#9a948a]"
+                        value={paymentIdentificationNumber}
+                        onChange={(event) => setPaymentIdentificationNumber(event.target.value)}
+                        placeholder="Ej: 30111222"
+                        disabled={paymentMethodModalStatus === "submitting"}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-[#D1C7BD]">Número de tarjeta</label>
+                      <div className="rounded-xl border border-white/10 bg-white px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
+                        <CardNumber
+                          key={`card-number-${paymentSecureFieldsCycle}`}
+                          placeholder="1234 1234 1234 1234"
+                          style={{
+                            color: "#151515",
+                            fontSize: "16px",
+                            placeholderColor: "#9a948a",
+                            height: "24px",
+                          }}
+                          onReady={() =>
+                            setPaymentFieldsReady((prev) => ({ ...prev, cardNumber: true }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-[#D1C7BD]">Vencimiento</label>
+                        <div className="rounded-xl border border-white/10 bg-white px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
+                          <ExpirationDate
+                            key={`expiration-date-${paymentSecureFieldsCycle}`}
+                            placeholder="MM/AA"
+                            style={{
+                              color: "#151515",
+                              fontSize: "16px",
+                              placeholderColor: "#9a948a",
+                              height: "24px",
+                            }}
+                            onReady={() =>
+                              setPaymentFieldsReady((prev) => ({ ...prev, expirationDate: true }))
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-[#D1C7BD]">Código</label>
+                        <div className="rounded-xl border border-white/10 bg-white px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
+                          <SecurityCode
+                            key={`security-code-${paymentSecureFieldsCycle}`}
+                            placeholder="123"
+                            style={{
+                              color: "#151515",
+                              fontSize: "16px",
+                              placeholderColor: "#9a948a",
+                              height: "24px",
+                            }}
+                            onReady={() =>
+                              setPaymentFieldsReady((prev) => ({ ...prev, securityCode: true }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-[#D1C7BD]">
+                      Mercado Pago tokeniza la tarjeta y la asocia a tu suscripción. No se cobra ahora:
+                      se activa tu mes gratis.
+                    </p>
+                    <button
+                      type="button"
+                      className="rounded-full border border-emerald-300/30 bg-emerald-500/12 px-4 py-2 text-xs font-semibold text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => void submitEmbeddedSecureFieldsPayment()}
+                      disabled={
+                        paymentMethodModalStatus === "submitting" ||
+                        !paymentFieldsReady.cardNumber ||
+                        !paymentFieldsReady.expirationDate ||
+                        !paymentFieldsReady.securityCode
+                      }
+                    >
+                      {paymentMethodModalStatus === "submitting"
+                        ? "Validando..."
+                        : "Vincular medio de pago"}
+                    </button>
+                  </div>
                 </div>
               )}
               {paymentMethodModalMessage && (
                 <div
-                  className={`mt-4 rounded-2xl border px-4 py-3 text-xs leading-relaxed ${
+                  className={`mt-3 rounded-2xl border px-3 py-3 text-xs leading-relaxed sm:mt-4 sm:px-4 ${
                     paymentMethodModalStatus === "error"
                       ? "border-rose-300/25 bg-rose-500/10 text-rose-100"
                       : paymentMethodModalStatus === "success"
@@ -3902,34 +4250,43 @@ export function DashboardPage() {
                 </div>
               )}
             </div>
-            <div className="shrink-0 border-t border-white/10 bg-night-900/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
+            <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/10 bg-night-900/95 px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:px-6 sm:py-4 sm:pb-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-[#D1C7BD]">
                   Si preferís salir de la app, podés usar el checkout por redirección como respaldo.
                 </p>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-                  <button
-                    type="button"
-                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
-                    onClick={() => {
-                      setPaymentMethodModalOpen(false);
-                      setPaymentMethodModalStatus("idle");
-                      setPaymentMethodModalMessage("");
-                    }}
-                    disabled={paymentMethodModalStatus === "submitting"}
-                  >
-                    Cerrar
-                  </button>
+                <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
+                  {paymentMethodModalStatus !== "submitting" && (
+                    <button
+                      type="button"
+                      className="rounded-full border border-sky-300/25 bg-sky-500/8 px-4 py-2 text-xs text-sky-100"
+                      onClick={() => void syncPaymentStatusWithMercadoPago()}
+                      disabled={subscriptionActionStatus === "saving"}
+                    >
+                      {subscriptionActionStatus === "saving" ? "Verificando..." : "Verificar ahora"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="rounded-full border border-gold-300/35 bg-gold-500/10 px-4 py-2 text-xs text-gold-100"
                     onClick={() => {
                       setPaymentMethodModalOpen(false);
-                      void startMercadoPagoRedirectCheckout();
+                      void startMercadoPagoRedirectCheckout(paymentPayerEmail);
+                    }}
+                    disabled={paymentMethodModalStatus === "submitting" || subscriptionActionStatus === "saving"}
+                  >
+                    Usar redirección
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                    onClick={() => {
+                      setPaymentMethodModalOpen(false);
+                      resetEmbeddedPaymentForm();
                     }}
                     disabled={paymentMethodModalStatus === "submitting"}
                   >
-                    Usar redirección
+                    Cerrar
                   </button>
                 </div>
               </div>

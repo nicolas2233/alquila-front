@@ -20,6 +20,7 @@ export type SessionUser = {
     hasPaymentMethod?: boolean;
     paymentProvider?: string | null;
     paymentProviderStatus?: string | null;
+    paymentPayerEmail?: string | null;
     pendingPlan?: {
       planCode: string;
       planInternalCode?: string;
