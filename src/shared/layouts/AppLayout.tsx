@@ -473,7 +473,7 @@ export function AppLayout() {
                   Publicaciones y denuncias
                 </Link>
                 <Link to="/legal/planes" className="text-left text-[#E7E2DD] hover:text-white">
-                  Planes, cancelacion y reembolsos
+                  Planes, cancelación y reembolsos
                 </Link>
                 <Link
                   to="/legal/arrepentimiento"
@@ -561,9 +561,9 @@ export function AppLayout() {
       </LegalModal>
       <ConfirmLeaveModal
         open={showLogoutConfirm}
-        title="¿Cerrar sesion?"
+        title="¿Cerrar sesión?"
         message="Vas a salir de tu cuenta y volver a la pantalla de login. Podras ingresar nuevamente cuando quieras."
-        confirmLabel="Cerrar sesion"
+        confirmLabel="Cerrar sesión"
         cancelLabel="Cancelar"
         onConfirm={confirmLogout}
         onCancel={cancelLogout}

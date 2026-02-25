@@ -20,7 +20,7 @@ export function VerifyEmailPage() {
     const run = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("El enlace de verificacion es invalido.");
+        setMessage("El enlace de verificación es inválido.");
         return;
       }
       try {

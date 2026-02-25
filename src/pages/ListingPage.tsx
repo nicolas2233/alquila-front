@@ -150,7 +150,7 @@ export function ListingPage() {
       <div className="glass-card space-y-4 p-6">
         <h2 className="text-xl text-white">Necesitas una cuenta</h2>
         <p className="text-sm text-[#D1C7BD]">
-          Inicia sesion para ver la ficha completa de la propiedad.
+          Inicia sesión para ver la ficha completa de la propiedad.
         </p>
         <button
           className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-xs font-semibold text-night-900"
@@ -172,7 +172,7 @@ export function ListingPage() {
 
   const handleReportProperty = async (reason: string) => {
     if (!token) {
-      throw new Error("Inicia sesion para reportar.");
+      throw new Error("Inicia sesión para reportar.");
     }
     const response = await fetch(`${env.apiUrl}/properties/${listing.id}/report`, {
       method: "POST",
@@ -207,8 +207,8 @@ export function ListingPage() {
   const handleInterest = async () => {
     if (!token) {
       setContactStatus("error");
-      setContactMessage("Inicia sesion para enviar la solicitud.");
-      addToast("Inicia sesion para enviar la solicitud.", "warning");
+      setContactMessage("Inicia sesión para enviar la solicitud.");
+      addToast("Inicia sesión para enviar la solicitud.", "warning");
       setInterestPresetOpen(false);
       navigate("/login");
       return;
@@ -331,7 +331,7 @@ export function ListingPage() {
               {interestPresetOpen && !alreadySentInterest && !isOwnListing ? (
                 <div className="mt-2 w-full rounded-2xl border border-white/10 bg-night-900/95 p-3 shadow-card sm:absolute sm:left-0 sm:top-full sm:z-20 sm:mt-2 sm:min-w-[300px] sm:w-[320px]">
                   <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-                    Mensaje rapido
+                    Mensaje rápido
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {interestMessagePresets.map((preset) => (

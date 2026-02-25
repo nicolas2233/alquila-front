@@ -79,7 +79,7 @@ const planOptions = [
     key: "bronce",
     label: "Bronce",
     price: "$15000",
-    description: "Hasta 3 inmuebles. Ideal para duenos directos.",
+    description: "Hasta 3 inmuebles. Ideal para dueños directos.",
     promo: "Primer mes gratis",
     perks: ["Hasta 3 inmuebles", "Panel de gestion", "Contacto directo"],
   },
@@ -186,7 +186,7 @@ const accountTypeOptions: Array<{
   },
   {
     key: "owner",
-    title: "Dueno directo",
+    title: "Dueño directo",
     text: "Publica inmuebles propios.",
     image:
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=480&q=70",
@@ -281,17 +281,17 @@ export function RegisterPage() {
     try {
       if (!email || !contrasena) {
         setFieldErrors({ email: !email, password: !contrasena });
-        throw new Error("Email y contrasena son obligatorios.");
+        throw new Error("Email y contraseña son obligatorios.");
       }
 
       if (!termsAccepted) {
         setFieldErrors({ termsAccepted: true });
-        throw new Error("Debes aceptar los terminos y condiciones.");
+        throw new Error("Debes aceptar los términos y condiciones.");
       }
 
       if (contrasena.length < 8) {
         setFieldErrors({ password: true });
-        throw new Error("La contrasena debe tener al menos 8 caracteres.");
+        throw new Error("La contraseña debe tener al menos 8 caracteres.");
       }
 
       if (accountType === "viewer") {
@@ -309,7 +309,7 @@ export function RegisterPage() {
       if (accountType === "owner") {
         if (!phone) {
           setFieldErrors({ phone: true });
-          throw new Error("El telefono es obligatorio para duenos.");
+          throw new Error("El teléfono es obligatorio para dueños.");
         }
         if (!ownerFirstName || !ownerLastName || !ownerDni || !ownerBirthDate) {
           setFieldErrors({
@@ -318,14 +318,14 @@ export function RegisterPage() {
             ownerDni: !ownerDni,
             ownerBirthDate: !ownerBirthDate,
           });
-          throw new Error("Completa todos los datos del dueno.");
+          throw new Error("Completa todos los datos del dueño.");
         }
       }
 
       if (accountType === "agency") {
         if (!phone) {
           setFieldErrors({ phone: true });
-          throw new Error("El telefono es obligatorio para inmobiliarias.");
+          throw new Error("El teléfono es obligatorio para inmobiliarias.");
         }
         if (!agencyName || !agencyLegalName || !agencyCuit || !agencyLicense) {
           setFieldErrors({
@@ -444,7 +444,7 @@ export function RegisterPage() {
             className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
           >
             <span aria-hidden="true">{"\u2190"}</span>
-            Iniciar sesion
+            Iniciar sesión
           </button>
 
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-soft">
@@ -453,7 +453,7 @@ export function RegisterPage() {
               Empeza en DomusBrag con el perfil correcto
             </h2>
             <p className="mt-2 max-w-sm text-sm text-[#E7E2DD]">
-              Buscador, dueno directo o inmobiliaria. Un flujo claro y rapido para arrancar.
+              Buscador, dueño directo o inmobiliaria. Un flujo claro y rápido para arrancar.
             </p>
           </div>
 
@@ -504,7 +504,7 @@ export function RegisterPage() {
             {accountType !== "viewer" && (
               <div className="space-y-1">
                 <p className="text-[11px] leading-tight text-[#D1C7BD]">
-                  Podes mejorar el plan, volver a uno anterior o cancelar la suscripcion en
+                  Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en
                   cualquier momento.
                 </p>
                 <p className="text-[11px] leading-tight text-[#D1C7BD]">
@@ -718,7 +718,7 @@ export function RegisterPage() {
               {accountType !== "viewer" && (
                 <div className="space-y-1">
                   <p className="text-[11px] leading-tight text-[#D1C7BD]">
-                    Podes mejorar el plan, volver a uno anterior o cancelar la suscripcion en
+                    Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en
                     cualquier momento.
                   </p>
                   <p className="text-[11px] leading-tight text-[#D1C7BD]">
@@ -793,9 +793,9 @@ export function RegisterPage() {
                   }}
                 />
                 <span>
-                  Acepto los terminos y condiciones y la politica de privacidad de DomusBrag.{" "}
+                  Acepto los términos y condiciones y la política de privacidad de DomusBrag.{" "}
                   <button type="button" className="underline text-[#d8c5a4]" onClick={() => setShowTerms(true)}>
-                    Leer terminos
+                    Leer términos
                   </button>
                   {" · "}
                   <Link to="/legal/privacidad" target="_blank" className="underline text-[#d8c5a4]">
@@ -809,7 +809,7 @@ export function RegisterPage() {
               </label>
               {fieldErrors.termsAccepted && (
                 <p className="text-[11px] text-[#AF8C5C]">
-                  Debes aceptar terminos y privacidad para continuar.
+                  Debes aceptar términos y privacidad para continuar.
                 </p>
               )}
             </section>
@@ -836,7 +836,7 @@ export function RegisterPage() {
               <div className="rounded-2xl border border-white/10 bg-night-900/40 p-4">
                 <h4 className="text-sm text-white">Cuenta creada</h4>
                 <p className="mt-1 text-xs text-[#D1C7BD]">
-                  En instantes te redirigimos para iniciar sesion.
+                  En instantes te redirigimos para iniciar sesión.
                 </p>
               </div>
             )}

@@ -2,7 +2,7 @@ export type PanelSection = "profile" | "listings" | "requests" | "my-requests";
 
 export const getSectionTitle = (section: PanelSection, isAgency: boolean) => {
   if (section === "profile") {
-    return isAgency ? "Perfil inmobiliaria" : "Perfil due?o";
+    return isAgency ? "Perfil inmobiliaria" : "Perfil dueño";
   }
   if (section === "listings") {
     return "Mis inmuebles";

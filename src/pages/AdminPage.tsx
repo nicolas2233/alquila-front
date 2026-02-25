@@ -646,7 +646,7 @@ export function AdminPage() {
       body: JSON.stringify({ status }),
     });
     if (!response.ok) {
-      const message = await readApiError(response, "No pudimos actualizar la verificacion.");
+      const message = await readApiError(response, "No pudimos actualizar la verificación.");
       setVerificationsError(message);
       addToast(message, "error");
       return;
@@ -884,7 +884,7 @@ export function AdminPage() {
       {tab === "plans" && (
         <section className="glass-card space-y-4 p-4">
           <div className="space-y-1">
-            <h3 className="text-sm text-white">Planes de suscripcion</h3>
+            <h3 className="text-sm text-white">Planes de suscripción</h3>
             <p className="text-xs text-[#D1C7BD]">
               Ajusta precios y cupos sin tocar codigo. Moneda fija: ARS.
             </p>
@@ -1022,7 +1022,7 @@ export function AdminPage() {
                     </div>
                     <div className="mt-1 text-[#cfc7ba]">
                       {user.subscription.isTrialActive
-                        ? `Primer mes gratis activo · ${user.subscription.trialDaysRemaining} dias restantes`
+                        ? `Primer mes gratis activo · ${user.subscription.trialDaysRemaining} días restantes`
                         : user.subscription.trialEndsAt
                         ? `Trial finalizado · vencio ${formatShortDateTime(user.subscription.trialEndsAt)}`
                         : "Sin trial activo"}

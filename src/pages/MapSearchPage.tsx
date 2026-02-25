@@ -367,7 +367,7 @@ export function MapSearchPage() {
 
   const openDetail = async (id: string) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      addToast("Inicia sesión para ver la ficha completa.", "warning");
       navigate("/login");
       return;
     }
@@ -800,7 +800,7 @@ export function MapSearchPage() {
               )}
               {!sessionUser && (
                 <div className="mt-3 text-xs text-[#D1C7BD]">
-                  Inicia sesion para ver los puntos en el mapa.
+                  Inicia sesión para ver los puntos en el mapa.
                 </div>
               )}
               {sessionUser && listStatus === "idle" && properties.length === 0 && (

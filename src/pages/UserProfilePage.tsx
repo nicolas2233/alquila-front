@@ -177,7 +177,7 @@ export function UserProfilePage() {
   const resendVerificationEmail = async () => {
     if (!email) return;
     if (verificationCooldown > 0) {
-      addToast(`Espera ${verificationCooldown}s para reenviar la verificacion.`, "warning");
+      addToast(`Espera ${verificationCooldown}s para reenviar la verificación.`, "warning");
       return;
     }
     setVerificationStatus("sending");
@@ -192,13 +192,13 @@ export function UserProfilePage() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.message ?? "No pudimos reenviar el email de verificacion.");
+        throw new Error(data?.message ?? "No pudimos reenviar el email de verificación.");
       }
-      addToast(data?.message ?? "Te enviamos un email de verificacion.", "success");
+      addToast(data?.message ?? "Te enviamos un email de verificación.", "success");
       setVerificationCooldown(30);
     } catch (error) {
       addToast(
-        error instanceof Error ? error.message : "No pudimos reenviar el email de verificacion.",
+        error instanceof Error ? error.message : "No pudimos reenviar el email de verificación.",
         "error"
       );
     } finally {
@@ -238,8 +238,8 @@ export function UserProfilePage() {
                 {verificationStatus === "sending"
                   ? "Enviando..."
                   : verificationCooldown > 0
-                  ? `Reenviar verificacion (${verificationCooldown}s)`
-                  : "Reenviar verificacion"}
+                  ? `Reenviar verificación (${verificationCooldown}s)`
+                  : "Reenviar verificación"}
               </button>
             )}
             <button

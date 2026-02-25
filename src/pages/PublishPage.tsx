@@ -35,7 +35,7 @@ const steps = [
   },
   {
     title: "Contacto",
-    description: "WhatsApp y telefono.",
+    description: "WhatsApp y teléfono.",
   },
 ];
 
@@ -1109,7 +1109,7 @@ export function PublishPage() {
     () => ({
       id: "preview",
       title: title || "Sin titulo",
-      address: `${addressLine || "Sin direccion"}${localityId ? ` - ${localityId}` : ""}`,
+      address: `${addressLine || "Sin dirección"}${localityId ? ` - ${localityId}` : ""}`,
       price: priceAmount ? `${priceAmount} ${priceCurrency}` : "Sin precio",
       operation: operationLabel,
       areaM2: areaM2 ? Number(areaM2) : 0,
@@ -1378,7 +1378,7 @@ export function PublishPage() {
     setLat(nextLat);
     setLng(nextLng);
     setGeoStatus("loading");
-    setGeoMessage("Buscando direccion del punto...");
+    setGeoMessage("Buscando dirección del punto...");
     try {
       const result = await reverseGeocode(nextLat, nextLng);
       applyGeocodeResult(result, {
@@ -1389,7 +1389,7 @@ export function PublishPage() {
     } catch {
       setGeoStatus("error");
       setGeoMessage(
-        "No pudimos resolver la direccion exacta, pero guardamos el punto del mapa."
+        "No pudimos resolver la dirección exacta, pero guardamos el punto del mapa."
       );
     }
   };
@@ -1430,7 +1430,7 @@ export function PublishPage() {
     ).trim();
     if (!query) {
       setGeoStatus("error");
-      setGeoMessage("Primero ingresa una direccion aproximada para buscar.");
+      setGeoMessage("Primero ingresa una dirección aproximada para buscar.");
       return;
     }
     setGeoStatus("loading");
@@ -1439,7 +1439,7 @@ export function PublishPage() {
       const result = await geocodeAddress(query);
       if (!result) {
         setGeoStatus("error");
-        setGeoMessage("No encontramos esa direccion.");
+        setGeoMessage("No encontramos esa dirección.");
         return;
       }
       applyGeocodeResult(result, {
@@ -1449,7 +1449,7 @@ export function PublishPage() {
     } catch (error) {
       setGeoStatus("error");
       setGeoMessage(
-        error instanceof Error ? error.message : "No pudimos buscar la direccion."
+        error instanceof Error ? error.message : "No pudimos buscar la dirección."
       );
     }
   };
@@ -1461,7 +1461,7 @@ export function PublishPage() {
           Inicio recomendado
         </p>
         <p className="text-xs text-[#E7E2DD]">
-          Escribe una direccion aproximada para autocompletar localidad, partido, provincia y
+          Escribe una dirección aproximada para autocompletar localidad, partido, provincia y
           codigo postal automaticamente.
         </p>
         <p className="text-[11px] text-[#D1C7BD]">
@@ -1500,7 +1500,7 @@ export function PublishPage() {
         </div>
         <p className="text-[11px] text-[#D1C7BD]">
           {locationLoadMode === "GUIDED"
-            ? "Autocompleta direccion, localidad, partido, provincia, barrio y codigo postal. Si un dato no viene, se limpia."
+            ? "Autocompleta dirección, localidad, partido, provincia, barrio y código postal. Si un dato no viene, se limpia."
             : "Solo actualiza el pin y coordenadas. Los campos del formulario quedan bajo tu control manual."}
         </p>
       </div>
@@ -1512,11 +1512,11 @@ export function PublishPage() {
           onClick={() => void handleFindApproxAddress()}
           disabled={geoStatus === "loading"}
         >
-          {geoStatus === "loading" ? "Buscando..." : "Buscar direccion"}
+          {geoStatus === "loading" ? "Buscando..." : "Buscar dirección"}
         </button>
       </div>
       <label className="space-y-2 text-xs text-[#D1C7BD]">
-        Buscar direccion (texto libre)
+        Buscar dirección (texto libre)
         <input
           className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
           value={addressQuery}
@@ -1573,7 +1573,7 @@ export function PublishPage() {
             </div>
           ) : suggestionsStatus === "idle" ? (
             <div className="text-[11px] text-[#9a948a]">
-              No encontramos sugerencias para esa direccion.
+              No encontramos sugerencias para esa dirección.
             </div>
           ) : null}
         </div>
@@ -1595,7 +1595,7 @@ export function PublishPage() {
           checked={showMapLocation}
           onChange={(event) => setShowMapLocation(event.target.checked)}
         />
-        Mostrar ubicacion en el mapa publico
+        Mostrar ubicación en el mapa público
       </label>
     </div>
   );
@@ -2021,7 +2021,7 @@ export function PublishPage() {
                 )}
                 {subscriptionInfo.isTrialActive && (
                   <p className="mt-1 text-[11px] text-[#9fe0c0]">
-                    Primer mes gratis activo · {subscriptionInfo.trialDaysRemaining} dias restantes
+                    Primer mes gratis activo · {subscriptionInfo.trialDaysRemaining} días restantes
                   </p>
                 )}
                 {paidPlanRequiresPaymentMethod && (
@@ -2054,7 +2054,7 @@ export function PublishPage() {
                 <p className="mt-1 text-xs text-[#D1C7BD]">
                   {isEditMode
                     ? "Entra al paso que necesites, modifica y guarda."
-                    : "Avanza por pasos cortos. Solo pedimos lo necesario para publicar rapido."}
+                    : "Avanza por pasos cortos. Solo pedimos lo necesario para publicar rápido."}
                 </p>
               </div>
               <div className="space-y-2">
@@ -2114,7 +2114,7 @@ export function PublishPage() {
 
           <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4 text-xs text-[#D1C7BD]">
             <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
-              Resumen rapido
+              Resumen rápido
             </p>
             <div className="mt-3 space-y-2">
               <div className="flex justify-between gap-3">
@@ -3491,7 +3491,7 @@ export function PublishPage() {
                 />
                 {contactRequiredError && (
                   <span className="text-[11px] text-red-300">
-                    Ingresa WhatsApp o telefono para poder contactar.
+                    Ingresa WhatsApp o teléfono para poder contactar.
                   </span>
                 )}
                 {whatsappError && (
@@ -3510,7 +3510,7 @@ export function PublishPage() {
                 />
                 {contactRequiredError && (
                   <span className="text-[11px] text-red-300">
-                    Ingresa WhatsApp o telefono para poder contactar.
+                    Ingresa WhatsApp o teléfono para poder contactar.
                   </span>
                 )}
                 {phoneError && (

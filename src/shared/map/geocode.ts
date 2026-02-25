@@ -171,7 +171,7 @@ export async function geocodeAddress(query: string) {
   if (results.length > 0) {
     return results[0];
   }
-  throw new Error("No pudimos buscar la direccion.");
+  throw new Error("No pudimos buscar la dirección.");
 }
 
 export async function reverseGeocode(lat: number, lng: number) {
@@ -186,5 +186,5 @@ export async function reverseGeocode(lat: number, lng: number) {
       // try next provider
     }
   }
-  throw new Error("No pudimos obtener la direccion desde el mapa.");
+  throw new Error("No pudimos obtener la dirección desde el mapa.");
 }

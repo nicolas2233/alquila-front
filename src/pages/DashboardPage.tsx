@@ -1671,7 +1671,7 @@ export function DashboardPage() {
     const query = agencyMapQuery.trim() || agencyAddress.trim();
     if (!query) {
       setAgencyGeoStatus("error");
-      setAgencyGeoMessage("Ingresa una direccion para ubicar la inmobiliaria.");
+      setAgencyGeoMessage("Ingresa una dirección para ubicar la inmobiliaria.");
       return;
     }
     setAgencyGeoStatus("loading");
@@ -1693,7 +1693,7 @@ export function DashboardPage() {
     } catch (error) {
       setAgencyGeoStatus("error");
       setAgencyGeoMessage(
-        error instanceof Error ? error.message : "No pudimos buscar la direccion."
+        error instanceof Error ? error.message : "No pudimos buscar la dirección."
       );
     }
   };
@@ -1702,7 +1702,7 @@ export function DashboardPage() {
     setAgencyLat(nextLat);
     setAgencyLng(nextLng);
     setAgencyGeoStatus("loading");
-    setAgencyGeoMessage("Buscando direccion del punto...");
+    setAgencyGeoMessage("Buscando dirección del punto...");
     try {
       const result = await reverseGeocode(nextLat, nextLng);
       const locationParts = [result.locality, result.party, result.province].filter(
@@ -1718,7 +1718,7 @@ export function DashboardPage() {
     } catch {
       setAgencyGeoStatus("error");
       setAgencyGeoMessage(
-        "No pudimos resolver la direccion exacta, pero guardamos el punto del mapa."
+        "No pudimos resolver la dirección exacta, pero guardamos el punto del mapa."
       );
     }
   };
@@ -2349,7 +2349,7 @@ export function DashboardPage() {
                     onClick={() => void searchAgencyLocation()}
                     disabled={agencyGeoStatus === "loading"}
                   >
-                    {agencyGeoStatus === "loading" ? "Buscando..." : "Buscar direccion"}
+                    {agencyGeoStatus === "loading" ? "Buscando..." : "Buscar dirección"}
                   </button>
                 </div>
                 {agencyGeoMessage && (
@@ -2406,7 +2406,7 @@ export function DashboardPage() {
                   <div className="relative flex items-center justify-between">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.14em] text-white/75">
-                        Hero publico
+                        Hero público
                       </p>
                       <p className="text-lg font-semibold text-white">{agencyName || "Tu inmobiliaria"}</p>
                     </div>
@@ -2447,7 +2447,7 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="space-y-2 text-xs text-[#D1C7BD]">
-                <div>Color del hero publico</div>
+                <div>Color del hero público</div>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -3037,7 +3037,7 @@ export function DashboardPage() {
                     {!isPaymentMethodReadyForPaidPlan && Number(subscriptionInfo.priceAmount ?? 0) > 0
                       ? "Mes gratis pendiente de activación (se activa al cargar medio de pago)."
                       : subscriptionInfo.isTrialActive
-                      ? `Mes gratis en curso · ${subscriptionInfo.trialDaysRemaining} dias restantes (no se cobra ahora)`
+                      ? `Mes gratis en curso · ${subscriptionInfo.trialDaysRemaining} días restantes (no se cobra ahora)`
                       : subscriptionInfo.trialEndsAt
                       ? `Trial finalizado · vencio ${new Date(subscriptionInfo.trialEndsAt).toLocaleDateString("es-AR")}`
                       : "Sin periodo promocional activo"}
@@ -3657,28 +3657,30 @@ export function DashboardPage() {
         </div>
       )}
       {planModalOpen && (
-        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/88 px-4 py-6 backdrop-blur-md">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center justify-between border-b border-white/10 bg-[#211c18] px-6 py-4">
-              <div>
-                <h3 className="text-lg text-white">
-                  {planModalMode === "downgrade" ? "Volver de plan" : "Cambiar plan"}
-                </h3>
-                <p className="text-xs text-[#D1C7BD]">
-                  Si mejoras el plan, el cambio se aplica de inmediato. Si bajas de plan, se
-                  programa para la próxima renovación y mantienes el plan actual hasta esa fecha.
-                </p>
+        <div className="fixed inset-0 z-[1300] flex items-end justify-center bg-black/88 px-3 py-3 backdrop-blur-md sm:items-center sm:px-4 sm:py-6">
+          <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:max-h-[calc(100svh-3rem)]">
+            <div className="shrink-0 border-b border-white/10 bg-[#211c18] px-4 py-4 sm:px-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg text-white">
+                    {planModalMode === "downgrade" ? "Volver de plan" : "Cambiar plan"}
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-[#D1C7BD]">
+                    Si mejoras el plan, el cambio se aplica de inmediato. Si bajas de plan, se
+                    programa para la próxima renovación y mantienes el plan actual hasta esa fecha.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+                  onClick={() => setPlanModalOpen(false)}
+                  disabled={planChangeStatus === "saving"}
+                >
+                  Cerrar
+                </button>
               </div>
-              <button
-                type="button"
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
-                onClick={() => setPlanModalOpen(false)}
-                disabled={planChangeStatus === "saving"}
-              >
-                Cerrar
-              </button>
             </div>
-            <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
               {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
                 <div className="mb-4 rounded-2xl border border-white/10 bg-night-900/75 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3862,35 +3864,37 @@ export function DashboardPage() {
                 </div>
               )}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-night-900/90 px-6 py-4">
-              <p className="text-xs text-[#D1C7BD]">
+            <div className="shrink-0 border-t border-white/10 bg-night-900/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-[#D1C7BD]">
                 Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en cualquier momento.
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
-                  onClick={() => setPlanModalOpen(false)}
-                  disabled={planChangeStatus === "saving"}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 disabled:opacity-70"
-                  onClick={() => void submitPlanChange()}
-                  disabled={
-                    planChangeStatus === "saving" ||
-                    !selectedPlanCode ||
-                    selectedPlanCode === subscriptionInfo?.planCode
-                  }
-                >
-                  {planChangeStatus === "saving"
-                    ? "Guardando..."
-                    : isSelectedPlanDowngrade
-                    ? "Programar cambio"
-                    : "Confirmar plan"}
-                </button>
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                    onClick={() => setPlanModalOpen(false)}
+                    disabled={planChangeStatus === "saving"}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 disabled:opacity-70"
+                    onClick={() => void submitPlanChange()}
+                    disabled={
+                      planChangeStatus === "saving" ||
+                      !selectedPlanCode ||
+                      selectedPlanCode === subscriptionInfo?.planCode
+                    }
+                  >
+                    {planChangeStatus === "saving"
+                      ? "Guardando..."
+                      : isSelectedPlanDowngrade
+                      ? "Programar cambio"
+                      : "Confirmar plan"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -4206,7 +4210,7 @@ export function DashboardPage() {
                         <div className="mt-1 text-sm text-white">
                           {selectedRequest.phone ??
                             selectedRequest.requesterUser?.phone ??
-                            "Sin telefono"}
+                            "Sin teléfono"}
                         </div>
                       </div>
                     </div>

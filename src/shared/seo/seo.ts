@@ -11,7 +11,7 @@ export type SeoConfig = {
 const BRAND_NAME = "DomusBrag";
 const DEFAULT_TITLE = `${BRAND_NAME} | Propiedades en Bragado`;
 const DEFAULT_DESCRIPTION =
-  "DomusBrag conecta personas, dueños directos e inmobiliarias en Bragado con busqueda clara, mapa y contacto rapido.";
+  "DomusBrag conecta personas, dueños directos e inmobiliarias en Bragado con búsqueda clara, mapa y contacto rápido.";
 const DEFAULT_OG_IMAGE =
   "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80";
 
@@ -107,4 +107,3 @@ export function applySeo(config: SeoConfig) {
   upsertCanonical(canonicalUrl);
   upsertStructuredData(config.structuredData);
 }
-

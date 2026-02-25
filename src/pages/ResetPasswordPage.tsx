@@ -38,15 +38,15 @@ export function ResetPasswordPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.message ?? "No pudimos actualizar la contrasena.");
+        throw new Error(data?.message ?? "No pudimos actualizar la contraseña.");
       }
 
       setStatus("success");
-      setMessage("Contrasena actualizada. Inicia sesion.");
+      setMessage("Contraseña actualizada. Inicia sesión.");
       addToast("Contrasena actualizada.", "success");
       setTimeout(() => navigate("/login"), 500);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "No pudimos actualizar la contrasena.";
+      const msg = error instanceof Error ? error.message : "No pudimos actualizar la contraseña.";
       setStatus("error");
       setMessage(msg);
       addToast(msg, "error");
@@ -70,12 +70,12 @@ export function ResetPasswordPage() {
           </button>
 
           <div className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Nueva contrasena</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Nueva contraseña</p>
             <h2 className="font-display text-3xl leading-tight text-white">
               Configura una clave segura
             </h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
-              Crea una nueva contrasena para recuperar el acceso a tu cuenta y continuar en DomusBrag.
+              Crea una nueva contraseña para recuperar el acceso a tu cuenta y continuar en DomusBrag.
             </p>
           </div>
 
@@ -83,7 +83,7 @@ export function ResetPasswordPage() {
             {[
               { label: "1", title: "Ingresa clave", detail: "Minimo 8 caracteres." },
               { label: "2", title: "Confirma clave", detail: "Debe coincidir." },
-              { label: "3", title: "Accede", detail: "Inicia sesion nuevamente." },
+              { label: "3", title: "Accede", detail: "Inicia sesión nuevamente." },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="flex items-center gap-3">
@@ -103,13 +103,13 @@ export function ResetPasswordPage() {
         <section className="flex items-start justify-center p-4 sm:p-5 lg:p-6">
           <form className="w-full max-w-md space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5 text-center lg:text-left">
-              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Cambiar contrasena</h1>
+              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Cambiar contraseña</h1>
               <p className="text-sm text-[#D1C7BD]">Completa los campos para actualizar tu clave.</p>
             </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Nueva contrasena
+                Nueva contraseña
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -130,14 +130,14 @@ export function ResetPasswordPage() {
               </label>
 
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Confirmar contrasena
+                Confirmar contraseña
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     className="w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 pr-14 text-sm text-white outline-none transition focus:border-gold-400/60"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Repite tu contrasena"
+                    placeholder="Repite tu contraseña"
                     autoComplete="new-password"
                   />
                   <button

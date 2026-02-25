@@ -61,7 +61,7 @@ export function ForgotPasswordPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Recuperacion segura</p>
             <h2 className="font-display text-3xl leading-tight text-white">Recupera tu cuenta en minutos</h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
-              Valida email y DNI. Si los datos coinciden te enviamos un enlace para crear una nueva contrasena.
+              Valida email y DNI. Si los datos coinciden te enviamos un enlace para crear una nueva contraseña.
             </p>
           </div>
 
@@ -89,7 +89,7 @@ export function ForgotPasswordPage() {
         <section className="flex items-start justify-center p-4 sm:p-5 lg:p-6">
           <form className="w-full max-w-md space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5 text-center lg:text-left">
-              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Olvide mi contrasena</h1>
+              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Olvidé mi contraseña</h1>
               <p className="text-sm text-[#D1C7BD]">Ingresa tus datos para recuperar el acceso.</p>
             </div>
 
@@ -111,7 +111,7 @@ export function ForgotPasswordPage() {
                   className="w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-gold-400/60"
                   value={dni}
                   onChange={(event) => setDni(event.target.value)}
-                  placeholder="Solo numeros"
+                  placeholder="Solo números"
                 />
               </label>
 

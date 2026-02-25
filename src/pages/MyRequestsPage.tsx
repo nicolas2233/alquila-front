@@ -101,7 +101,7 @@ export function MyRequestsPage() {
 
   const openPropertyDetail = async (propertyId: string) => {
     if (!token) {
-      addToast("Necesitas iniciar sesion.", "warning");
+      addToast("Necesitas iniciar sesión.", "warning");
       navigate("/login");
       return;
     }

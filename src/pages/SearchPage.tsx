@@ -300,7 +300,7 @@ export function SearchPage() {
     if (publisherLabel) {
       descriptionParts.push(`publicadas por ${publisherLabel.toLowerCase()}`);
     }
-    descriptionParts.push("con filtros claros, mapa y contacto rapido en DomusBrag.");
+    descriptionParts.push("con filtros claros, mapa y contacto rápido en DomusBrag.");
 
     return {
       title: titleParts.join(" "),
@@ -616,7 +616,7 @@ export function SearchPage() {
 
   const openModal = async (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      addToast("Inicia sesión para ver la ficha completa.", "warning");
       navigate("/login");
       return;
     }
@@ -630,7 +630,7 @@ export function SearchPage() {
 
   const handleCardWhatsapp = async (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para contactar por WhatsApp.", "warning");
+      addToast("Inicia sesión para contactar por WhatsApp.", "warning");
       return;
     }
     try {
@@ -1038,7 +1038,7 @@ export function SearchPage() {
               Pagina {page} de {totalPages}
             </div>
             <div className="flex items-center gap-2">
-              <span>Por pagina</span>
+              <span>Por página</span>
               <select
                 className="rounded-full border border-white/15 bg-night-900/48 px-3 py-1 text-xs text-white"
                 value={pageSize}

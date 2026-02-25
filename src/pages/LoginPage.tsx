@@ -30,7 +30,7 @@ export function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("registered") === "1") {
-      addToast("Cuenta creada. Revisa tu email para validarla y luego inicia sesion.", "success");
+      addToast("Cuenta creada. Revisa tu email para validarla y luego inicia sesión.", "success");
       navigate("/login", { replace: true });
     }
   }, [location.search, addToast, navigate]);
@@ -60,7 +60,7 @@ export function LoginPage() {
         const errorData = (await response.json().catch(() => null)) as
           | { message?: string }
           | null;
-        throw new Error(errorData?.message ?? "No pudimos iniciar sesion.");
+        throw new Error(errorData?.message ?? "No pudimos iniciar sesión.");
       }
 
       const data = (await response.json()) as {
@@ -115,7 +115,7 @@ export function LoginPage() {
           "Tu email aun no esta verificado. Puedes seguir usando la cuenta y validarlo cuando quieras.",
           "warning",
           6000,
-          "Reenviar verificacion",
+          "Reenviar verificación",
           () => {
             void handleResendVerification(normalizedEmail);
           }
@@ -138,7 +138,7 @@ export function LoginPage() {
       }, 0);
       return;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No pudimos iniciar sesion.";
+      const message = error instanceof Error ? error.message : "No pudimos iniciar sesión.";
       setStatus("error");
       setErrorMessage(message);
       if (message.toLowerCase().includes("no existe una cuenta")) {
@@ -147,7 +147,7 @@ export function LoginPage() {
         );
         return;
       }
-      if (message.toLowerCase().includes("contrasena incorrecta")) {
+      if (message.toLowerCase().includes("contraseña incorrecta")) {
         addToast(message, "error", 4500, "Recuperar cuenta", () => navigate("/recuperar"));
         return;
       }
@@ -157,12 +157,12 @@ export function LoginPage() {
 
   const handleResendVerification = async (emailOverride?: string) => {
     if (verifyCooldown > 0) {
-      addToast(`Espera ${verifyCooldown}s para reenviar la verificacion.`, "warning");
+      addToast(`Espera ${verifyCooldown}s para reenviar la verificación.`, "warning");
       return;
     }
     const normalizedEmail = (emailOverride ?? email).trim().toLowerCase();
     if (!normalizedEmail) {
-      addToast("Ingresa tu email para reenviar la verificacion.", "warning");
+      addToast("Ingresa tu email para reenviar la verificación.", "warning");
       return;
     }
     setVerifyStatus("loading");
@@ -174,13 +174,13 @@ export function LoginPage() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.message ?? "No pudimos reenviar el email de verificacion.");
+        throw new Error(data?.message ?? "No pudimos reenviar el email de verificación.");
       }
-      addToast(data?.message ?? "Te enviamos un email de verificacion.", "success");
+      addToast(data?.message ?? "Te enviamos un email de verificación.", "success");
       setVerifyCooldown(30);
     } catch (error) {
       addToast(
-        error instanceof Error ? error.message : "No pudimos reenviar el email de verificacion.",
+        error instanceof Error ? error.message : "No pudimos reenviar el email de verificación.",
         "error"
       );
     } finally {
@@ -233,9 +233,9 @@ export function LoginPage() {
 
           <div className="grid gap-2">
             {[
-              { label: "1", title: "Iniciar sesion", detail: "Con email y contrasena." },
+              { label: "1", title: "Iniciar sesión", detail: "Con email y contraseña." },
               { label: "2", title: "Gestiona", detail: "Publicaciones y estados." },
-              { label: "3", title: "Conecta", detail: "Responde solicitudes rapido." },
+              { label: "3", title: "Conecta", detail: "Responde solicitudes rápido." },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="flex items-center gap-3">
@@ -289,7 +289,7 @@ export function LoginPage() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     autoComplete="current-password"
-                    placeholder="Ingresa tu contrasena"
+                    placeholder="Ingresa tu contraseña"
                   />
                   <button
                     type="button"
@@ -327,7 +327,7 @@ export function LoginPage() {
                 className="text-xs text-gold-400 underline"
                 onClick={() => navigate("/recuperar")}
               >
-                Olvide mi contrasena
+                Olvidé mi contraseña
               </button>
               <button
                 type="button"
@@ -336,10 +336,10 @@ export function LoginPage() {
                 disabled={verifyStatus === "loading" || verifyCooldown > 0}
               >
                 {verifyStatus === "loading"
-                  ? "Enviando verificacion..."
+                  ? "Enviando verificación..."
                   : verifyCooldown > 0
-                  ? `Reenviar verificacion (${verifyCooldown}s)`
-                  : "Reenviar verificacion"}
+                  ? `Reenviar verificación (${verifyCooldown}s)`
+                  : "Reenviar verificación"}
               </button>
             </div>
           </form>

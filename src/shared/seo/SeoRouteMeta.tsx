@@ -16,7 +16,7 @@ function getRouteSeo(pathname: string) {
     return {
       title: "Buscar propiedades en Bragado",
       description:
-        "Explora propiedades en Bragado con filtros claros, vista lista o cuadricula y contacto rapido por WhatsApp.",
+        "Explora propiedades en Bragado con filtros claros, vista lista o cuadrícula y contacto rápido por WhatsApp.",
       canonicalPath: "/buscar",
       noindex: false,
     };
@@ -25,7 +25,7 @@ function getRouteSeo(pathname: string) {
     return {
       title: "Mapa de propiedades en Bragado",
       description:
-        "Encuentra propiedades en Bragado en un mapa interactivo con filtros por operacion, tipo, publicador y puntos de interes.",
+        "Encuentra propiedades en Bragado en un mapa interactivo con filtros por operación, tipo, publicador y puntos de interés.",
       canonicalPath: "/mapa",
       noindex: false,
     };
@@ -33,7 +33,7 @@ function getRouteSeo(pathname: string) {
   if (pathname.startsWith("/agencia/")) {
     return {
       title: "Perfil de inmobiliaria",
-      description: "Perfil publico de inmobiliaria en Bragado con cartera de inmuebles y contacto.",
+      description: "Perfil público de inmobiliaria en Bragado con cartera de inmuebles y contacto.",
       canonicalPath: pathname,
       noindex: false,
     };

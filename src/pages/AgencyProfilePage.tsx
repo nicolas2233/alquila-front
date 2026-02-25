@@ -336,7 +336,7 @@ export function AgencyProfilePage() {
 
   const openModal = (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para ver la ficha completa.", "warning");
+      addToast("Inicia sesión para ver la ficha completa.", "warning");
       navigate("/login");
       return;
     }
@@ -363,7 +363,7 @@ export function AgencyProfilePage() {
 
   const handleCardWhatsapp = async (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesion para contactar por WhatsApp.", "warning");
+      addToast("Inicia sesión para contactar por WhatsApp.", "warning");
       navigate("/login");
       return;
     }
@@ -459,7 +459,7 @@ export function AgencyProfilePage() {
     title: agency?.name ? `${agency.name} | Inmobiliaria en Bragado` : "Perfil de inmobiliaria",
     description: agency?.description?.trim()
       ? agency.description.trim().slice(0, 160)
-      : "Perfil publico de inmobiliaria en Bragado con propiedades activas y datos de contacto.",
+      : "Perfil público de inmobiliaria en Bragado con propiedades activas y datos de contacto.",
     canonicalPath: slug ? `/agencia/${slug}` : "/agencia",
     image: agency?.logo ?? agency?.heroImage ?? undefined,
     noindex: false,
@@ -720,7 +720,7 @@ export function AgencyProfilePage() {
               Pagina {page} de {totalPages}
             </div>
             <div className="flex items-center gap-2">
-              <span>Por pagina</span>
+              <span>Por página</span>
               <select
                 className="rounded-full border border-white/15 bg-night-900/48 px-3 py-1 text-xs text-white"
                 value={pageSize}
