@@ -255,6 +255,8 @@ export function PublishPage() {
   const [planUsageCount, setPlanUsageCount] = useState(0);
   const [planUsageStatus, setPlanUsageStatus] = useState<"idle" | "loading" | "error">("idle");
   const [planUsageError, setPlanUsageError] = useState("");
+  const [showNoSlotsModal, setShowNoSlotsModal] = useState(false);
+  const planUsageInitialCheckRef = useRef(false);
   const [step, setStep] = useState<Step>(0);
   const [showErrors, setShowErrors] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -372,8 +374,31 @@ export function PublishPage() {
     if (isEditMode) return;
     if (!(isOwner || isAgency)) return;
     if (!planHasLimit) return;
+    if (planUsageInitialCheckRef.current) return;
+    planUsageInitialCheckRef.current = true;
     void loadPlanUsage();
   }, [isEditMode, isOwner, isAgency, planHasLimit, loadPlanUsage]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      setShowNoSlotsModal(false);
+      return;
+    }
+    if (!(isOwner || isAgency)) {
+      setShowNoSlotsModal(false);
+      return;
+    }
+    if (!planHasLimit) {
+      setShowNoSlotsModal(false);
+      return;
+    }
+    if (planUsageStatus !== "idle") return;
+    if (planSlotsRemaining !== null && planSlotsRemaining <= 0) {
+      setShowNoSlotsModal(true);
+      return;
+    }
+    setShowNoSlotsModal(false);
+  }, [isEditMode, isOwner, isAgency, planHasLimit, planSlotsRemaining, planUsageStatus]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -2039,7 +2064,7 @@ export function PublishPage() {
         </div>
       </section>
 
-      <div className="grid items-start gap-4 md:gap-6 xl:grid-cols-[320px_1fr]">
+      <div className={`grid items-start gap-4 md:gap-6 xl:grid-cols-[320px_1fr] ${showNoSlotsModal ? "pointer-events-none select-none opacity-60" : ""}`}>
         <aside className="order-2 space-y-4 xl:order-1 xl:sticky xl:top-24">
           <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-night-900/65 p-5">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(175,140,92,0.25),transparent_56%)]" />
@@ -3668,6 +3693,46 @@ export function PublishPage() {
         onConfirm={confirmLocationReviewAndContinue}
         onCancel={cancelLocationReviewModal}
       />
+      {showNoSlotsModal && (
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/78 px-4 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-3xl border border-[#AF8C5C]/35 bg-night-950/98 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
+            <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+                Cupo completo
+              </p>
+              <h3 className="mt-1 text-lg text-white">
+                No puedes cargar nuevos inmuebles con tu plan actual
+              </h3>
+            </div>
+            <div className="space-y-3 px-5 py-4 text-sm text-[#D1C7BD] sm:px-6 sm:py-5">
+              <p>
+                Tu plan tiene el cupo completo ({planUsageCount}/{maxPropertiesByPlan}). Para crear
+                una nueva publicación, libera cupo dando de baja/pausando una publicación o mejora
+                tu plan.
+              </p>
+              <p className="rounded-2xl border border-white/10 bg-night-900/65 px-3 py-2 text-xs text-[#E7E2DD]">
+                Plan actual: <span className="font-semibold text-white">{subscriptionInfo?.planName ?? subscriptionInfo?.planCode ?? "Actual"}</span>
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 border-t border-white/10 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                onClick={() => navigate("/panel?tab=listings")}
+              >
+                Ver mis inmuebles
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
+                onClick={() => navigate("/panel?tab=subscription")}
+              >
+                Ir a mi suscripción
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
