@@ -949,7 +949,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 space-y-1.5">
           <label className="text-xs font-medium text-slate-700">Número de tarjeta</label>
-          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
             <CardNumber
               key={`card-number-${paymentSecureFieldsCycle}`}
               placeholder="1234 1234 1234 1234"
@@ -960,7 +960,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-slate-700">Vencimiento</label>
-          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
             <ExpirationDate
               key={`expiration-date-${paymentSecureFieldsCycle}`}
               placeholder="MM/AA"
@@ -971,7 +971,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-slate-700">Código</label>
-          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
             <SecurityCode
               key={`security-code-${paymentSecureFieldsCycle}`}
               placeholder="123"
@@ -4165,7 +4165,7 @@ export function DashboardPage() {
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div className="h-11 w-14 rounded-lg border border-white/15 bg-gradient-to-br from-white/20 to-white/5" />
                       <div className="text-right text-[10px] uppercase tracking-[0.18em] text-white/70">
-                        {currentBillingCycle === "ANNUAL" ? "Plan anual" : "Plan mensual"}
+                        DomusBrag
                       </div>
                     </div>
                     <div className="rounded-xl border border-white/15 bg-black/15 px-3 py-2 text-lg tracking-[0.2em] text-white shadow-inner sm:text-xl">
@@ -4182,9 +4182,11 @@ export function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] uppercase tracking-[0.16em] text-white/60">
-                          Vence
+                          {currentBillingCycle === "ANNUAL" ? "Plan anual" : "Plan mensual"}
                         </div>
-                        <div className="mt-1 text-sm text-white">MM/AA</div>
+                        <div className="mt-1 text-sm text-white">
+                          {currentBillingCycle === "ANNUAL" ? "12 meses" : "Mensual"}
+                        </div>
                       </div>
                     </div>
                   </div>
