@@ -949,7 +949,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 space-y-1.5">
           <label className="text-xs font-medium text-slate-700">Número de tarjeta</label>
-          <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <div className="relative isolate z-10 flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
             <CardNumber
               key={`card-number-${paymentSecureFieldsCycle}`}
               placeholder="1234 1234 1234 1234"
@@ -960,7 +960,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-slate-700">Vencimiento</label>
-          <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <div className="relative isolate z-10 flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
             <ExpirationDate
               key={`expiration-date-${paymentSecureFieldsCycle}`}
               placeholder="MM/AA"
@@ -971,7 +971,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-slate-700">Código</label>
-          <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <div className="relative isolate z-10 flex h-12 items-center overflow-hidden rounded-xl border border-slate-300 bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
             <SecurityCode
               key={`security-code-${paymentSecureFieldsCycle}`}
               placeholder="123"
@@ -1099,8 +1099,15 @@ export function DashboardPage() {
         );
         addToast(data.message ?? "Medio de pago enviado a Mercado Pago.", "success");
       } catch (error) {
-        const message =
+        const rawMessage =
           error instanceof Error ? error.message : "No pudimos validar el medio de pago.";
+        const normalizedMessage = rawMessage
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, "");
+        const message = normalizedMessage.includes("back_url is required")
+          ? "Mercado Pago requiere una URL pública de retorno para vincular la suscripción. En local usa un túnel (ngrok/cloudflared) o prueba este flujo desde Railway."
+          : rawMessage;
         setPaymentMethodModalStatus("error");
         setPaymentMethodModalMessage(message);
         addToast(message, "error");
@@ -1156,6 +1163,9 @@ export function DashboardPage() {
     }
     if (message.includes("payer_email is required")) {
       return "Mercado Pago requiere un email válido para asociar la suscripción. Revisa el campo “Email de Mercado Pago”.";
+    }
+    if (message.includes("back_url is required")) {
+      return "Mercado Pago requiere una URL pública de retorno para vincular la suscripción. En local usa un túnel (ngrok/cloudflared) o prueba este flujo desde Railway.";
     }
     if (message.includes("identification") && message.includes("number")) {
       return "Revisa el tipo y número de documento del titular. Mercado Pago no pudo validarlos.";
@@ -4158,13 +4168,13 @@ export function DashboardPage() {
               ) : (
                 <div className="space-y-4 rounded-2xl border border-white/10 bg-night-900/35 p-3 sm:space-y-5 sm:p-5">
                   <div className="relative mx-auto w-full max-w-lg rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_18%_22%,rgba(97,126,255,0.28),transparent_42%),radial-gradient(circle_at_78%_18%,rgba(175,140,92,0.24),transparent_45%),linear-gradient(135deg,#111827_0%,#151225_45%,#1a1410_100%)] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.38)] sm:p-5">
-                    <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-white/80">
+                    <div className="absolute right-4 top-4 z-10 flex items-center gap-1 rounded-full border border-white/10 bg-black/25 px-2 py-1 text-[10px] text-white/80">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
                       Mercado Pago
                     </div>
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div className="h-11 w-14 rounded-lg border border-white/15 bg-gradient-to-br from-white/20 to-white/5" />
-                      <div className="text-right text-[10px] uppercase tracking-[0.18em] text-white/70">
+                      <div className="pr-28 text-right text-[10px] uppercase tracking-[0.18em] text-white/70">
                         DomusBrag
                       </div>
                     </div>
