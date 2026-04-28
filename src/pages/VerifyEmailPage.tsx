@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { useToast } from "../shared/ui/toast/ToastProvider";
@@ -85,7 +85,7 @@ export function VerifyEmailPage() {
       <div className="absolute -bottom-24 -right-16 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
       <div className="relative flex min-h-[420px] items-center justify-center p-6">
         <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-night-900/40 p-6 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Verificacion de email</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Verificación de email</p>
           <h1 className="mt-2 font-display text-3xl text-white">
             {status === "loading"
               ? "Validando tu cuenta"
@@ -131,3 +131,5 @@ export function VerifyEmailPage() {
     </div>
   );
 }
+
+

@@ -31,6 +31,10 @@ type AdminUser = {
     planCode: string;
     planName: string;
     maxProperties: number;
+    baseMaxProperties?: number;
+    adminGrantedExtraProperties?: number;
+    adminGrantedUntil?: string | null;
+    isAdminGrantActive?: boolean;
     priceAmount: number;
     priceCurrency: string;
     status?: string;
@@ -38,6 +42,15 @@ type AdminUser = {
     isTrialActive: boolean;
     trialDaysRemaining: number;
   } | null;
+  agencyId?: string | null;
+  properties?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    operationType: string;
+    propertyType: string;
+    updatedAt: string;
+  }>;
 };
 
 type AdminReport = {
@@ -135,9 +148,9 @@ type TabKey =
 
 const poiCategoryLabels: Record<PoiCategory, string> = {
   SCHOOL: "Escuela",
-  KINDER: "Jardin",
+  KINDER: "Jardín",
   FIRE: "Bomberos",
-  POLICE: "Policia",
+  POLICE: "Policía",
   HEALTH: "Salud",
   SUPERMARKET: "Supermercado",
   PARK: "Plaza",
@@ -252,6 +265,11 @@ export function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersStatus, setUsersStatus] = useState<"idle" | "loading" | "error">("idle");
   const [usersError, setUsersError] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [userGrantSavingId, setUserGrantSavingId] = useState<string | null>(null);
+  const [userGrantDrafts, setUserGrantDrafts] = useState<
+    Record<string, { planInternalCode: string; freeMonths: string; extraProperties: string }>
+  >({});
 
   const [plans, setPlans] = useState<AdminPlan[]>([]);
   const [plansStatus, setPlansStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -334,7 +352,9 @@ export function AdminPage() {
     if (tab !== "users") return;
     setUsersStatus("loading");
     setUsersError("");
-    fetch(`${env.apiUrl}/admin/users`, {
+    const params = new URLSearchParams();
+    if (userSearch.trim()) params.set("q", userSearch.trim());
+    fetch(`${env.apiUrl}/admin/users${params.toString() ? `?${params.toString()}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (response) => {
@@ -451,11 +471,11 @@ export function AdminPage() {
         setPoisStatus("error");
         setPoisError(error instanceof Error ? error.message : "Error al cargar puntos.");
       });
-  }, [token, effectiveRole, tab]);
+  }, [token, effectiveRole, tab, userSearch]);
 
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") return;
-    if (tab !== "plans") return;
+    if (tab !== "plans" && tab !== "users") return;
     setPlansStatus("loading");
     setPlansError("");
     fetch(`${env.apiUrl}/admin/plans`, {
@@ -531,6 +551,69 @@ export function AdminPage() {
       return;
     }
     setUsers((prev) => prev.map((item) => (item.id === userId ? { ...item, status } : item)));
+  };
+
+  const updateUserGrantDraft = (
+    userId: string,
+    field: "planInternalCode" | "freeMonths" | "extraProperties",
+    value: string
+  ) => {
+    setUserGrantDrafts((prev) => ({
+      ...prev,
+      [userId]: {
+        planInternalCode: prev[userId]?.planInternalCode ?? "",
+        freeMonths: prev[userId]?.freeMonths ?? "0",
+        extraProperties: prev[userId]?.extraProperties ?? "0",
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveUserGrant = async (user: AdminUser) => {
+    if (!token) return;
+    const draft = userGrantDrafts[user.id] ?? {
+      planInternalCode: "",
+      freeMonths: "0",
+      extraProperties: String(user.subscription?.adminGrantedExtraProperties ?? 0),
+    };
+    setUserGrantSavingId(user.id);
+    setUsersError("");
+    try {
+      const response = await fetch(`${env.apiUrl}/admin/users/${user.id}/subscription-grant`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          planInternalCode: draft.planInternalCode || undefined,
+          freeMonths: Number(draft.freeMonths) || 0,
+          extraProperties: Number(draft.extraProperties) || 0,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "No pudimos aplicar el beneficio."));
+      }
+      const data = (await response.json()) as { subscription: AdminUser["subscription"] };
+      setUsers((prev) =>
+        prev.map((item) => (item.id === user.id ? { ...item, subscription: data.subscription } : item))
+      );
+      setUserGrantDrafts((prev) => ({
+        ...prev,
+        [user.id]: {
+          planInternalCode: "",
+          freeMonths: "0",
+          extraProperties: String(data.subscription?.adminGrantedExtraProperties ?? 0),
+        },
+      }));
+      addToast("Beneficio aplicado al usuario.", "success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al aplicar beneficio.";
+      setUsersError(message);
+      addToast(message, "error");
+    } finally {
+      setUserGrantSavingId(null);
+    }
   };
 
   const updatePlanDraft = (planId: string, field: "name" | "priceAmount" | "maxProperties", value: string) => {
@@ -625,7 +708,7 @@ export function AdminPage() {
       body: JSON.stringify({ status }),
     });
     if (!response.ok) {
-      const message = await readApiError(response, "No pudimos actualizar la publicacion.");
+      const message = await readApiError(response, "No pudimos actualizar la publicación.");
       setPropertiesError(message);
       addToast(message, "error");
       return;
@@ -992,6 +1075,23 @@ export function AdminPage() {
 
       {tab === "users" && (
         <section className="glass-card space-y-3 p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Usuarios</h3>
+              <p className="text-xs text-[#D1C7BD]">
+                Buscá, revisá publicaciones y aplicá beneficios comerciales manuales.
+              </p>
+            </div>
+            <label className="w-full space-y-2 text-xs text-[#D1C7BD] sm:max-w-sm">
+              Buscar usuario
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={userSearch}
+                onChange={(event) => setUserSearch(event.target.value)}
+                placeholder="Nombre, email o teléfono"
+              />
+            </label>
+          </div>
           {usersStatus === "loading" && (
             <div className="text-xs text-[#D1C7BD]">Cargando usuarios...</div>
           )}
@@ -1001,7 +1101,7 @@ export function AdminPage() {
           {users.map((user) => (
             <div
               key={user.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
+              className="grid gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs lg:grid-cols-[1.1fr_0.9fr]"
             >
               <div>
                 <div className="text-sm text-white">{user.name ?? "Sin nombre"}</div>
@@ -1019,12 +1119,19 @@ export function AdminPage() {
                           Hasta {user.subscription.maxProperties} inmuebles
                         </span>
                       )}
+                      {(user.subscription.adminGrantedExtraProperties ?? 0) > 0 && (
+                        <span className="text-emerald-200">
+                          +{user.subscription.adminGrantedExtraProperties} extra
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 text-[#cfc7ba]">
-                      {user.subscription.isTrialActive
+                      {user.subscription.isAdminGrantActive && user.subscription.adminGrantedUntil
+                        ? `Beneficio admin activo hasta ${formatShortDateTime(user.subscription.adminGrantedUntil)}`
+                        : user.subscription.isTrialActive
                         ? `Primer mes gratis activo · ${user.subscription.trialDaysRemaining} días restantes`
                         : user.subscription.trialEndsAt
-                        ? `Trial finalizado · vencio ${formatShortDateTime(user.subscription.trialEndsAt)}`
+                        ? `Trial finalizado · venció ${formatShortDateTime(user.subscription.trialEndsAt)}`
                         : "Sin trial activo"}
                     </div>
                   </div>
@@ -1058,19 +1165,114 @@ export function AdminPage() {
                   })()}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
-                  {user.status}
-                </span>
-                <select
-                  className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
-                  value={user.status}
-                  onChange={(event) => updateUserStatus(user.id, event.target.value)}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="SUSPENDED">Suspended</option>
-                </select>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
+                    {user.status}
+                  </span>
+                  <select
+                    className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
+                    value={user.status}
+                    onChange={(event) => updateUserStatus(user.id, event.target.value)}
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="SUSPENDED">Suspended</option>
+                  </select>
+                </div>
+                {(user.role === "OWNER" || user.role === "AGENCY_ADMIN" || user.role === "AGENCY_AGENT") && (
+                  <div className="rounded-2xl border border-white/10 bg-night-950/35 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+                      Beneficio comercial
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD] sm:col-span-3">
+                        Cambiar plan sin pago
+                        <select
+                          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
+                          value={userGrantDrafts[user.id]?.planInternalCode ?? ""}
+                          onChange={(event) =>
+                            updateUserGrantDraft(user.id, "planInternalCode", event.target.value)
+                          }
+                        >
+                          <option value="">Mantener plan actual</option>
+                          {plans
+                            .filter((plan) =>
+                              user.role === "OWNER"
+                                ? plan.code.startsWith("OWNER_")
+                                : plan.code.startsWith("AGENCY_"),
+                            )
+                            .map((plan) => (
+                              <option key={plan.id} value={plan.code}>
+                                {plan.name} · {plan.maxProperties} inmuebles
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Meses gratis
+                        <input
+                          type="number"
+                          min={0}
+                          max={24}
+                          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
+                          value={userGrantDrafts[user.id]?.freeMonths ?? "0"}
+                          onChange={(event) =>
+                            updateUserGrantDraft(user.id, "freeMonths", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Publicaciones extra
+                        <input
+                          type="number"
+                          min={0}
+                          max={500}
+                          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
+                          value={
+                            userGrantDrafts[user.id]?.extraProperties ??
+                            String(user.subscription?.adminGrantedExtraProperties ?? 0)
+                          }
+                          onChange={(event) =>
+                            updateUserGrantDraft(user.id, "extraProperties", event.target.value)
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="self-end rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 disabled:opacity-70"
+                        disabled={userGrantSavingId === user.id}
+                        onClick={() => void saveUserGrant(user)}
+                      >
+                        {userGrantSavingId === user.id ? "Aplicando..." : "Aplicar"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="rounded-2xl border border-white/10 bg-night-950/35 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+                    Inmuebles cargados
+                  </p>
+                  {user.properties?.length ? (
+                    <div className="mt-2 space-y-2">
+                      {user.properties.map((property) => (
+                        <div
+                          key={property.id}
+                          className="rounded-xl border border-white/10 bg-night-900/45 px-3 py-2"
+                        >
+                          <div className="text-xs text-white">{property.title}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[#D1C7BD]">
+                            <span>{property.status}</span>
+                            <span>{property.operationType}</span>
+                            <span>{formatShortDateTime(property.updatedAt)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-[#D1C7BD]">Sin inmuebles cargados.</p>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -1515,6 +1717,8 @@ export function AdminPage() {
     </div>
   );
 }
+
+
 
 
 

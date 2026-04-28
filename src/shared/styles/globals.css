@@ -159,26 +159,30 @@
   #cardNumberSecureField_container,
   #expirationDateSecureField_container,
   #securityCodeSecureField_container {
-    position: relative;
-    z-index: 1;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
     display: block;
     width: 100%;
     min-width: 0;
-    height: 24px;
-    line-height: 24px;
+    height: 100% !important;
+    min-height: 100%;
     pointer-events: auto;
+    overflow: hidden;
   }
 
   #cardNumberSecureField_container iframe,
   #expirationDateSecureField_container iframe,
   #securityCodeSecureField_container iframe {
-    position: static !important;
+    position: absolute !important;
+    inset: 0 !important;
     display: block !important;
     width: 100% !important;
-    height: 24px !important;
-    min-height: 24px !important;
+    height: 100% !important;
+    min-height: 100% !important;
     pointer-events: auto !important;
     background: transparent !important;
+    border: 0 !important;
   }
 
   /* Cuando el selector de capas comparte esquina con el zoom, lo bajamos para que no se pisen */

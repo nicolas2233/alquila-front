@@ -2,8 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapView, type MapPoint } from "../shared/map/MapView";
-import { getSessionUser } from "../shared/auth/session";
-import { useToast } from "../shared/ui/toast/ToastProvider";
 import { env } from "../shared/config/env";
 
 type OperationType = "SALE" | "RENT" | "TEMPORARY";
@@ -73,14 +71,14 @@ const typeLabels: Record<PropertyType, string> = {
   QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
-  WAREHOUSE: "Deposito",
+  WAREHOUSE: "Depósito",
 };
 
 const poiLabels: Record<PoiCategory, string> = {
   SCHOOL: "Escuela",
-  KINDER: "Jardin",
+  KINDER: "Jardín",
   FIRE: "Bomberos",
-  POLICE: "Policia",
+  POLICE: "Policía",
   HEALTH: "Salud",
   SUPERMARKET: "Supermercado",
   PARK: "Plaza",
@@ -134,8 +132,6 @@ const publisherColors: Record<PublisherType, string> = {
 
 export function MapSearchPage() {
   const navigate = useNavigate();
-  const { addToast } = useToast();
-  const sessionUser = useMemo(() => getSessionUser(), []);
   const [properties, setProperties] = useState<MapProperty[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
@@ -156,12 +152,6 @@ export function MapSearchPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionUser) {
-      setProperties([]);
-      setListStatus("idle");
-      setListError("");
-      return;
-    }
     let ignore = false;
     const controller = new AbortController();
     const load = async () => {
@@ -257,15 +247,9 @@ export function MapSearchPage() {
       ignore = true;
       controller.abort();
     };
-  }, [sessionUser]);
+  }, []);
 
   useEffect(() => {
-    if (!sessionUser) {
-      setPoiItems([]);
-      setPoiStatus("idle");
-      setPoiError("");
-      return;
-    }
     let ignore = false;
     const controller = new AbortController();
     const load = async () => {
@@ -295,12 +279,9 @@ export function MapSearchPage() {
       ignore = true;
       controller.abort();
     };
-  }, [sessionUser]);
+  }, []);
 
   const filtered = useMemo(() => {
-    if (!activeOperations.length && !activeTypes.length) {
-      return [];
-    }
     let list = [...properties];
     if (activeOperations.length) {
       list = list.filter((item) => activeOperations.includes(item.operationType));
@@ -315,11 +296,11 @@ export function MapSearchPage() {
   }, [activeOperations, activeTypes, activePublishers, properties]);
 
   const filteredPoi = useMemo(() => {
-    if (!sessionUser || !activePoi.length) {
+    if (!activePoi.length) {
       return [];
     }
     return poiItems.filter((poi) => activePoi.includes(poi.category));
-  }, [activePoi, sessionUser, poiItems]);
+  }, [activePoi, poiItems]);
 
   const buildingGroups = useMemo(() => {
     const groups = new Map<string, MapProperty[]>();
@@ -366,11 +347,6 @@ export function MapSearchPage() {
   }, [buildingGroups]);
 
   const openDetail = async (id: string) => {
-    if (!sessionUser) {
-      addToast("Inicia sesión para ver la ficha completa.", "warning");
-      navigate("/login");
-      return;
-    }
     navigate(`/publicacion/${id}`);
   };
 
@@ -688,17 +664,17 @@ export function MapSearchPage() {
 
   return (
     <div className="space-y-4 md:space-y-8">
-      <section className="relative h-[40svh] min-h-[240px] w-full overflow-hidden rounded-[24px] border border-white/15 md:h-[52svh] md:min-h-[320px] md:rounded-[30px] lg:-mt-8 xl:-mt-10">
+      <section className="relative h-[34svh] min-h-[220px] w-full overflow-hidden rounded-[24px] border border-white/15 md:h-[42svh] md:min-h-[280px] md:rounded-[30px] lg:-mt-8 xl:-mt-10">
         <div className="absolute inset-0 bg-hero bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/45 to-black/68" />
         <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-4 text-center sm:px-6">
           <div className="space-y-3 md:space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">DomusBrag Map</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Mapa de propiedades</p>
             <h2 className="font-display text-2xl leading-tight text-white sm:text-3xl md:text-5xl">
               Explora Bragado en el mapa
             </h2>
             <p className="mx-auto max-w-2xl text-xs text-[#E7E2DD] sm:text-sm md:text-base">
-              Filtra por operacion, tipo de inmueble, publicador y servicios cercanos.
+              Explorá propiedades por operación, tipo de inmueble, publicador y servicios cercanos.
             </p>
             <div className="flex justify-center">
               <span className="gold-pill">{filtered.length} puntos visibles</span>
@@ -759,9 +735,8 @@ export function MapSearchPage() {
               <div className="mt-3 h-[42svh] max-h-[540px] min-h-[250px] overflow-hidden rounded-2xl border border-white/10 sm:h-[62vh] sm:min-h-[360px]">
                 <MapView
                   points={[
-                    ...(sessionUser ? pointsForMap : []),
-                    ...(sessionUser
-                      ? filteredPoi.map((poi) => ({
+                    ...pointsForMap,
+                    ...filteredPoi.map((poi) => ({
                       id: poi.id,
                       title: poi.title,
                       subtitle: poiLabels[poi.category],
@@ -770,8 +745,7 @@ export function MapSearchPage() {
                       color: poiColors[poi.category],
                       lat: poi.lat,
                       lng: poi.lng,
-                    }))
-                      : []),
+                    })),
                   ]}
                   selectedId={selectedBuildingId ? `building:${selectedBuildingId}` : selectedId}
                   onSelect={(id) => {
@@ -798,29 +772,24 @@ export function MapSearchPage() {
               {poiStatus === "error" && (
                 <div className="mt-2 text-xs text-[#AF8C5C]">{poiError}</div>
               )}
-              {!sessionUser && (
+              {listStatus === "idle" && properties.length === 0 && (
                 <div className="mt-3 text-xs text-[#D1C7BD]">
-                  Inicia sesión para ver los puntos en el mapa.
+                  No hay inmuebles con geolocalización cargada.
                 </div>
               )}
-              {sessionUser && listStatus === "idle" && properties.length === 0 && (
-                <div className="mt-3 text-xs text-[#D1C7BD]">
-                  No hay inmuebles con geolocalizacion cargada.
-                </div>
-              )}
-              {sessionUser && listStatus === "idle" && !hasActiveFilters && (
+              {listStatus === "idle" && !hasActiveFilters && properties.length > 0 && (
                 <div className="mt-3 rounded-2xl border border-white/10 bg-night-900/38 px-4 py-4 text-xs text-[#D1C7BD]">
-                  <div className="text-sm text-white">Activa filtros para comenzar</div>
+                  <div className="text-sm text-white">Mostrando propiedades activas</div>
                   <div className="mt-1">
-                    Selecciona operacion, tipo o publicador para mostrar puntos en el mapa.
+                    Usá los filtros para ajustar operación, tipo, publicador o servicios cercanos.
                   </div>
                 </div>
               )}
-              {sessionUser && listStatus === "idle" && hasActiveFilters && filtered.length === 0 && (
+              {listStatus === "idle" && hasActiveFilters && filtered.length === 0 && (
                 <div className="mt-3 rounded-2xl border border-[#AF8C5C]/35 bg-night-900/38 px-4 py-4 text-xs text-[#D1C7BD]">
                   <div className="text-sm text-white">No encontramos coincidencias</div>
                   <div className="mt-1">
-                    Prueba aflojando algun filtro o limpiando la seleccion actual.
+                    Probá aflojando algún filtro o limpiando la selección actual.
                   </div>
                 </div>
               )}
@@ -1023,8 +992,8 @@ export function MapSearchPage() {
         </section>
       </div>
       {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-[1300] bg-black/70 p-4 pb-[calc(6.6rem+env(safe-area-inset-bottom))] lg:hidden">
-          <div className="glass-card mx-auto flex h-full max-h-[82vh] w-full max-w-md flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[1300] bg-night-950 p-4 pb-[calc(6.6rem+env(safe-area-inset-bottom))] lg:hidden">
+          <div className="mx-auto flex h-full max-h-[82vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
                 <div className="text-sm text-white">Filtros</div>
@@ -1056,6 +1025,7 @@ export function MapSearchPage() {
     </div>
   );
 }
+
 
 
 

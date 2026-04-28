@@ -335,11 +335,6 @@ export function AgencyProfilePage() {
   }, [listingsUrl, slug]);
 
   const openModal = (listing: SearchListing) => {
-    if (!sessionUser) {
-      addToast("Inicia sesión para ver la ficha completa.", "warning");
-      navigate("/login");
-      return;
-    }
     navigate(`/publicacion/${listing.id}`);
   };
 
@@ -378,7 +373,7 @@ export function AgencyProfilePage() {
       }
       const method = detail.contactMethods?.find((item) => item.type === "WHATSAPP");
       if (!method?.value) {
-        addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
+        addToast("No hay WhatsApp disponible en esta publicación.", "warning");
         navigate(`/publicacion/${listing.id}`);
         return;
       }
@@ -1004,6 +999,7 @@ export function AgencyProfilePage() {
     </div>
   );
 }
+
 
 
 

@@ -1,4 +1,4 @@
-import { lazy, useEffect, useMemo, useRef, useState } from "react";
+﻿import { lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
@@ -54,7 +54,7 @@ export function ListingPage() {
       try {
         const response = await fetch(`${env.apiUrl}/properties/${id}`);
         if (!response.ok) {
-          throw new Error("No pudimos cargar la publicacion.");
+          throw new Error("No pudimos cargar la publicación.");
         }
         const data = (await response.json()) as PropertyApiDetail;
         if (ignore) return;
@@ -145,33 +145,15 @@ export function ListingPage() {
     return false;
   }, [listing, sessionUser]);
 
-  if (!sessionUser) {
-    return (
-      <div className="glass-card space-y-4 p-6">
-        <h2 className="text-xl text-white">Necesitas una cuenta</h2>
-        <p className="text-sm text-[#D1C7BD]">
-          Inicia sesión para ver la ficha completa de la propiedad.
-        </p>
-        <button
-          className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-xs font-semibold text-night-900"
-          type="button"
-          onClick={() => navigate("/login")}
-        >
-          Ir a login
-        </button>
-      </div>
-    );
-  }
-
   if (status === "loading") {
-    return <p className="text-xs text-[#D1C7BD]">Cargando publicacion...</p>;
+    return <p className="text-xs text-[#D1C7BD]">Cargando publicación...</p>;
   }
   if (status === "error" || !listing) {
     return <p className="text-xs text-[#AF8C5C]">{error || "No encontrada."}</p>;
   }
 
   const handleReportProperty = async (reason: string) => {
-    if (!token) {
+    if (!token || !sessionUser) {
       throw new Error("Inicia sesión para reportar.");
     }
     const response = await fetch(`${env.apiUrl}/properties/${listing.id}/report`, {
@@ -205,7 +187,7 @@ export function ListingPage() {
   };
 
   const handleInterest = async () => {
-    if (!token) {
+    if (!token || !sessionUser) {
       setContactStatus("error");
       setContactMessage("Inicia sesión para enviar la solicitud.");
       addToast("Inicia sesión para enviar la solicitud.", "warning");
@@ -222,8 +204,8 @@ export function ListingPage() {
     }
     if (alreadySentInterest) {
       setContactStatus("success");
-      setContactMessage("Ya enviaste una solicitud para esta publicacion.");
-      addToast("Ya enviaste una solicitud para esta publicacion.", "info");
+      setContactMessage("Ya enviaste una solicitud para esta publicación.");
+      addToast("Ya enviaste una solicitud para esta publicación.", "info");
       setInterestPresetOpen(false);
       return;
     }
@@ -282,6 +264,21 @@ export function ListingPage() {
                 if (!link) {
                   return null;
                 }
+                if (!sessionUser) {
+                  return (
+                    <button
+                      key={contact.id}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:w-auto"
+                      type="button"
+                      onClick={() => {
+                        addToast("Inicia sesión para contactar por WhatsApp.", "warning");
+                        navigate("/login");
+                      }}
+                    >
+                      WhatsApp
+                    </button>
+                  );
+                }
                 return (
                   <a
                     key={contact.id}
@@ -304,6 +301,21 @@ export function ListingPage() {
                 );
               }
               if (contact.type === "PHONE") {
+                if (!sessionUser) {
+                  return (
+                    <button
+                      key={contact.id}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] sm:w-auto"
+                      type="button"
+                      onClick={() => {
+                        addToast("Inicia sesión para ver el teléfono.", "warning");
+                        navigate("/login");
+                      }}
+                    >
+                      Llamar
+                    </button>
+                  );
+                }
                 return (
                   <a
                     key={contact.id}
@@ -388,3 +400,5 @@ export function ListingPage() {
     </LazySection>
   );
 }
+
+

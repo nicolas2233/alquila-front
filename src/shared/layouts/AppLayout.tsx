@@ -448,7 +448,7 @@ export function AppLayout() {
               <div className="font-display text-xl text-white">DomusBrag</div>
               <p className="text-sm text-[#D1C7BD]">
                 Plataforma digital de publicaciones y contacto inmobiliario para Bragado. Conectamos personas con su
-                proxima vivienda de forma clara y directa.
+                próxima vivienda de forma clara y directa.
               </p>
               <div className="text-xs text-[#7b756d]">© 2026 DomusBrag. Todos los derechos reservados.</div>
             </div>
@@ -460,14 +460,14 @@ export function AppLayout() {
                   className="text-left text-[#E7E2DD] hover:text-white"
                   onClick={() => setShowTerms(true)}
                 >
-                  Terminos y condiciones
+                  Términos y condiciones
                 </button>
                 <button
                   type="button"
                   className="text-left text-[#E7E2DD] hover:text-white"
                   onClick={() => setShowPrivacy(true)}
                 >
-                  Politica de privacidad
+                  Política de privacidad
                 </button>
                 <Link to="/legal/publicaciones" className="text-left text-[#E7E2DD] hover:text-white">
                   Publicaciones y denuncias
@@ -479,7 +479,7 @@ export function AppLayout() {
                   to="/legal/arrepentimiento"
                   className="text-left text-[#E7E2DD] hover:text-white"
                 >
-                  Boton de arrepentimiento
+                  Botón de arrepentimiento
                 </Link>
                 <Link
                   to="/legal/baja-servicio"

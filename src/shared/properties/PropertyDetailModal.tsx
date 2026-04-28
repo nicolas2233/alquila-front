@@ -664,14 +664,14 @@ export function PropertyDetailModal({
     <div
       className={
         isModal
-          ? "fixed inset-0 z-[1300] flex items-center justify-center bg-black/90 px-0 py-0 backdrop-blur-sm sm:px-4 sm:py-8"
+          ? "fixed inset-0 z-[1300] flex items-center justify-center bg-night-950 px-0 py-0 sm:px-4 sm:py-8"
           : "w-full"
       }
     >
       <div
         className={
           isModal
-            ? "relative w-full max-w-4xl h-screen overflow-y-auto rounded-none border border-white/10 bg-night-950/98 shadow-card sm:h-[calc(100vh-2rem)] sm:rounded-3xl md:max-h-[90vh] md:overflow-hidden"
+            ? "relative w-full max-w-4xl h-screen overflow-y-auto rounded-none border border-white/10 bg-night-900 shadow-card sm:h-[calc(100vh-2rem)] sm:rounded-3xl md:max-h-[90vh] md:overflow-hidden"
             : "relative w-full overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card"
         }
       >
@@ -1246,8 +1246,8 @@ export function PropertyDetailModal({
                   <div className="mt-3 space-y-2">
                     <div className="text-xs text-[#D1C7BD]">
                       {reportTarget === "PROPERTY"
-                        ? "Describi el problema con la publicacion."
-                        : "Describi el problema con el usuario."}
+                        ? "Describí el problema con la publicación."
+                        : "Describí el problema con el usuario."}
                     </div>
                     <textarea
                       value={reportReason}
@@ -1293,7 +1293,7 @@ export function PropertyDetailModal({
       </div>
       {showImageZoom && activeImageUrl && (
         <div
-          className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/92 p-3 sm:p-6"
+          className="fixed inset-0 z-[1450] flex items-center justify-center bg-night-950 p-3 sm:p-6"
           onClick={() => setShowImageZoom(false)}
         >
           <div
@@ -1357,11 +1357,11 @@ export function PropertyDetailModal({
       )}
       {showMapZoom && hasMapLocation && mapCenter && (
         <div
-          className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/90 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-[1450] flex items-center justify-center bg-night-950 p-3 sm:p-6"
           onClick={() => setShowMapZoom(false)}
         >
           <div
-            className="w-full max-w-6xl rounded-3xl border border-white/10 bg-night-950/98 p-3 shadow-soft sm:p-4"
+            className="w-full max-w-6xl rounded-3xl border border-white/10 bg-night-900 p-3 shadow-soft sm:p-4"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -1410,6 +1410,7 @@ export function PropertyDetailModal({
     </div>
   );
 }
+
 
 
 

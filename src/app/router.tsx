@@ -141,6 +141,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      { path: "*", element: withSuspense(<NotFoundPage />) },
     ],
   },
   { path: "*", element: withSuspense(<NotFoundPage />) },

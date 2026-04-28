@@ -292,7 +292,7 @@ export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) 
     <div
       className={
         isExpanded
-          ? "fixed inset-0 z-[1350] bg-black/85 p-3 backdrop-blur-sm sm:p-5"
+          ? "fixed inset-0 z-[1350] bg-night-950 p-3 sm:p-5"
           : "relative z-0"
       }
     >

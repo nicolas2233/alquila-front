@@ -18,26 +18,34 @@ const PLAN_LIMIT_COUNTED_STATUSES = ["DRAFT", "ACTIVE", "PAUSED", "TEMPORARILY_U
 
 const steps = [
   {
-    title: "Datos basicos",
-    description: "Título, descripción, operación y precio.",
+    title: "Datos básicos",
+    description: "Título, operación, precio y descripción.",
   },
   {
     title: "Ubicación",
-    description: "Dirección, localidad, partido, barrio y mapa.",
+    description: "Dirección, localidad y punto del mapa.",
   },
   {
     title: "Características",
-    description: "Ambientes y datos segun tipo.",
+    description: "Superficie, ambientes y detalles del inmueble.",
   },
   {
     title: "Servicios y costos",
-    description: "Servicios y expensas si aplican.",
+    description: "Servicios disponibles y costos complementarios.",
   },
   {
-    title: "Contacto",
-    description: "WhatsApp y teléfono.",
+    title: "Fotos y contacto",
+    description: "Imágenes, WhatsApp, teléfono y vista previa.",
   },
 ];
+
+const stepTips = [
+  "Usá un título claro y una descripción simple. Lo importante es que se entienda qué se ofrece y a qué precio.",
+  "Primero buscá una dirección aproximada y después revisá el punto del mapa. La ubicación queda protegida después de publicar.",
+  "Cargá la superficie total y solo los detalles que aporten valor. No hace falta completar campos que no apliquen.",
+  "Marcá los servicios disponibles. Si no sabés alguno, podés dejarlo sin seleccionar.",
+  "Subí fotos nítidas y dejá al menos un canal de contacto. Antes de publicar podés abrir la vista previa.",
+] as const;
 
 type SummaryHighlightOption = {
   key: string;
@@ -259,7 +267,8 @@ export function PublishPage() {
   const planUsageInitialCheckRef = useRef(false);
   const [step, setStep] = useState<Step>(0);
   const [showErrors, setShowErrors] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  const previewRef = useRef<HTMLDivElement | null>(null);
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showLocationReviewModal, setShowLocationReviewModal] = useState(false);
@@ -275,6 +284,18 @@ export function PublishPage() {
   });
   const [draggingSummaryKey, setDraggingSummaryKey] = useState<string | null>(null);
   const [dragOverSummaryKey, setDragOverSummaryKey] = useState<string | null>(null);
+
+  const togglePreview = useCallback(() => {
+    setShowPreview((current) => {
+      const next = !current;
+      if (next) {
+        window.setTimeout(() => {
+          previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 0);
+      }
+      return next;
+    });
+  }, []);
 
   const [title, setTitle] = useState("");
   const [operationType, setOperationType] = useState("SALE");
@@ -321,6 +342,7 @@ export function PublishPage() {
     (isOwner || isAgency) &&
     !!subscriptionInfo &&
     subscriptionMonthlyPrice > 0 &&
+    !subscriptionInfo.isAdminGrantActive &&
     !subscriptionInfo.hasPaymentMethod;
 
   const photoPreviews = useMemo(
@@ -774,7 +796,7 @@ export function PublishPage() {
       case "OFFICE":
         return "Oficina";
       case "WAREHOUSE":
-        return "Galpon / Deposito";
+        return "Galpón / Depósito";
       default:
         return "Inmueble";
     }
@@ -1273,6 +1295,52 @@ export function PublishPage() {
   const whatsappError = showErrors && !whatsappValid;
   const phoneError = showErrors && !phoneValid;
 
+  const stepMissingLabels = useMemo(() => {
+    if (step === 0) {
+      return [
+        !titleValid ? "título" : null,
+        !descriptionValid ? "descripción" : null,
+        !priceValid ? "precio" : null,
+      ].filter(Boolean) as string[];
+    }
+    if (step === 1) {
+      return [
+        !addressValid ? "dirección" : null,
+        !localityValid ? "localidad" : null,
+      ].filter(Boolean) as string[];
+    }
+    if (step === 2) {
+      return [
+        !areaValid ? "superficie total" : null,
+        !roomsValid ? "ambientes" : null,
+        !bathroomsValid ? "baños" : null,
+        !bedroomsValid ? "dormitorios" : null,
+      ].filter(Boolean) as string[];
+    }
+    if (step === 4) {
+      return [
+        contactRequired ? "WhatsApp o teléfono" : null,
+        !whatsappValid ? "WhatsApp válido" : null,
+        !phoneValid ? "teléfono válido" : null,
+      ].filter(Boolean) as string[];
+    }
+    return [];
+  }, [
+    step,
+    titleValid,
+    descriptionValid,
+    priceValid,
+    addressValid,
+    localityValid,
+    areaValid,
+    roomsValid,
+    bathroomsValid,
+    bedroomsValid,
+    contactRequired,
+    whatsappValid,
+    phoneValid,
+  ]);
+
   const canNext = useMemo(() => {
     if (step === 0) {
       return titleValid && descriptionValid && priceValid;
@@ -1530,7 +1598,7 @@ export function PublishPage() {
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#D1C7BD]">
-        <span>Direccion aproximada</span>
+        <span>Dirección aproximada</span>
         <button
           type="button"
           className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
@@ -1665,7 +1733,7 @@ export function PublishPage() {
 
       if (!isEditMode && planHasLimit && planSlotsRemaining !== null && planSlotsRemaining <= 0) {
         throw new Error(
-          `Alcanzaste el limite de tu plan (${subscriptionInfo?.planName ?? subscriptionInfo?.planCode ?? "actual"}). Libera una publicacion o mejora tu plan.`
+          `Alcanzaste el límite de tu plan (${subscriptionInfo?.planName ?? subscriptionInfo?.planCode ?? "actual"}). Liberá una publicación o mejorá tu plan.`
         );
       }
       if (paidPlanRequiresPaymentMethod) {
@@ -1858,9 +1926,9 @@ export function PublishPage() {
           if (Array.isArray(data.issues) && data.issues.length > 0) {
             const fieldLabels: Record<string, string> = {
               title: "Título",
-              description: "Descripcion",
+              description: "Descripción",
               propertyType: "Tipo de inmueble",
-              operationType: "Operacion",
+              operationType: "Operación",
               priceAmount: "Precio",
               priceCurrency: "Moneda",
               expensesAmount: "Expensas",
@@ -1877,7 +1945,7 @@ export function PublishPage() {
               "location.lat": "Latitud",
               "location.lng": "Longitud",
               "features.financingAmount": "Monto financiable",
-              "features.financingCurrency": "Moneda de financiacion",
+              "features.financingCurrency": "Moneda de financiación",
               "features.ageYears": "Antiguedad",
               "features.coveredAreaM2": "Superficie cubierta",
               "features.semiCoveredAreaM2": "Superficie semicubierta",
@@ -1892,7 +1960,7 @@ export function PublishPage() {
               "features.party": "Partido",
               "features.province": "Provincia",
               "features.neighborhood": "Barrio",
-              "features.postalCode": "Codigo postal",
+              "features.postalCode": "Código postal",
               "features.lotOrParcel": "Lote/Partida",
               "features.frontageM": "Frente",
               "features.depthM": "Fondo",
@@ -2143,7 +2211,7 @@ export function PublishPage() {
             </p>
             <div className="mt-3 space-y-2">
               <div className="flex justify-between gap-3">
-                <span>Operacion</span>
+                <span>Operación</span>
                 <span className="text-white">{operationLabel}</span>
               </div>
               <div className="flex justify-between gap-3">
@@ -2188,6 +2256,45 @@ export function PublishPage() {
             <span className="hidden rounded-full border border-white/15 px-3 py-1 text-xs text-[#D1C7BD] sm:inline-flex">
               Tiempo estimado: 5 min
             </span>
+            <button
+              type="button"
+              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+              onClick={togglePreview}
+            >
+              {showPreview ? "Ocultar vista previa" : "Ver vista previa"}
+            </button>
+          </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-night-900/45 px-4 py-3 text-xs leading-relaxed text-[#D1C7BD]">
+            {stepTips[step]}
+          </div>
+          {showErrors && stepMissingLabels.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-red-300/25 bg-red-500/8 px-4 py-3 text-xs text-red-100">
+              <span className="font-semibold text-white">Falta completar: </span>
+              {stepMissingLabels.join(", ")}.
+            </div>
+          )}
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 md:hidden">
+            {steps.map((item, index) => {
+              const current = step === index;
+              const completed = stepCompletion[index];
+              return (
+                <button
+                  key={`${item.title}-mobile`}
+                  type="button"
+                  onClick={() => handleGoToStep(index as Step)}
+                  className={`min-w-[132px] rounded-2xl border px-3 py-2 text-left text-xs ${
+                    current
+                      ? "border-gold-500/60 bg-gold-500/12 text-white"
+                      : "border-white/10 bg-night-900/42 text-[#D1C7BD]"
+                  }`}
+                >
+                  <span className="block text-[10px] uppercase tracking-[0.12em] text-[#AF8C5C]">
+                    {completed ? "Listo" : `Paso ${index + 1}`}
+                  </span>
+                  <span className="mt-1 block truncate font-medium">{item.title}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         {paidPlanRequiresPaymentMethod && (
@@ -2210,15 +2317,16 @@ export function PublishPage() {
                     data-error={titleError ? "true" : undefined}
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Ej: Casa de 3 ambientes con patio"
                   />
                   {titleError && (
                     <span className="text-[11px] text-red-300">
-                      Obligatorio. Minimo 3 caracteres.
+                      Obligatorio. Mínimo 3 caracteres.
                     </span>
                   )}
                 </label>
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Operacion
+                Operación
                 <select
                   className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                   value={operationType}
@@ -2243,7 +2351,7 @@ export function PublishPage() {
                   <option value="QUINTA">Quinta</option>
                   <option value="COMMERCIAL">Comercial</option>
                   <option value="OFFICE">Oficina</option>
-                  <option value="WAREHOUSE">Deposito</option>
+                  <option value="WAREHOUSE">Depósito</option>
                 </select>
               </label>
             </div>
@@ -2281,13 +2389,14 @@ export function PublishPage() {
             </div>
 
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Descripcion
+                Descripción
                 <textarea
                   rows={4}
                   className={inputClass(descriptionError)}
                   data-error={descriptionError ? "true" : undefined}
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Contá lo más importante: estado, distribución, barrio, servicios y condiciones."
                 />
                 {descriptionError && (
                   <span className="text-[11px] text-red-300">Obligatorio.</span>
@@ -2347,7 +2456,7 @@ export function PublishPage() {
                       />
                     </label>
                     <label className="space-y-2 text-xs text-[#D1C7BD]">
-                      Moneda financiacion
+                      Moneda financiación
                       <select
                         className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                         value={financingCurrency}
@@ -2370,10 +2479,10 @@ export function PublishPage() {
               </h4>
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Garantias solicitadas
+                  Garantías solicitadas
                   <input
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                    placeholder="Ej: Garantia propietaria, recibo de sueldo"
+                    placeholder="Ej: Garantía propietaria, recibo de sueldo"
                     value={rentGuarantees}
                     onChange={(event) => setRentGuarantees(event.target.value)}
                   />
@@ -2391,7 +2500,7 @@ export function PublishPage() {
                   />
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Duracion del contrato (meses)
+                  Duración del contrato (meses)
                   <input
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     type="number"
@@ -2405,7 +2514,7 @@ export function PublishPage() {
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Indexacion cada
+                  Indexación cada
                   <select
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={rentIndexFrequency}
@@ -2419,7 +2528,7 @@ export function PublishPage() {
                   </select>
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Tipo de indexacion
+                  Tipo de indexación
                   <select
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={rentIndexType}
@@ -2452,7 +2561,7 @@ export function PublishPage() {
                   checked={rentInfoPublic}
                   onChange={(event) => setRentInfoPublic(event.target.checked)}
                 />
-                Mostrar esta informacion de forma publica
+                Mostrar esta información de forma pública
               </label>
             </div>
           )}
@@ -2482,7 +2591,7 @@ export function PublishPage() {
                   />
                   {addressError && (
                     <span className="text-[11px] text-red-300">
-                      Obligatorio. Minimo 3 caracteres.
+                      Obligatorio. Mínimo 3 caracteres.
                     </span>
                   )}
                 </label>
@@ -2542,7 +2651,7 @@ export function PublishPage() {
                 </select>
               </label>
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Codigo postal
+                Código postal
                 <input
                   className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                   value={postalCode}
@@ -3316,7 +3425,7 @@ export function PublishPage() {
                       checked={officeReception}
                       onChange={(event) => setOfficeReception(event.target.checked)}
                     />
-                    Recepcion
+                    Recepción
                   </label>
                   <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
                     <input
@@ -3333,7 +3442,7 @@ export function PublishPage() {
 
             {propertyType === "WAREHOUSE" && (
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-white">Galpon / deposito</h4>
+                <h4 className="text-sm font-semibold text-white">Galpón / depósito</h4>
                 <div className="grid gap-4 md:grid-cols-3">
                   <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
                     <input
@@ -3342,7 +3451,7 @@ export function PublishPage() {
                       checked={warehouseTruckAccess}
                       onChange={(event) => setWarehouseTruckAccess(event.target.checked)}
                     />
-                    Acceso camion
+                    Acceso camión
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
                     Altura (m)
@@ -3353,7 +3462,7 @@ export function PublishPage() {
                     />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
-                    Altura porton (m)
+                    Altura portón (m)
                     <input
                       className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                       value={warehouseGateHeight}
@@ -3470,13 +3579,31 @@ export function PublishPage() {
                 className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-[#E7E2DD]"
                 onChange={(event) => {
                   const files = event.target.files ? Array.from(event.target.files) : [];
-                  setPhotos(files.slice(0, 12));
+                  if (!files.length) return;
+                  setPhotos((prev) => {
+                    const next = [...prev, ...files];
+                    const deduped = next.filter(
+                      (file, index, all) =>
+                        all.findIndex(
+                          (item) =>
+                            item.name === file.name &&
+                            item.size === file.size &&
+                            item.lastModified === file.lastModified,
+                        ) === index,
+                    );
+                    return deduped.slice(0, 12);
+                  });
+                  event.target.value = "";
                 }}
               />
+              <p className="text-[11px] leading-relaxed text-[#D1C7BD]">
+                Podés elegir una foto o varias. Cada selección se suma a las anteriores hasta 12;
+                si alguna no te gusta, quitála desde la vista previa de abajo.
+              </p>
               {photos.length > 0 && (
                 <div className="space-y-3">
                   <div className="text-xs text-[#D1C7BD]">
-                    {photos.length} fotos seleccionadas.
+                    {photos.length}/12 fotos seleccionadas.
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {photoPreviews.map((item) => (
@@ -3521,12 +3648,12 @@ export function PublishPage() {
                 )}
                 {whatsappError && (
                   <span className="text-[11px] text-red-300">
-                    Debe tener al menos 6 digitos.
+                    Debe tener al menos 6 dígitos.
                   </span>
                 )}
               </label>
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Telefono
+                Teléfono
                 <input
                   className={inputClass(contactRequiredError || phoneError)}
                   data-error={contactRequiredError || phoneError ? "true" : undefined}
@@ -3540,7 +3667,7 @@ export function PublishPage() {
                 )}
                 {phoneError && (
                   <span className="text-[11px] text-red-300">
-                    Debe tener al menos 6 digitos.
+                    Debe tener al menos 6 dígitos.
                   </span>
                 )}
               </label>
@@ -3572,32 +3699,49 @@ export function PublishPage() {
               <button
                 type="button"
                 className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
-                onClick={() => setShowPreview(true)}
+                onClick={togglePreview}
               >
-                Ver ficha
+                {showPreview ? "Ocultar vista previa" : "Ver vista previa pública"}
               </button>
             </div>
           )}
 
           {showPreview && (
-            <PropertyDetailModal
-              listing={previewListing}
-              onClose={() => setShowPreview(false)}
-              actions={
-                <>
-                  <button className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-xs font-semibold text-night-900">
-                    WhatsApp
-                  </button>
-                  <button className="rounded-full border border-white/20 px-5 py-2 text-xs text-[#E7E2DD]">
-                    Guardar
-                  </button>
-                </>
-              }
-            />
+            <section ref={previewRef} className="space-y-3 rounded-3xl border border-white/10 bg-night-950/45 p-3 sm:p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3 px-1">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#AF8C5C]">
+                    Vista previa pública
+                  </p>
+                  <h3 className="mt-1 text-base font-semibold text-white">
+                    Así se verá la ficha antes de publicarla
+                  </h3>
+                  <p className="mt-1 text-xs text-[#D1C7BD]">
+                    Los botones de contacto quedan desactivados en esta vista.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                  onClick={() => setShowPreview(false)}
+                >
+                  Ocultar
+                </button>
+              </div>
+              <PropertyDetailModal
+                listing={previewListing}
+                variant="page"
+                actions={
+                  <div className="rounded-2xl border border-white/10 bg-night-950/45 px-4 py-3 text-xs text-[#D1C7BD]">
+                    Vista previa: al publicar, acá aparecerán las acciones de contacto.
+                  </div>
+                }
+              />
+            </section>
           )}
           {showMapPicker && !locationLockedInEdit && (
-            <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/70 p-4">
-              <div className="glass-card w-full max-w-2xl max-h-[88vh] overflow-y-auto space-y-4 p-4 md:p-6">
+            <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-night-950 p-4">
+              <div className="w-full max-w-2xl max-h-[88vh] overflow-y-auto space-y-4 rounded-3xl border border-white/10 bg-night-900 p-4 shadow-card md:p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg text-white">Marcar ubicación</h3>
@@ -3694,8 +3838,8 @@ export function PublishPage() {
         onCancel={cancelLocationReviewModal}
       />
       {showNoSlotsModal && (
-        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/78 px-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl border border-[#AF8C5C]/35 bg-night-950/98 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-night-950 px-4">
+          <div className="w-full max-w-lg rounded-3xl border border-[#AF8C5C]/35 bg-night-900 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
             <div className="border-b border-white/10 px-5 py-4 sm:px-6">
               <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
                 Cupo completo
@@ -3737,6 +3881,8 @@ export function PublishPage() {
     </div>
   );
 }
+
+
 
 
 

@@ -46,7 +46,7 @@ const propertyLabels: Record<string, string> = {
   QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
-  WAREHOUSE: "Deposito",
+  WAREHOUSE: "Depósito",
 };
 
 export function MyRequestsPage() {
@@ -205,8 +205,8 @@ export function MyRequestsPage() {
       )}
 
       {detailOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900/82 shadow-card">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-night-950 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
                 <h3 className="text-xl text-white">Detalle de solicitud</h3>
@@ -268,4 +268,5 @@ export function MyRequestsPage() {
     </div>
   );
 }
+
 

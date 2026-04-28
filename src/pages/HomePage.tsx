@@ -139,7 +139,7 @@ export function HomePage() {
                 Mapa interactivo con filtros
               </span>
               <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] text-[#E7E2DD]">
-                Verificacion de email
+                Verificación de email
               </span>
               <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] text-[#E7E2DD]">
                 Primer mes gratis en planes pagos
@@ -216,8 +216,8 @@ export function HomePage() {
               body: "Bloqueos y controles de ubicación para evitar que una publicación se reutilice como otro inmueble.",
             },
             {
-              title: "Busqueda clara",
-              body: "Filtros por operacion, tipo, publicador, zona, precio y mapa interactivo con clusters.",
+              title: "Búsqueda clara",
+              body: "Filtros por operación, tipo, publicador, zona, precio y mapa interactivo.",
             },
             {
               title: "Contacto real",
@@ -249,7 +249,7 @@ export function HomePage() {
               <h2 className="text-2xl text-white">Un producto local con reglas claras y escalable.</h2>
               <p className="text-sm text-[#D1C7BD]">
                 DomusBrag es una plataforma digital para publicaciones y contacto inmobiliario.
-                No intermedia operaciones: ordena la informacion, acelera el contacto y mejora la confianza.
+                No intermedia operaciones: ordena la información, acelera el contacto y mejora la confianza.
               </p>
               <p className="text-xs text-[#C7C2B8]">
                 Verificación de email, reportes, términos claros y flujos de suscripción pensados para crecer.
@@ -262,7 +262,7 @@ export function HomePage() {
             <div className="mt-4 space-y-4">
               {[
                 {
-                  title: "1. Crear cuenta segun tu perfil",
+                  title: "1. Crear cuenta según tu perfil",
                   body: "Buscador, dueño directo o inmobiliaria con onboarding y planes acordes a cada caso.",
                 },
                 {
@@ -302,7 +302,7 @@ export function HomePage() {
             },
             {
               title: "Dueños directos",
-              body: "Publica 1 inmueble gratis y luego escala con planes segun la cantidad que necesites.",
+              body: "Publicá 1 inmueble gratis y luego escalá con planes según la cantidad que necesites.",
               image:
                 "url('https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=900&q=80')",
             },
@@ -381,7 +381,7 @@ export function HomePage() {
             <h2 className="mt-3 text-2xl text-white">Reglas claras para cuidar la plataforma</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
-                "Verificacion de email y recuperacion de cuenta por mail.",
+                "Verificación de email y recuperación de cuenta por mail.",
                 "Reporte de usuarios/publicaciones desde la plataforma.",
                 "Bloqueo de cambios de ubicación en inmuebles ya publicados.",
                 "Términos, privacidad y políticas visibles desde la web.",

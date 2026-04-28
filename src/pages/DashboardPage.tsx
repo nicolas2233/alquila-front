@@ -68,7 +68,7 @@ const propertyLabels: Record<string, string> = {
   QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
-  WAREHOUSE: "Deposito",
+  WAREHOUSE: "Depósito",
 };
 
 function hexToRgba(hex: string, alpha: number) {
@@ -643,6 +643,7 @@ export function DashboardPage() {
     (subscription: typeof subscriptionInfo | null | undefined) => {
       if (!subscription) return false;
       if (Number(subscription.priceAmount ?? 0) <= 0) return false;
+      if (subscription.isAdminGrantActive) return true;
       return (
         Boolean(subscription.hasPaymentMethod) &&
         subscription.paymentProvider === "MERCADO_PAGO" &&
@@ -893,11 +894,52 @@ export function DashboardPage() {
     if (!subscriptionInfo) return false;
     if (Number(subscriptionInfo.priceAmount ?? 0) <= 0) return false;
     return (
+      Boolean(subscriptionInfo.isAdminGrantActive) ||
       Boolean(subscriptionInfo.hasPaymentMethod) &&
       subscriptionInfo.paymentProvider === "MERCADO_PAGO" &&
       subscriptionInfo.paymentProviderStatus !== "cancelled"
     );
   }, [subscriptionInfo]);
+  const isCurrentSubscriptionPaid = Boolean(
+    subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0,
+  );
+  const currentSubscriptionNeedsPaymentMethod = Boolean(
+    subscriptionInfo && isCurrentSubscriptionPaid && !isPaymentMethodReadyForPaidPlan,
+  );
+  const subscriptionCheckpointText = currentSubscriptionNeedsPaymentMethod
+    ? "Se define al activar el medio de pago"
+    : nextSubscriptionCheckpoint
+    ? nextSubscriptionCheckpoint.toLocaleDateString("es-AR")
+    : "A definir";
+  const subscriptionRevenueTitle = !subscriptionInfo
+    ? "Sin suscripción asociada"
+    : currentSubscriptionNeedsPaymentMethod
+    ? "Pendiente: activar medio de pago"
+    : subscriptionInfo.cancelAtPeriodEnd
+    ? "Baja programada"
+    : subscriptionInfo.isTrialActive
+    ? "Mes gratis activo"
+    : isCurrentSubscriptionPaid
+    ? "Cobro recurrente activo"
+    : "Plan gratuito activo";
+  const subscriptionRevenueDescription = !subscriptionInfo
+    ? "No encontramos un plan vinculado a esta cuenta."
+    : currentSubscriptionNeedsPaymentMethod
+    ? "El plan pago ya está elegido. Falta vincular Mercado Pago para iniciar el mes gratis y dejar listo el cobro futuro."
+    : subscriptionInfo.cancelAtPeriodEnd
+    ? "La cuenta mantiene el plan hasta la fecha de baja, pero no renovará automáticamente."
+    : subscriptionInfo.isTrialActive
+    ? "El primer mes está corriendo sin cobro. La próxima fecha indica cuándo empieza la renovación."
+    : isCurrentSubscriptionPaid
+    ? "El medio de pago está activo y la renovación queda preparada para el próximo período."
+    : "Podés pasar a un plan pago cuando necesites más cupo o exposición.";
+  const subscriptionPaymentLabel = currentSubscriptionNeedsPaymentMethod
+    ? "Pendiente"
+    : subscriptionInfo?.isAdminGrantActive
+    ? "Beneficio admin activo"
+    : isCurrentSubscriptionPaid
+    ? "Mercado Pago activo"
+    : "No requerido";
   const hasMercadoPagoEmbeddedCheckout = Boolean(env.mercadoPagoPublicKey);
   const isLocalFrontendRuntime =
     typeof window !== "undefined" &&
@@ -932,7 +974,6 @@ export function DashboardPage() {
       color: "#151515",
       fontSize: "16px",
       placeholderColor: "#9a948a",
-      height: "24px",
     }),
     []
   );
@@ -2139,6 +2180,7 @@ export function DashboardPage() {
       const result = await geocodeAddress(query);
       setAgencyLat(result.lat);
       setAgencyLng(result.lng);
+      setIsDirty(true);
       const locationParts = [result.locality, result.party, result.province].filter(
         (part, index, arr) => Boolean(part) && arr.indexOf(part) === index
       ) as string[];
@@ -2160,6 +2202,7 @@ export function DashboardPage() {
   const handleAgencyMapPointChange = async (nextLat: number, nextLng: number) => {
     setAgencyLat(nextLat);
     setAgencyLng(nextLng);
+    setIsDirty(true);
     setAgencyGeoStatus("loading");
     setAgencyGeoMessage("Buscando dirección del punto...");
     try {
@@ -2372,7 +2415,7 @@ export function DashboardPage() {
   const agencyProfileStep = agencyProfileTab === "data" ? 1 : 2;
 
   return (
-    <div className="relative" onChange={() => setIsDirty(true)}>
+    <div className="relative">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-[1250] bg-black/60 lg:hidden"
@@ -2587,7 +2630,7 @@ export function DashboardPage() {
       <div className="space-y-6 md:space-y-8">
 
       {activeSection === "profile" && isAgency && (
-        <div className="glass-card space-y-6 p-6 md:p-7">
+        <div className="glass-card space-y-6 p-6 md:p-7" onChangeCapture={() => setIsDirty(true)}>
           <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
             <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
               Perfil público inmobiliaria
@@ -2788,6 +2831,7 @@ export function DashboardPage() {
                     onClick={() => {
                       setAgencyLat(undefined);
                       setAgencyLng(undefined);
+                      setIsDirty(true);
                       setAgencyGeoStatus("idle");
                       setAgencyGeoMessage("");
                     }}
@@ -2983,6 +3027,7 @@ export function DashboardPage() {
                         reader.onload = () => {
                           if (typeof reader.result === "string") {
                             setAgencyLogo(reader.result);
+                            setIsDirty(true);
                           }
                         };
                         reader.readAsDataURL(file);
@@ -2992,7 +3037,10 @@ export function DashboardPage() {
                   <button
                     type="button"
                     className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
-                    onClick={() => setAgencyLogo("")}
+                    onClick={() => {
+                      setAgencyLogo("");
+                      setIsDirty(true);
+                    }}
                   >
                     Iniciales
                   </button>
@@ -3031,6 +3079,7 @@ export function DashboardPage() {
                         reader.onload = () => {
                           if (typeof reader.result === "string") {
                             setAgencyHeroImage(reader.result);
+                            setIsDirty(true);
                           }
                         };
                         reader.readAsDataURL(file);
@@ -3040,7 +3089,10 @@ export function DashboardPage() {
                   <button
                     type="button"
                     className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
-                    onClick={() => setAgencyHeroImage("")}
+                    onClick={() => {
+                      setAgencyHeroImage("");
+                      setIsDirty(true);
+                    }}
                   >
                     Quitar
                   </button>
@@ -3090,7 +3142,7 @@ export function DashboardPage() {
       )}
 
       {activeSection === "profile" && isOwner && (
-        <div className="glass-card space-y-4 p-6">
+        <div className="glass-card space-y-4 p-6" onChangeCapture={() => setIsDirty(true)}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Perfil de dueño</h3>
@@ -3148,7 +3200,10 @@ export function DashboardPage() {
                       key={emoji}
                       type="button"
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-night-900/48 text-base"
-                      onClick={() => setOwnerAvatarUrl(`emoji:${emoji}`)}
+                      onClick={() => {
+                        setOwnerAvatarUrl(`emoji:${emoji}`);
+                        setIsDirty(true);
+                      }}
                     >
                       {emoji}
                     </button>
@@ -3166,6 +3221,7 @@ export function DashboardPage() {
                         reader.onload = () => {
                           if (typeof reader.result === "string") {
                             setOwnerAvatarUrl(reader.result);
+                            setIsDirty(true);
                           }
                         };
                         reader.readAsDataURL(file);
@@ -3175,7 +3231,10 @@ export function DashboardPage() {
                   <button
                     type="button"
                     className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
-                    onClick={() => setOwnerAvatarUrl("")}
+                    onClick={() => {
+                      setOwnerAvatarUrl("");
+                      setIsDirty(true);
+                    }}
                   >
                     Iniciales
                   </button>
@@ -3303,29 +3362,11 @@ export function DashboardPage() {
               Actualizando tu suscripción...
             </div>
           ) : null}
-          {subscriptionInfo &&
-          Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
-          !isPaymentMethodReadyForPaidPlan ? (
-            <div className="relative overflow-hidden rounded-2xl border border-amber-300/35 bg-gradient-to-r from-amber-500/16 via-[#2a241f] to-[#1f1b18] p-4 text-sm text-amber-100 shadow-[0_16px_35px_rgba(245,158,11,0.08)]">
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-300/80 to-gold-300/30" />
-              <div className="pl-2">
-                <p className="font-semibold text-white">Falta activar el medio de pago</p>
-                <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-                  No te pedimos tarjeta para crear la cuenta. Para publicar con un plan pago
-                  necesitas cargar un medio de pago. <span className="font-semibold text-white">El primer mes gratis</span>{" "}
-                  se activa en ese momento.
-                </p>
-                <p className="mt-2 text-[11px] text-amber-100/80">
-                  Configura la facturación desde <span className="font-semibold text-white">Cambiar plan</span> antes de activar el cobro.
-                </p>
-              </div>
-            </div>
-          ) : null}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Mi suscripción</h3>
               <p className="text-xs text-[#D1C7BD]">
-                Estado del plan, primer mes gratis y capacidad disponible.
+                Estado del plan, cobro recurrente y capacidad disponible.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -3341,7 +3382,7 @@ export function DashboardPage() {
                 className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
                 onClick={() => void openPlanModal("downgrade")}
               >
-                Volver de plan
+                Bajar de plan
               </button>
               {subscriptionInfo &&
                 Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
@@ -3380,10 +3421,10 @@ export function DashboardPage() {
                     disabled={subscriptionActionStatus === "saving"}
                     className={`rounded-full border border-emerald-300/35 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-100 ${
                       subscriptionActionStatus === "saving" ? "opacity-70" : ""
-                    }`}
+                  }`}
                     onClick={() => void activatePaymentMethodAndTrial()}
                   >
-                    Agregar medio de pago (Mercado Pago) y activar mes gratis
+                    Activar medio de pago
                   </button>
                 )
               ) : (
@@ -3408,6 +3449,96 @@ export function DashboardPage() {
                     Verificar estado de Mercado Pago
                   </button>
                 )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Siguiente paso</p>
+                <h4 className="mt-1 text-lg font-semibold text-white">{subscriptionRevenueTitle}</h4>
+                <p className="mt-1 text-sm leading-relaxed text-[#D1C7BD]">
+                  {subscriptionRevenueDescription}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {currentSubscriptionNeedsPaymentMethod ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={subscriptionActionStatus === "saving"}
+                      className={`rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-950 ${
+                        subscriptionActionStatus === "saving" ? "opacity-70" : ""
+                      }`}
+                      onClick={() => void activatePaymentMethodAndTrial()}
+                    >
+                      Activar medio de pago
+                    </button>
+                    {subscriptionInfo?.paymentProvider === "MERCADO_PAGO" ? (
+                      <button
+                        type="button"
+                        disabled={subscriptionActionStatus === "saving" || subscriptionRefreshStatus === "loading"}
+                        className={`rounded-full border border-sky-300/35 bg-sky-500/10 px-4 py-2 text-xs text-sky-100 ${
+                          subscriptionActionStatus === "saving" || subscriptionRefreshStatus === "loading"
+                            ? "opacity-70"
+                            : ""
+                        }`}
+                        onClick={() => void syncPaymentStatusWithMercadoPago()}
+                      >
+                        Verificar Mercado Pago
+                      </button>
+                    ) : null}
+                  </>
+                ) : subscriptionInfo?.cancelAtPeriodEnd ? (
+                  <button
+                    type="button"
+                    disabled={subscriptionActionStatus === "saving"}
+                    className={`rounded-full border border-emerald-300/35 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-100 ${
+                      subscriptionActionStatus === "saving" ? "opacity-70" : ""
+                    }`}
+                    onClick={() => void resumeSubscriptionRenewal()}
+                  >
+                    Reactivar renovación
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={changePlanButtonClass}
+                    onClick={() => void openPlanModal("change")}
+                  >
+                    Ver planes
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">Plan</p>
+                <p className="mt-1 text-base font-semibold text-white">
+                  {subscriptionInfo?.planName ?? "Sin plan"}
+                </p>
+                <p className="mt-1 text-xs text-[#D1C7BD]">
+                  {isCurrentSubscriptionPaid
+                    ? currentBillingCycle === "ANNUAL"
+                      ? "Facturación anual"
+                      : "Facturación mensual"
+                    : "Sin cobro recurrente"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">Cupo</p>
+                <p className="mt-1 text-base font-semibold text-white">
+                  {planHasPropertyLimit ? `${planUsageCount}/${maxPropertiesByPlan}` : "Sin límite fijo"}
+                </p>
+                <p className="mt-1 text-xs text-[#D1C7BD]">
+                  {planHasPropertyLimit ? `${planSlotsRemaining} disponibles` : "Según configuración del plan"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">Cobro</p>
+                <p className="mt-1 text-base font-semibold text-white">{subscriptionPaymentLabel}</p>
+                <p className="mt-1 text-xs text-[#D1C7BD]">{subscriptionCheckpointText}</p>
+              </div>
             </div>
           </div>
 
@@ -3498,8 +3629,8 @@ export function DashboardPage() {
                       : subscriptionInfo.isTrialActive
                       ? `Mes gratis en curso · ${subscriptionInfo.trialDaysRemaining} días restantes (no se cobra ahora)`
                       : subscriptionInfo.trialEndsAt
-                      ? `Trial finalizado · vencio ${new Date(subscriptionInfo.trialEndsAt).toLocaleDateString("es-AR")}`
-                      : "Sin periodo promocional activo"}
+                      ? `Trial finalizado · venció ${new Date(subscriptionInfo.trialEndsAt).toLocaleDateString("es-AR")}`
+                      : "Sin período promocional activo"}
                   </p>
                   {!isPaymentMethodReadyForPaidPlan &&
                     Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
@@ -3670,7 +3801,7 @@ export function DashboardPage() {
                 <option value="QUINTA">Quinta</option>
                 <option value="COMMERCIAL">Comercio</option>
                 <option value="OFFICE">Oficina</option>
-                <option value="WAREHOUSE">Deposito</option>
+                <option value="WAREHOUSE">Depósito</option>
               </select>
             </label>
             <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -3874,7 +4005,7 @@ export function DashboardPage() {
                 <option value="QUINTA">Quinta</option>
                 <option value="COMMERCIAL">Comercio</option>
                 <option value="OFFICE">Oficina</option>
-                <option value="WAREHOUSE">Deposito</option>
+                <option value="WAREHOUSE">Depósito</option>
               </select>
             </label>
             <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -4116,7 +4247,7 @@ export function DashboardPage() {
         </div>
       )}
       {paymentMethodModalOpen && (
-        <div className="fixed inset-0 z-[1320] flex items-end justify-center bg-black/90 px-3 py-3 backdrop-blur-md sm:items-center sm:px-4 sm:py-6">
+        <div className="fixed inset-0 z-[1320] flex items-end justify-center bg-night-950 px-3 py-3 sm:items-center sm:px-4 sm:py-6">
           <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#191613] shadow-[0_30px_80px_rgba(0,0,0,0.58)] sm:max-h-[calc(100svh-3rem)] sm:rounded-3xl">
             <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-[#211c18]/98 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
               <div className="flex items-start justify-between gap-3">
@@ -4172,11 +4303,9 @@ export function DashboardPage() {
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
                       Mercado Pago
                     </div>
-                    <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="mb-4 flex items-start justify-between gap-3 pr-28">
                       <div className="h-11 w-14 rounded-lg border border-white/15 bg-gradient-to-br from-white/20 to-white/5" />
-                      <div className="pr-28 text-right text-[10px] uppercase tracking-[0.18em] text-white/70">
-                        DomusBrag
-                      </div>
+                      <div />
                     </div>
                     <div className="rounded-xl border border-white/15 bg-black/15 px-3 py-2 text-lg tracking-[0.2em] text-white shadow-inner sm:text-xl">
                       •••• •••• •••• ••••
@@ -4365,7 +4494,7 @@ export function DashboardPage() {
         </div>
       )}
       {planModalOpen && (
-        <div className="fixed inset-0 z-[1300] flex items-end justify-center bg-black/88 px-3 py-3 backdrop-blur-md sm:items-center sm:px-4 sm:py-6">
+        <div className="fixed inset-0 z-[1300] flex items-end justify-center bg-night-950 px-3 py-3 sm:items-center sm:px-4 sm:py-6">
           <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:max-h-[calc(100svh-3rem)]">
             <div className="shrink-0 border-b border-white/10 bg-[#211c18] px-4 py-4 sm:px-6">
               <div className="flex items-start justify-between gap-3">
@@ -4609,7 +4738,7 @@ export function DashboardPage() {
         </div>
       )}
       {quickEditOpen && (
-        <div className="fixed inset-0 z-[1300] flex items-start justify-center overflow-y-auto bg-black/85 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+        <div className="fixed inset-0 z-[1300] flex items-start justify-center overflow-y-auto bg-night-950 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
           <div className="my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-night-900/90 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
@@ -4859,7 +4988,7 @@ export function DashboardPage() {
         </div>
       )}
       {requestDetailOpen && selectedRequest && (
-        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4 py-6">
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-night-950 px-4 py-6">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
             <div className="flex items-center justify-between border-b border-white/10 bg-[#211c18] px-6 py-4">
               <div>
@@ -5038,6 +5167,7 @@ export function DashboardPage() {
     </div>
   );
 }
+
 
 
 

@@ -45,7 +45,7 @@ const propertyFilterLabels = {
   FIELD: "Campo",
   QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
-  WAREHOUSE: "Deposito",
+  WAREHOUSE: "Depósito",
   OFFICE: "Oficina",
 } as const;
 
@@ -615,11 +615,6 @@ export function SearchPage() {
   };
 
   const openModal = async (listing: SearchListing) => {
-    if (!sessionUser) {
-      addToast("Inicia sesión para ver la ficha completa.", "warning");
-      navigate("/login");
-      return;
-    }
     trackEvent("view_listing", {
       propertyId: listing.id,
       operation: listing.operation,
@@ -644,7 +639,7 @@ export function SearchPage() {
       }
       const method = detail.contactMethods?.find((item) => item.type === "WHATSAPP");
       if (!method?.value) {
-        addToast("No hay WhatsApp disponible en esta publicacion.", "warning");
+        addToast("No hay WhatsApp disponible en esta publicación.", "warning");
         navigate(`/publicacion/${listing.id}`);
         return;
       }
@@ -729,7 +724,7 @@ export function SearchPage() {
             <option value="FIELD">Campo</option>
             <option value="QUINTA">Quinta</option>
             <option value="COMMERCIAL">Comercio</option>
-            <option value="WAREHOUSE">Deposito</option>
+            <option value="WAREHOUSE">Depósito</option>
             <option value="OFFICE">Oficina</option>
           </select>
         </label>
@@ -852,17 +847,17 @@ export function SearchPage() {
   );
   return (
     <div className="space-y-4 md:space-y-8">
-      <section className="relative h-[48svh] min-h-[280px] w-full overflow-hidden rounded-[24px] border border-white/15 md:h-[62svh] md:min-h-[380px] md:rounded-[30px] lg:-mt-8 xl:-mt-10">
+      <section className="relative h-[36svh] min-h-[230px] w-full overflow-hidden rounded-[24px] border border-white/15 md:h-[44svh] md:min-h-[300px] md:rounded-[30px] lg:-mt-8 xl:-mt-10">
         <div className="absolute inset-0 bg-hero bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/62" />
         <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-4 text-center sm:px-6">
           <div className="space-y-3 md:space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">DomusBrag Search</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Buscar propiedades</p>
             <h2 className="font-display text-3xl leading-tight text-white sm:text-4xl md:text-5xl">
               Búsqueda en Bragado
             </h2>
             <p className="mx-auto max-w-2xl text-xs text-[#E7E2DD] sm:text-sm md:text-base">
-              Explora inmuebles con filtros claros, contacto directo y datos ordenados.
+              Propiedades en Bragado con filtros claros, fotos, ubicación y contacto rápido.
             </p>
             <div className="flex justify-center">
               <span className="gold-pill">Resultados actualizados</span>
@@ -907,7 +902,7 @@ export function SearchPage() {
       <section className="space-y-3 md:space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Partners locales</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Inmobiliarias locales</p>
             <h3 className="text-xl text-white">Inmobiliarias en Bragado</h3>
           </div>
           <span className="hidden text-xs text-[#D1C7BD] md:inline">Deslizá para explorar</span>
@@ -989,7 +984,7 @@ export function SearchPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Resultados</h3>
-              <p className="text-xs text-[#D1C7BD]">Ordenados por relevancia y actualizacion.</p>
+              <p className="text-xs text-[#D1C7BD]">Ordenados por relevancia y actualización.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="hidden text-xs text-[#D1C7BD] sm:inline">Vista</span>
@@ -1600,8 +1595,8 @@ export function SearchPage() {
       </div>
 
       {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-[1300] bg-black/70 p-4 lg:hidden">
-          <div className="glass-card mx-auto flex h-full max-h-[85vh] w-full max-w-md flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[1300] bg-night-950 p-4 lg:hidden">
+          <div className="mx-auto flex h-full max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
                 <div className="text-sm text-white">Filtros</div>
@@ -1634,6 +1629,7 @@ export function SearchPage() {
     </div>
   );
 }
+
 
 
 

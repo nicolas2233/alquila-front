@@ -1,4 +1,4 @@
-export const statusLabels: Record<string, string> = {
+﻿export const statusLabels: Record<string, string> = {
   DRAFT: "Borrador",
   ACTIVE: "Activa",
   PAUSED: "Pausada",
@@ -49,5 +49,6 @@ export const propertyLabels: Record<string, string> = {
   QUINTA: "Quinta",
   COMMERCIAL: "Comercio",
   OFFICE: "Oficina",
-  WAREHOUSE: "Deposito",
+  WAREHOUSE: "Depósito",
 };
+

@@ -13,6 +13,10 @@ export type SessionUser = {
     planCode: string;
     planName: string;
     maxProperties: number;
+    baseMaxProperties?: number;
+    adminGrantedExtraProperties?: number;
+    adminGrantedUntil?: string | null;
+    isAdminGrantActive?: boolean;
     priceAmount: number;
     priceCurrency: string;
     billingCycle?: "MONTHLY" | "ANNUAL" | string;

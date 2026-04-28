@@ -73,7 +73,7 @@ const planOptions = [
     price: "$0",
     description: "Ideal para empezar y explorar.",
     promo: "",
-    perks: ["Busqueda", "Guardados", "Alertas"],
+    perks: ["Búsqueda", "Guardados", "Alertas"],
   },
   {
     key: "bronce",
@@ -509,7 +509,7 @@ export function RegisterPage() {
                 </p>
                 <p className="text-[11px] leading-tight text-[#D1C7BD]">
                   No te pedimos tarjeta para crear la cuenta. En planes pagos se solicita el medio
-                  de pago al momento de publicar y ahi se activa el primer mes gratis.
+                  de pago al momento de publicar y ahí se activa el primer mes gratis.
                 </p>
               </div>
             )}
@@ -723,7 +723,7 @@ export function RegisterPage() {
                   </p>
                   <p className="text-[11px] leading-tight text-[#D1C7BD]">
                     No te pedimos tarjeta para crear la cuenta. En planes pagos se solicita el
-                    medio de pago al momento de publicar y ahi se activa el primer mes gratis.
+                    medio de pago al momento de publicar y ahí se activa el primer mes gratis.
                   </p>
                 </div>
               )}
@@ -855,5 +855,6 @@ export function RegisterPage() {
     </div>
   );
 }
+
 
 

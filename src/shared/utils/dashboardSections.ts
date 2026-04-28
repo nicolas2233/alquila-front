@@ -1,4 +1,4 @@
-export type PanelSection = "profile" | "listings" | "requests" | "my-requests";
+﻿export type PanelSection = "profile" | "listings" | "requests" | "my-requests";
 
 export const getSectionTitle = (section: PanelSection, isAgency: boolean) => {
   if (section === "profile") {
@@ -15,10 +15,12 @@ export const getSectionTitle = (section: PanelSection, isAgency: boolean) => {
 
 export const getSectionSubtitle = (section: PanelSection) => {
   if (section === "profile") {
-    return "Actualiza tus datos y la informaci?n visible.";
+    return "Actualizá tus datos y la información visible.";
   }
   if (section === "listings") {
     return "Controla estados, disponibilidad y contactos.";
   }
   return "Gestiona las solicitudes recibidas.";
 };
+
+

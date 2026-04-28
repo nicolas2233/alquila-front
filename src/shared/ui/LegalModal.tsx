@@ -10,8 +10,8 @@ export function LegalModal({ open, title, subtitle, onClose, children }: LegalMo
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/82 px-4 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-950/96 shadow-card">
+    <div className="fixed inset-0 z-[1800] flex items-center justify-center bg-night-950 px-4 py-6">
+      <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
             <h3 className="text-xl text-white">{title}</h3>
