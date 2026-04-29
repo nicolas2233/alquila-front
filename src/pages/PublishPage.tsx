@@ -39,14 +39,6 @@ const steps = [
   },
 ];
 
-const stepTips = [
-  "Usá un título claro y una descripción simple. Lo importante es que se entienda qué se ofrece y a qué precio.",
-  "Primero buscá una dirección aproximada y después revisá el punto del mapa. La ubicación queda protegida después de publicar.",
-  "Cargá la superficie total y solo los detalles que aporten valor. No hace falta completar campos que no apliquen.",
-  "Marcá los servicios disponibles. Si no sabés alguno, podés dejarlo sin seleccionar.",
-  "Subí fotos nítidas y dejá al menos un canal de contacto. Antes de publicar podés abrir la vista previa.",
-] as const;
-
 type SummaryHighlightOption = {
   key: string;
   label: string;
@@ -1548,75 +1540,60 @@ export function PublishPage() {
   };
 
   const approximateAddressPanel = (
-    <div className="space-y-3 rounded-2xl border border-[#AF8C5C]/35 bg-night-900/40 p-4">
-      <div className="space-y-2 rounded-xl border border-white/10 bg-night-900/55 p-3">
-        <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
-          Inicio recomendado
-        </p>
-        <p className="text-xs text-[#E7E2DD]">
-          Escribe una dirección aproximada para autocompletar localidad, partido, provincia y
-          codigo postal automaticamente.
-        </p>
-        <p className="text-[11px] text-[#D1C7BD]">
-          Luego selecciona una sugerencia para centrar el punto en el mapa.
-        </p>
-      </div>
-      <div className="space-y-2 rounded-xl border border-white/10 bg-night-900/55 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
-            Modo de carga
-          </span>
-          <div className="inline-flex rounded-full border border-white/15 bg-night-900/65 p-1">
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
-                locationLoadMode === "GUIDED"
-                  ? "bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-night-900"
-                  : "text-[#D1C7BD]"
-              }`}
-              onClick={() => setLocationLoadMode("GUIDED")}
-            >
-              Carga guiada
-            </button>
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
-                locationLoadMode === "MANUAL"
-                  ? "bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-night-900"
-                  : "text-[#D1C7BD]"
-              }`}
-              onClick={() => setLocationLoadMode("MANUAL")}
-            >
-              Carga manual
-            </button>
-          </div>
+    <div className="space-y-3 rounded-2xl border border-[#AF8C5C]/30 bg-night-900/40 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+            Ubicación asistida
+          </p>
+          <p className="text-[11px] text-[#D1C7BD]">
+            Buscá una dirección y luego ajustá el punto si hace falta.
+          </p>
         </div>
-        <p className="text-[11px] text-[#D1C7BD]">
-          {locationLoadMode === "GUIDED"
-            ? "Autocompleta dirección, localidad, partido, provincia, barrio y código postal. Si un dato no viene, se limpia."
-            : "Solo actualiza el pin y coordenadas. Los campos del formulario quedan bajo tu control manual."}
-        </p>
+        <div className="inline-flex rounded-full border border-white/15 bg-night-900/65 p-1">
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
+              locationLoadMode === "GUIDED"
+                ? "bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-night-900"
+                : "text-[#D1C7BD]"
+            }`}
+            onClick={() => setLocationLoadMode("GUIDED")}
+          >
+            Guiada
+          </button>
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
+              locationLoadMode === "MANUAL"
+                ? "bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-night-900"
+                : "text-[#D1C7BD]"
+            }`}
+            onClick={() => setLocationLoadMode("MANUAL")}
+          >
+            Manual
+          </button>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#D1C7BD]">
-        <span>Dirección aproximada</span>
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+        <label className="space-y-2 text-xs text-[#D1C7BD]">
+          Dirección aproximada
+          <input
+            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+            value={addressQuery}
+            onChange={(event) => setAddressQuery(event.target.value)}
+            placeholder="Ej: San Martin 123, Bragado"
+          />
+        </label>
         <button
           type="button"
-          className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
+          className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
           onClick={() => void handleFindApproxAddress()}
           disabled={geoStatus === "loading"}
         >
           {geoStatus === "loading" ? "Buscando..." : "Buscar dirección"}
         </button>
       </div>
-      <label className="space-y-2 text-xs text-[#D1C7BD]">
-        Buscar dirección (texto libre)
-        <input
-          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-          value={addressQuery}
-          onChange={(event) => setAddressQuery(event.target.value)}
-          placeholder="Ej: San Martin 123, Bragado"
-        />
-      </label>
       {addressQuery.trim().length >= 3 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[11px] text-[#D1C7BD]">
@@ -2063,33 +2040,33 @@ export function PublishPage() {
   }
 
   return (
-    <div className="space-y-4 pb-safe-tabs md:space-y-8 md:pb-0">
-      <section className="relative overflow-hidden rounded-[26px] border border-white/10 bg-night-900/75 p-4 sm:p-5 md:rounded-[32px] md:p-8">
+    <div className="max-w-full min-w-0 overflow-hidden space-y-4 pb-safe-tabs md:space-y-8 md:pb-0">
+      <section className="relative max-w-full min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-night-900/75 p-4 sm:p-5 md:rounded-[28px] md:p-5">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(175,140,92,0.28),transparent_40%),radial-gradient(circle_at_85%_80%,rgba(209,199,189,0.16),transparent_45%)]" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4 md:gap-6">
-          <div className="max-w-2xl space-y-2 md:space-y-3">
+        <div className="relative grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] lg:items-center">
+          <div className="min-w-0 space-y-2">
             <span className="inline-flex items-center rounded-full border border-[#AF8C5C]/40 bg-[#AF8C5C]/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#E7E2DD]">
               {isEditMode ? "Editar inmueble" : "Publicar inmueble"}
             </span>
-            <h2 className="text-xl leading-tight text-white sm:text-2xl md:text-4xl">
+            <h2 className="text-xl leading-tight text-white sm:text-2xl md:text-3xl">
               {isEditMode ? "Edita tu publicación" : "Crea tu publicación en 5 minutos"}
             </h2>
-            <p className="text-xs text-[#D1C7BD] sm:text-sm md:text-base">
+            <p className="max-w-2xl text-xs leading-relaxed text-[#D1C7BD] sm:text-sm">
               {isEditMode
-                ? "Mismo flujo por pasos para actualizar datos, ubicación y fotos sin perder calidad."
-                : "Flujo guiado por pasos para cargar rápido, sin perder datos clave y con una ficha lista para publicar."}
+                ? "Actualizá datos, ubicación y fotos desde un flujo ordenado."
+                : "Cargá los datos clave y revisá la ficha antes de publicar."}
             </p>
           </div>
-          <div className="grid w-full gap-2 text-left sm:w-auto sm:text-right">
-            <span className="gold-pill">{isEditMode ? "Editas como" : "Publicas como"} {roleLabel}</span>
-            <div className="rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD] md:px-4 md:py-3">
+          <div className="grid w-full min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <span className="gold-pill min-w-0 truncate">{isEditMode ? "Editas como" : "Publicas como"} {roleLabel}</span>
+            <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD]">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[#AF8C5C]">Paso actual</p>
               <p className="mt-1 text-sm text-white">
                 {String(step + 1).padStart(2, "0")} · {steps[step]?.title}
               </p>
             </div>
             {!isEditMode && (isOwner || isAgency) && subscriptionInfo && (
-              <div className="rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD] md:px-4 md:py-3">
+              <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD]">
                 <p className="text-[11px] uppercase tracking-[0.12em] text-[#AF8C5C]">
                   Plan y cupo
                 </p>
@@ -2117,12 +2094,6 @@ export function PublishPage() {
                     Primer mes gratis activo · {subscriptionInfo.trialDaysRemaining} días restantes
                   </p>
                 )}
-                {paidPlanRequiresPaymentMethod && (
-                  <p className="mt-1 text-[11px] text-amber-200">
-                    Falta cargar medio de pago. El mes gratis se activa cuando lo configures en Mi
-                    suscripción.
-                  </p>
-                )}
                 {planUsageStatus === "error" && (
                   <p className="mt-1 text-[11px] text-[#AF8C5C]">{planUsageError}</p>
                 )}
@@ -2132,19 +2103,19 @@ export function PublishPage() {
         </div>
       </section>
 
-      <div className={`grid items-start gap-4 md:gap-6 xl:grid-cols-[320px_1fr] ${showNoSlotsModal ? "pointer-events-none select-none opacity-60" : ""}`}>
-        <aside className="order-2 space-y-4 xl:order-1 xl:sticky xl:top-24">
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-night-900/65 p-5">
+      <div className={`grid max-w-full min-w-0 items-start gap-4 md:gap-6 xl:grid-cols-[320px_minmax(0,1fr)] ${showNoSlotsModal ? "pointer-events-none select-none opacity-60" : ""}`}>
+        <aside className="hidden min-w-0 max-w-full space-y-4 xl:sticky xl:top-24 xl:block">
+          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-night-900/65 p-4">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(175,140,92,0.25),transparent_56%)]" />
             <div className="relative space-y-4">
-              <div>
+              <div className="space-y-1">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
                   {isEditMode ? "Edicion guiada" : "Publicacion guiada"}
                 </p>
-                <h3 className="mt-1 text-lg text-white">
+                <h3 className="text-base text-white">
                   {isEditMode ? "Actualiza en pocos pasos" : "Completa en 5 minutos"}
                 </h3>
-                <p className="mt-1 text-xs text-[#D1C7BD]">
+                <p className="text-xs leading-relaxed text-[#D1C7BD]">
                   {isEditMode
                     ? "Entra al paso que necesites, modifica y guarda."
                     : "Avanza por pasos cortos. Solo pedimos lo necesario para publicar rápido."}
@@ -2170,7 +2141,7 @@ export function PublishPage() {
                   {String(step + 1).padStart(2, "0")} · {steps[step]?.title}
                 </span>
               </div>
-              <div className="hidden gap-2 md:grid">
+              <div className="hidden overflow-hidden rounded-2xl border border-white/10 md:grid">
                 {steps.map((item, index) => {
                   const current = step === index;
                   const completed = stepCompletion[index];
@@ -2179,10 +2150,10 @@ export function PublishPage() {
                       key={item.title}
                       type="button"
                       onClick={() => handleGoToStep(index as Step)}
-                      className={`flex items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                      className={`flex w-full min-w-0 items-center gap-3 border-b border-white/10 px-3 py-2 text-left transition last:border-b-0 ${
                         current
-                          ? "border-gold-500/60 bg-gold-500/10"
-                          : "border-white/10 bg-night-900/40 hover:border-white/20"
+                          ? "bg-gold-500/10"
+                          : "bg-night-900/35 hover:bg-night-900/55"
                       }`}
                     >
                       <div
@@ -2194,8 +2165,8 @@ export function PublishPage() {
                       >
                         {completed ? "OK" : String(index + 1).padStart(2, "0")}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-white">{item.title}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-white">{item.title}</p>
                         <p className="truncate text-[11px] text-[#D1C7BD]">{item.description}</p>
                       </div>
                     </button>
@@ -2240,13 +2211,13 @@ export function PublishPage() {
 
         <form
         ref={formRef}
-        className="order-1 glass-card space-y-5 p-4 sm:p-5 md:space-y-6 md:p-6 xl:order-2"
+        className="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-white/20 bg-night-800/70 shadow-soft space-y-5 p-4 sm:p-5 md:space-y-6 md:p-6"
         onSubmit={handleSubmit}
         onChange={() => setIsDirty(true)}
       >
-        <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/45 p-4">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
                 Paso {step + 1} de {steps.length}
               </p>
@@ -2258,14 +2229,11 @@ export function PublishPage() {
             </span>
             <button
               type="button"
-              className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+              className="hidden rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] md:inline-flex"
               onClick={togglePreview}
             >
               {showPreview ? "Ocultar vista previa" : "Ver vista previa"}
             </button>
-          </div>
-          <div className="mt-4 rounded-2xl border border-white/10 bg-night-900/45 px-4 py-3 text-xs leading-relaxed text-[#D1C7BD]">
-            {stepTips[step]}
           </div>
           {showErrors && stepMissingLabels.length > 0 && (
             <div className="mt-3 rounded-2xl border border-red-300/25 bg-red-500/8 px-4 py-3 text-xs text-red-100">
@@ -2273,7 +2241,20 @@ export function PublishPage() {
               {stepMissingLabels.join(", ")}.
             </div>
           )}
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 md:hidden">
+          <div className="mt-4 space-y-3 md:hidden">
+            <div className="flex items-center justify-between text-[11px] text-[#D1C7BD]">
+              <span>
+                Paso {step + 1} de {steps.length}
+              </span>
+              <span>{progressPercent}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
             {steps.map((item, index) => {
               const current = step === index;
               const completed = stepCompletion[index];
@@ -2281,32 +2262,21 @@ export function PublishPage() {
                 <button
                   key={`${item.title}-mobile`}
                   type="button"
+                  aria-label={`Ir a ${item.title}`}
                   onClick={() => handleGoToStep(index as Step)}
-                  className={`min-w-[132px] rounded-2xl border px-3 py-2 text-left text-xs ${
+                    className={`flex h-10 min-w-0 items-center justify-center rounded-xl border text-[11px] font-semibold ${
                     current
                       ? "border-gold-500/60 bg-gold-500/12 text-white"
                       : "border-white/10 bg-night-900/42 text-[#D1C7BD]"
                   }`}
                 >
-                  <span className="block text-[10px] uppercase tracking-[0.12em] text-[#AF8C5C]">
-                    {completed ? "Listo" : `Paso ${index + 1}`}
-                  </span>
-                  <span className="mt-1 block truncate font-medium">{item.title}</span>
+                    {completed ? "OK" : index + 1}
                 </button>
               );
             })}
+            </div>
           </div>
         </div>
-        {paidPlanRequiresPaymentMethod && (
-          <div className="rounded-2xl border border-amber-300/25 bg-amber-500/8 p-4 text-xs text-amber-100">
-            <p className="font-medium text-white">Antes de publicar: activa tu medio de pago</p>
-            <p className="mt-1 leading-relaxed">
-              No te pedimos tarjeta para crear la cuenta. Como elegiste un plan pago, ahora debes
-              cargar un medio de pago desde <span className="text-white">Panel → Mi suscripción</span>.
-              Cuando completes ese paso, se activa el primer mes gratis y podrás publicar con normalidad.
-            </p>
-          </div>
-        )}
         {step === 0 && (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">
@@ -2700,10 +2670,10 @@ export function PublishPage() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-night-900/32 p-4 md:hidden">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 md:hidden">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-xs text-[#D1C7BD]">
-                  Selecciona el punto exacto en el mapa.
+                  Marcá el punto exacto en el mapa.
                 </div>
                 <button
                   type="button"
@@ -2711,15 +2681,23 @@ export function PublishPage() {
                   onClick={() => setShowMapPicker(true)}
                   disabled={locationLockedInEdit}
                 >
-                  Marcar en el mapa
+                  Ampliar
                 </button>
               </div>
+              <LocationPicker
+                lat={lat}
+                lng={lng}
+                onChange={(nextLat, nextLng) => {
+                  if (locationLockedInEdit) return;
+                  void handleMapPointChange(nextLat, nextLng);
+                }}
+              />
               {lat !== undefined && lng !== undefined ? (
-                <div className="mt-3 text-[11px] text-[#D1C7BD]">
+                <div className="text-[11px] text-[#D1C7BD]">
                   Coordenadas actuales: {lat.toFixed(5)}, {lng.toFixed(5)}
                 </div>
               ) : (
-                <div className="mt-3 text-[11px] text-[#D1C7BD]">
+                <div className="text-[11px] text-[#D1C7BD]">
                   Todavía no marcaste la ubicación.
                 </div>
               )}
@@ -3698,7 +3676,7 @@ export function PublishPage() {
 
               <button
                 type="button"
-                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                className="hidden rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] md:inline-flex"
                 onClick={togglePreview}
               >
                 {showPreview ? "Ocultar vista previa" : "Ver vista previa pública"}
@@ -3707,7 +3685,7 @@ export function PublishPage() {
           )}
 
           {showPreview && (
-            <section ref={previewRef} className="space-y-3 rounded-3xl border border-white/10 bg-night-950/45 p-3 sm:p-4">
+            <section ref={previewRef} className="hidden space-y-3 rounded-3xl border border-white/10 bg-night-950/45 p-3 sm:p-4 md:block">
               <div className="flex flex-wrap items-start justify-between gap-3 px-1">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] text-[#AF8C5C]">
@@ -3784,7 +3762,7 @@ export function PublishPage() {
           <p className="text-xs text-[#9fe0c0]">{isEditMode ? "Cambios guardados correctamente." : "Publicación creada correctamente."}</p>
         )}
 
-            <div className="sticky bottom-[calc(6.4rem+env(safe-area-inset-bottom))] z-20 -mx-2 rounded-2xl border border-white/10 bg-night-900/92 px-2 py-2 backdrop-blur-md sm:static sm:mx-0 sm:border-transparent sm:bg-transparent sm:p-0">
+            <div className="rounded-2xl border border-white/10 bg-night-900/95 px-2 py-2 sm:border-transparent sm:bg-transparent sm:p-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:gap-3">
               <button

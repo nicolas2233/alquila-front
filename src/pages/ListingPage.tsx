@@ -1,5 +1,5 @@
 ﻿import { lazy, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
@@ -25,6 +25,7 @@ const interestMessagePresets = [
 export function ListingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
   const sessionUser = useMemo(() => getSessionUser(), []);
   const token = useMemo(() => getToken(), []);
@@ -40,6 +41,17 @@ export function ListingPage() {
   );
   const [interestPresetOpen, setInterestPresetOpen] = useState(false);
   const interestPopoverRef = useRef<HTMLDivElement | null>(null);
+  const returnState = location.state as
+    | {
+        returnTo?: string;
+        returnLabel?: string;
+      }
+    | null;
+  const returnTo = typeof returnState?.returnTo === "string" ? returnState.returnTo : "";
+  const returnLabel =
+    typeof returnState?.returnLabel === "string" && returnState.returnLabel.trim()
+      ? returnState.returnLabel.trim()
+      : "Volver";
 
   useEffect(() => {
     if (!id) {
@@ -251,6 +263,26 @@ export function ListingPage() {
       <PropertyDetailModal
         listing={listing}
         variant="page"
+        headerAction={
+          <button
+            type="button"
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-night-950/55 px-3 py-1.5 text-xs font-medium text-[#E7E2DD] transition hover:border-gold-500/35 hover:text-white"
+            onClick={() => {
+              if (returnTo) {
+                navigate(returnTo);
+                return;
+              }
+              if (window.history.length > 1) {
+                navigate(-1);
+                return;
+              }
+              navigate("/buscar");
+            }}
+          >
+            <span aria-hidden="true">←</span>
+            {returnLabel}
+          </button>
+        }
         onReportProperty={handleReportProperty}
         onReportUser={listing.ownerUserId ? handleReportUser : undefined}
         actions={

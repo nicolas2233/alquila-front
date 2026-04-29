@@ -335,7 +335,12 @@ export function AgencyProfilePage() {
   }, [listingsUrl, slug]);
 
   const openModal = (listing: SearchListing) => {
-    navigate(`/publicacion/${listing.id}`);
+    navigate(`/publicacion/${listing.id}`, {
+      state: {
+        returnTo: slug ? `/agencia/${slug}` : "/buscar",
+        returnLabel: "Volver a inmobiliaria",
+      },
+    });
   };
 
   const getPropertyDetail = async (listingId: string) => {
@@ -374,7 +379,12 @@ export function AgencyProfilePage() {
       const method = detail.contactMethods?.find((item) => item.type === "WHATSAPP");
       if (!method?.value) {
         addToast("No hay WhatsApp disponible en esta publicación.", "warning");
-        navigate(`/publicacion/${listing.id}`);
+        navigate(`/publicacion/${listing.id}`, {
+          state: {
+            returnTo: slug ? `/agencia/${slug}` : "/buscar",
+            returnLabel: "Volver a inmobiliaria",
+          },
+        });
         return;
       }
       const message = `Hola, me interesa "${detail.title}". Link: ${

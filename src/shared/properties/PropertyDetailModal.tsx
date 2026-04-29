@@ -66,6 +66,7 @@ export type PropertyDetailListing = {
 type PropertyDetailModalProps = {
   listing: PropertyDetailListing;
   onClose?: () => void;
+  headerAction?: React.ReactNode;
   actions?: React.ReactNode;
   isLoading?: boolean;
   variant?: "modal" | "page";
@@ -82,6 +83,7 @@ type SummaryMetric = {
 export function PropertyDetailModal({
   listing,
   onClose,
+  headerAction,
   actions,
   isLoading = false,
   variant = "modal",
@@ -683,7 +685,8 @@ export function PropertyDetailModal({
               : "relative flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-night-800/90 via-night-900 to-night-900 px-5 py-3 md:flex-row md:items-center md:justify-between md:px-6 md:py-4"
           }
         >
-          <div className={isModal ? "space-y-1" : "space-y-0.5"}>
+          <div className={isModal ? "space-y-1" : "space-y-1.5"}>
+            {headerAction ? <div className="mb-1">{headerAction}</div> : null}
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
               Ficha de inmueble
             </p>

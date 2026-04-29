@@ -1,6 +1,6 @@
 ﻿
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { MapView, type MapPoint } from "../shared/map/MapView";
 import { env } from "../shared/config/env";
 
@@ -132,6 +132,7 @@ const publisherColors: Record<PublisherType, string> = {
 
 export function MapSearchPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [properties, setProperties] = useState<MapProperty[]>([]);
   const [listStatus, setListStatus] = useState<"idle" | "loading" | "error">("idle");
   const [listError, setListError] = useState("");
@@ -347,7 +348,12 @@ export function MapSearchPage() {
   }, [buildingGroups]);
 
   const openDetail = async (id: string) => {
-    navigate(`/publicacion/${id}`);
+    navigate(`/publicacion/${id}`, {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        returnLabel: "Volver al mapa",
+      },
+    });
   };
 
   const propertyIdSet = useMemo(() => new Set(properties.map((item) => item.id)), [

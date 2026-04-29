@@ -620,7 +620,12 @@ export function SearchPage() {
       operation: listing.operation,
       propertyType: listing.propertyType,
     });
-    navigate(`/publicacion/${listing.id}`);
+    navigate(`/publicacion/${listing.id}`, {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        returnLabel: "Volver a búsqueda",
+      },
+    });
   };
 
   const handleCardWhatsapp = async (listing: SearchListing) => {
@@ -640,7 +645,12 @@ export function SearchPage() {
       const method = detail.contactMethods?.find((item) => item.type === "WHATSAPP");
       if (!method?.value) {
         addToast("No hay WhatsApp disponible en esta publicación.", "warning");
-        navigate(`/publicacion/${listing.id}`);
+        navigate(`/publicacion/${listing.id}`, {
+          state: {
+            returnTo: `${location.pathname}${location.search}`,
+            returnLabel: "Volver a búsqueda",
+          },
+        });
         return;
       }
       const message = `Hola, me interesa "${detail.title}". Link: ${
@@ -907,10 +917,10 @@ export function SearchPage() {
           </div>
           <span className="hidden text-xs text-[#D1C7BD] md:inline">Deslizá para explorar</span>
         </div>
-        <div className="relative rounded-[22px] border border-white/10 bg-gradient-to-r from-night-900/70 via-night-800/45 to-night-900/70 p-3 md:rounded-[28px] md:p-4 shadow-[0_18px_45px_rgba(0,0,0,0.28)]">
+        <div className="relative overflow-hidden rounded-[22px] border border-white/8 bg-gradient-to-r from-night-900/45 via-night-800/28 to-night-900/45 px-3 py-4 shadow-[0_16px_38px_rgba(0,0,0,0.18)] md:rounded-[28px] md:px-4">
           <span className="scroll-fade scroll-fade-left" aria-hidden="true" />
           <span className="scroll-fade scroll-fade-right" aria-hidden="true" />
-          <div className="elegant-scroll flex gap-4 overflow-x-auto pb-2">
+          <div className="elegant-scroll flex gap-3 overflow-x-auto pb-2 md:gap-4">
             {agencies.map((agency) => {
               const isLogoImage =
                 agency.logo?.startsWith("http") || agency.logo?.startsWith("data:");
@@ -924,34 +934,26 @@ export function SearchPage() {
                 <Link
                   key={agency.id}
                   to={`/agencia/${agency.id}`}
-                  className="group relative min-h-[96px] min-w-[214px] overflow-hidden rounded-2xl border border-white/10 bg-night-900/70 p-3 transition duration-300 hover:-translate-y-0.5 hover:border-gold-500/50"
+                  className="group relative flex min-h-[92px] w-[278px] min-w-[278px] overflow-hidden rounded-2xl border border-white/10 bg-night-900/62 p-3 transition duration-300 hover:-translate-y-0.5 hover:border-gold-500/35 hover:bg-night-900/78 md:w-[304px] md:min-w-[304px]"
                 >
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#AF8C5C]/16 via-transparent to-[#D1C7BD]/10 opacity-70 transition group-hover:opacity-100" />
-                  {isLogoImage ? (
-                    <img
-                      src={agency.logo ?? ""}
-                      alt={agency.name}
-                      className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full object-cover opacity-20 blur-sm"
-                    />
-                  ) : null}
-                  <div className="relative flex h-full items-center gap-3">
-                    <span className="absolute right-2 top-2 inline-flex w-fit rounded-full border border-gold-500/30 bg-gold-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-gold-300">
-                      Inmobiliaria
-                    </span>
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-night-800/70 text-xs font-semibold text-gold-300">
+                  <div className="pointer-events-none absolute inset-y-3 left-0 w-px bg-gradient-to-b from-transparent via-gold-500/45 to-transparent" />
+                  <div className="relative flex min-w-0 flex-1 items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/12 bg-night-800/70 text-sm font-semibold text-gold-300 shadow-[0_8px_20px_rgba(0,0,0,0.18)]">
                       {isLogoImage ? (
                         <img
                           src={agency.logo ?? ""}
                           alt={agency.name}
-                          className="h-11 w-11 object-cover"
+                          className="h-12 w-12 object-cover"
                         />
                       ) : (
                         agency.logo || initials
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="line-clamp-1 text-sm font-semibold text-white">{agency.name}</h4>
-                      <p className="mt-1 text-[11px] text-[#D1C7BD]">
+                    <div className="min-w-0 flex-1 pr-1">
+                      <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-white">
+                        {agency.name}
+                      </h4>
+                      <p className="mt-1 line-clamp-1 text-[11px] text-[#D1C7BD] transition group-hover:text-[#E7E2DD]">
                         Ver perfil y publicaciones activas
                       </p>
                     </div>
