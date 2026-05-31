@@ -1,4 +1,5 @@
 import type { PropertyDetailListing } from "./PropertyDetailModal";
+import { cloudinaryCard, cloudinaryFull } from "../utils/cloudinaryUrl";
 
 export type PropertyApiListItem = {
   id: string;
@@ -70,6 +71,8 @@ export type PropertyApiListItem = {
   agency?: { name: string; logo?: string | null } | null;
   ownerDisplayName?: string | null;
   updatedAt?: string;
+  featured?: boolean;
+  featuredUntil?: string | null;
 };
 
 export type PropertyApiDetail = PropertyApiListItem & {
@@ -159,8 +162,10 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
   const address = `${item.location.addressLine}${unitSuffix}${
     localityName ? ` - ${localityName}` : ""
   }`;
-  const images = item.photos?.map((photo) => photo.url) ?? [];
-  const image = images[0] ?? fallbackImage;
+  const rawImages = item.photos?.map((photo) => photo.url) ?? [];
+  // Apply Cloudinary optimizations: full-res for detail, card-size for list
+  const images = rawImages.map((url) => cloudinaryFull(url));
+  const image = cloudinaryCard(rawImages[0] ?? fallbackImage);
 
   return {
     id: item.id,
@@ -203,6 +208,10 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
     amenities: item.features?.amenities ?? undefined,
     services: item.services ?? undefined,
     showMapLocation: item.features?.showMapLocation ?? true,
+    lat: item.location.lat ?? undefined,
+    lng: item.location.lng ?? undefined,
+    featured: item.featured ?? false,
+    featuredUntil: item.featuredUntil ?? undefined,
   };
 };
 
@@ -214,7 +223,8 @@ export const mapPropertyToDetailListing = (
   const address = `${item.location.addressLine}${unitSuffix}${
     localityName ? ` - ${localityName}` : ""
   }`;
-  const images = item.photos?.map((photo) => photo.url) ?? [];
+  // Optimize for detail view: full-resolution for lightbox, thumbnails for strips
+  const images = item.photos?.map((photo) => cloudinaryFull(photo.url)) ?? [];
 
   return {
     id: item.id,

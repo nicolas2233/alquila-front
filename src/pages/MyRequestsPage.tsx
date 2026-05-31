@@ -10,6 +10,8 @@ type MyRequest = {
   status: "NEW" | "CONTACTED" | "CLOSED";
   message?: string | null;
   createdAt: string;
+  rating?: number | null;
+  ratedAt?: string | null;
   property: {
     id: string;
     title: string;
@@ -48,6 +50,54 @@ const propertyLabels: Record<string, string> = {
   OFFICE: "Oficina",
   WAREHOUSE: "Depósito",
 };
+
+function RatingWidget({ requestId, token, onRated }: { requestId: string; token: string | null; onRated: (id: string, rating: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const { addToast } = useToast();
+
+  const rate = async (stars: number) => {
+    if (!token || saving) return;
+    setSaving(true);
+    try {
+      const r = await fetch(`${env.apiUrl}/contact-requests/${requestId}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        credentials: "include",
+        body: JSON.stringify({ rating: stars }),
+      });
+      if (!r.ok) throw new Error("No pudimos guardar la calificación.");
+      onRated(requestId, stars);
+      addToast("¡Gracias por calificar!", "success");
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : "Error al calificar.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[10px] text-[#D1C7BD] mr-1">Calificar:</span>
+      {Array.from({ length: 5 }, (_, i) => i + 1).map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={saving}
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => void rate(star)}
+          className="transition disabled:opacity-50"
+          aria-label={`${star} estrellas`}
+        >
+          <svg viewBox="0 0 24 24" fill={star <= hovered ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 text-gold-300">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function MyRequestsPage() {
   const location = useLocation();
@@ -190,7 +240,7 @@ export function MyRequestsPage() {
                   Mensaje: {request.message}
                 </div>
               )}
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                   type="button"
@@ -198,6 +248,21 @@ export function MyRequestsPage() {
                 >
                   Ver ficha
                 </button>
+                {request.status === "CLOSED" && !request.rating && (
+                  <RatingWidget requestId={request.id} token={token} onRated={(id, rating) =>
+                    setItems((prev) => prev.map((r) => r.id === id ? { ...r, rating } : r))
+                  } />
+                )}
+                {request.rating && (
+                  <div className="flex items-center gap-1 text-[11px] text-gold-300">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <svg key={i} viewBox="0 0 24 24" fill={i < request.rating! ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    ))}
+                    <span className="text-[#D1C7BD]">Tu calificación</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}

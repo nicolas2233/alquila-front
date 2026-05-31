@@ -36,7 +36,15 @@ export async function fetchJson<T>(url: string, options?: FetchJsonOptions): Pro
     }
   }
 
-  const response = await fetch(url, { signal: options?.signal });
+  const response = await fetch(url, { signal: options?.signal, credentials: "include" });
+  if (response.status === 401 && (localStorage.getItem("domusbrag_token") || localStorage.getItem("domusbrag_user"))) {
+    localStorage.removeItem("domusbrag_token");
+    localStorage.removeItem("domusbrag_user");
+    localStorage.removeItem("alquila_token");
+    localStorage.removeItem("alquila_user");
+    window.location.replace("/login?expired=1");
+    throw new Error("Sesión expirada");
+  }
   if (!response.ok) {
     throw new Error("Request failed");
   }

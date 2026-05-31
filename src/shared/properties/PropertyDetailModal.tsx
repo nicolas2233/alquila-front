@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
+import { cloudinaryThumb } from "../utils/cloudinaryUrl";
 import { CircleMarker, MapContainer, TileLayer, LayersControl } from "react-leaflet";
 
 const ESRI_SATELLITE =
@@ -61,6 +62,8 @@ export type PropertyDetailListing = {
   lat?: number | null;
   lng?: number | null;
   showMapLocation?: boolean;
+  featured?: boolean;
+  featuredUntil?: string | null;
 };
 
 type PropertyDetailModalProps = {
@@ -103,6 +106,7 @@ export function PropertyDetailModal({
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
   const [showMapZoom, setShowMapZoom] = useState(false);
+  const touchStartX = useRef<number | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
@@ -755,7 +759,21 @@ export function PropertyDetailModal({
           }
         >
           <div className={isModal ? "space-y-4 md:min-h-0" : "space-y-4"}>
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
+            <div
+              className="relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                if (touchStartX.current === null || images.length <= 1) return;
+                const delta = e.changedTouches[0].clientX - touchStartX.current;
+                if (Math.abs(delta) < 50) return;
+                if (delta < 0) {
+                  setActiveImage((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+                } else {
+                  setActiveImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+                }
+                touchStartX.current = null;
+              }}
+            >
               {activeImageUrl ? (
                 <img
                   key={activeImageUrl}
@@ -814,7 +832,7 @@ export function PropertyDetailModal({
                   >
                     <img
                       className="h-full w-full object-cover"
-                      src={img}
+                      src={cloudinaryThumb(img)}
                       alt=""
                       loading="lazy"
                       decoding="async"
@@ -1298,11 +1316,26 @@ export function PropertyDetailModal({
         <div
           className="fixed inset-0 z-[1450] flex items-center justify-center bg-night-950 p-3 sm:p-6"
           onClick={() => setShowImageZoom(false)}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null || images.length <= 1) return;
+            const delta = e.changedTouches[0].clientX - touchStartX.current;
+            if (Math.abs(delta) < 50) return;
+            if (delta < 0) {
+              setActiveImage((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+            } else {
+              setActiveImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+            }
+            touchStartX.current = null;
+          }}
         >
           <div
             className="relative w-full max-w-6xl"
             onClick={(event) => event.stopPropagation()}
           >
+            <div className="absolute left-3 top-2 z-10 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-xs text-white/70">
+              {activeImage + 1} / {images.length}
+            </div>
             <button
               type="button"
               className="absolute right-2 top-2 z-10 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-xs text-white"
@@ -1311,29 +1344,32 @@ export function PropertyDetailModal({
               Cerrar
             </button>
             <img
+              key={activeImageUrl}
               src={activeImageUrl}
               alt={listing.title}
-              className="max-h-[88vh] w-full rounded-2xl border border-white/10 object-contain bg-night-900"
+              className="max-h-[80vh] w-full rounded-2xl border border-white/10 object-contain bg-night-900 animate-fadeUp"
             />
             {images.length > 1 && (
               <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-between px-2 sm:px-4">
                 <button
                   type="button"
-                  className="pointer-events-auto rounded-full border border-white/25 bg-black/60 px-3 py-2 text-xs text-white"
+                  className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/60 text-white hover:bg-black/80"
                   onClick={() =>
                     setActiveImage((prev) => (prev === 0 ? images.length - 1 : prev - 1))
                   }
+                  aria-label="Anterior"
                 >
-                  Anterior
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
                 <button
                   type="button"
-                  className="pointer-events-auto rounded-full border border-white/25 bg-black/60 px-3 py-2 text-xs text-white"
+                  className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/60 text-white hover:bg-black/80"
                   onClick={() =>
                     setActiveImage((prev) => (prev === images.length - 1 ? 0 : prev + 1))
                   }
+                  aria-label="Siguiente"
                 >
-                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
               </div>
             )}
@@ -1346,8 +1382,8 @@ export function PropertyDetailModal({
                     onClick={() => setActiveImage(index)}
                     className={
                       index === activeImage
-                        ? "h-14 w-20 overflow-hidden rounded-xl border border-gold-400/70"
-                        : "h-14 w-20 overflow-hidden rounded-xl border border-white/15"
+                        ? "h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-gold-400/70"
+                        : "h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-white/15 opacity-60 hover:opacity-100"
                     }
                   >
                     <img src={img} alt="" className="h-full w-full object-cover" />

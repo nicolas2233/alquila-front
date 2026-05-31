@@ -48,12 +48,15 @@ export type SessionUser = {
   } | null;
 };
 
-const TOKEN_KEY = "domusbrag_token";
 const USER_KEY = "domusbrag_user";
 const LEGACY_TOKEN_KEY = "alquila_token";
 const LEGACY_USER_KEY = "alquila_user";
+// Keep for backward compat — token still returned in login response body for API clients
+const TOKEN_KEY = "domusbrag_token";
 
 export function saveSession(token: string, user: SessionUser) {
+  // Store token in localStorage for backward compat with Authorization header usage
+  // Primary auth is now via HttpOnly cookie set by the server
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   localStorage.removeItem(LEGACY_TOKEN_KEY);
@@ -67,7 +70,7 @@ export function clearSession() {
   localStorage.removeItem(LEGACY_USER_KEY);
 }
 
-export function getToken() {
+export function getToken(): string | null {
   const token = localStorage.getItem(TOKEN_KEY);
   if (token) return token;
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
@@ -92,6 +95,21 @@ export function getRoleFromToken(token?: string | null): string | null {
   }
 }
 
+export function isTokenExpired(token?: string | null): boolean {
+  if (!token) return true;
+  const parts = token.split(".");
+  if (parts.length < 2) return true;
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(payload);
+    const json = JSON.parse(decoded) as { exp?: number };
+    if (!json.exp) return false;
+    return Date.now() / 1000 > json.exp - 10;
+  } catch {
+    return true;
+  }
+}
+
 export function getSessionUser(): SessionUser | null {
   let raw = localStorage.getItem(USER_KEY);
   if (!raw) {
@@ -102,12 +120,18 @@ export function getSessionUser(): SessionUser | null {
       raw = legacyRaw;
     }
   }
-  if (!raw) {
-    return null;
-  }
+  if (!raw) return null;
   try {
     return JSON.parse(raw) as SessionUser;
   } catch {
     return null;
   }
+}
+
+/** Call the logout endpoint to clear the HttpOnly cookie server-side */
+export async function serverLogout(apiUrl: string): Promise<void> {
+  try {
+    await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" });
+  } catch { /* ignore network errors */ }
+  clearSession();
 }
