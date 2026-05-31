@@ -1,7 +1,11 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useState, lazy, Suspense } from "react";
+const OnboardingModal = lazy(() =>
+  import("../ui/OnboardingModal").then((m) => ({ default: m.OnboardingModal }))
+);
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Container } from "../ui/Container";
 import { clearSession, getSessionUser, getToken } from "../auth/session";
+import { hasCompletedOnboarding } from "../ui/OnboardingModal";
 import type { ReactNode } from "react";
 import type { SessionUser } from "../auth/session";
 import { env } from "../config/env";
@@ -150,6 +154,7 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
+  const isMapPage = location.pathname === "/mapa";
   const isListingPage =
     location.pathname.startsWith("/publicacion/") ||
     location.pathname.startsWith("/publicación/");
@@ -162,10 +167,16 @@ export function AppLayout() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    setUser(getSessionUser());
+    const currentUser = getSessionUser();
+    setUser(currentUser);
     setToken(getToken());
+    // Show onboarding to new publisher users who haven't seen it
+    if (currentUser && (currentUser.role === "OWNER" || currentUser.role?.startsWith("AGENCY")) && !hasCompletedOnboarding()) {
+      setTimeout(() => setShowOnboarding(true), 1500);
+    }
   }, [location.pathname]);
 
   useEffect(() => {
@@ -190,6 +201,7 @@ export function AppLayout() {
       try {
         const response = await fetch(`${env.apiUrl}/notifications/unread-count`, {
           headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
         if (!response.ok) {
           throw new Error("No pudimos cargar notificaciones.");
@@ -203,8 +215,11 @@ export function AppLayout() {
       }
     };
     void loadCount();
+    // Poll every 60 seconds for new notifications
+    const interval = setInterval(() => { void loadCount(); }, 60_000);
     return () => {
       ignore = true;
+      clearInterval(interval);
     };
   }, [token, location.pathname]);
 
@@ -424,7 +439,9 @@ export function AppLayout() {
       </header>
       <main
         className={
-          isHome
+          isMapPage
+            ? "overflow-hidden"
+            : isHome
             ? "pb-safe-tabs lg:pb-16"
             : isListingPage
             ? "pt-3 pb-safe-tabs lg:pt-6 lg:pb-12"
@@ -432,8 +449,9 @@ export function AppLayout() {
             ? "py-2 pb-4 lg:py-4 lg:pb-6"
             : "py-6 pb-safe-tabs lg:py-16 lg:pb-16"
         }
+        style={isMapPage ? { height: "calc(100dvh - 76px)" } : undefined}
       >
-        {isHome ? (
+        {isHome || isMapPage ? (
           <Outlet />
         ) : (
           <Container>
@@ -568,6 +586,11 @@ export function AppLayout() {
         onConfirm={confirmLogout}
         onCancel={cancelLogout}
       />
+      {showOnboarding && (
+        <Suspense fallback={null}>
+          <OnboardingModal onClose={() => setShowOnboarding(false)} />
+        </Suspense>
+      )}
       </div>
     </ToastProvider>
   );

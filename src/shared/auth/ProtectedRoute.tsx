@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { getRoleFromToken, getSessionUser, getToken } from "./session";
+import { clearSession, getRoleFromToken, getSessionUser, getToken, isTokenExpired } from "./session";
 
 type ProtectedRouteProps = {
   children: ReactElement;
@@ -14,6 +14,11 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (!token) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+
+  if (isTokenExpired(token)) {
+    clearSession();
+    return <Navigate to="/login" state={{ from: location.pathname, sessionExpired: true }} replace />;
   }
 
   const tokenRole = getRoleFromToken(token);

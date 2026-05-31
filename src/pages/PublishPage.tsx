@@ -14,7 +14,7 @@ import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
 type Step = 0 | 1 | 2 | 3 | 4;
-const PLAN_LIMIT_COUNTED_STATUSES = ["DRAFT", "ACTIVE", "PAUSED", "TEMPORARILY_UNAVAILABLE"];
+const PLAN_LIMIT_COUNTED_STATUSES = ["DRAFT", "ACTIVE", "TEMPORARILY_UNAVAILABLE"];
 
 const steps = [
   {
@@ -276,6 +276,11 @@ export function PublishPage() {
   });
   const [draggingSummaryKey, setDraggingSummaryKey] = useState<string | null>(null);
   const [dragOverSummaryKey, setDragOverSummaryKey] = useState<string | null>(null);
+  const [draggingPhotoIndex, setDraggingPhotoIndex] = useState<number | null>(null);
+  const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null);
+  const [draggingExistingPhotoIndex, setDraggingExistingPhotoIndex] = useState<number | null>(null);
+  const [dragOverExistingPhotoIndex, setDragOverExistingPhotoIndex] = useState<number | null>(null);
+  const [photoDropActive, setPhotoDropActive] = useState(false);
 
   const togglePreview = useCallback(() => {
     setShowPreview((current) => {
@@ -525,6 +530,179 @@ export function PublishPage() {
   const [serviceSewer, setServiceSewer] = useState(false);
   const [serviceInternet, setServiceInternet] = useState(false);
   const [servicePavement, setServicePavement] = useState(false);
+
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saved" | "restored">("idle");
+  const [hasDraftToRestore, setHasDraftToRestore] = useState(false);
+  const draftKey = sessionUser?.id ? `publish_draft_${sessionUser.id}` : null;
+
+  const draftData = useMemo(() => ({
+    title, operationType, priceAmount, priceCurrency, description, propertyType,
+    rooms, bathrooms, areaM2, coveredAreaM2, semiCoveredAreaM2, bedrooms, floorsCount,
+    addressLine, localityId, party, province, neighborhood, postalCode, unitLabel,
+    lat, lng, addressQuery, locationLoadMode, showMapLocation,
+    cadastralType, cadastralValue,
+    contactWhatsapp, contactPhone,
+    expensesAmount, expensesCurrency, financingAvailable, financingAmount, financingCurrency,
+    rentGuarantees, rentEntryMonths, rentContractDuration, rentIndexFrequency, rentIndexType, rentIndexValue, rentInfoPublic,
+    hasGarage, garageSpots, garageType, petsAllowed, kidsAllowed, hasPatio, patioType, hasLaundry, furnished, ageYears,
+    frontageM, depthM, buildable, floor, unit, lotOrParcel, facing,
+    amenityAir, amenityHeater, amenityKitchen, amenityGrill, amenityPool, amenityJacuzzi,
+    amenitySolarium, amenityElevator, amenitySecurity, amenityCameras, amenityQuincho,
+    businessFood, businessEvents, businessRetail, businessFactory, businessOffices, businessClinics,
+    gatedCommunity, officeMeetingRoom, officeReception, officePrivateOffices,
+    warehouseTruckAccess, warehouseHeight, warehouseGateHeight, landInvestment,
+    serviceElectricity, serviceGas, serviceWater, serviceSewer, serviceInternet, servicePavement,
+    summaryHighlights, step,
+  }), [
+    title, operationType, priceAmount, priceCurrency, description, propertyType,
+    rooms, bathrooms, areaM2, coveredAreaM2, semiCoveredAreaM2, bedrooms, floorsCount,
+    addressLine, localityId, party, province, neighborhood, postalCode, unitLabel,
+    lat, lng, addressQuery, locationLoadMode, showMapLocation,
+    cadastralType, cadastralValue, contactWhatsapp, contactPhone,
+    expensesAmount, expensesCurrency, financingAvailable, financingAmount, financingCurrency,
+    rentGuarantees, rentEntryMonths, rentContractDuration, rentIndexFrequency, rentIndexType, rentIndexValue, rentInfoPublic,
+    hasGarage, garageSpots, garageType, petsAllowed, kidsAllowed, hasPatio, patioType, hasLaundry, furnished, ageYears,
+    frontageM, depthM, buildable, floor, unit, lotOrParcel, facing,
+    amenityAir, amenityHeater, amenityKitchen, amenityGrill, amenityPool, amenityJacuzzi,
+    amenitySolarium, amenityElevator, amenitySecurity, amenityCameras, amenityQuincho,
+    businessFood, businessEvents, businessRetail, businessFactory, businessOffices, businessClinics,
+    gatedCommunity, officeMeetingRoom, officeReception, officePrivateOffices,
+    warehouseTruckAccess, warehouseHeight, warehouseGateHeight, landInvestment,
+    serviceElectricity, serviceGas, serviceWater, serviceSewer, serviceInternet, servicePavement,
+    summaryHighlights, step,
+  ]);
+
+  useEffect(() => {
+    if (isEditMode || !draftKey || !isDirty) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
+        setAutoSaveStatus("saved");
+        const clear = setTimeout(() => setAutoSaveStatus("idle"), 2000);
+        return () => clearTimeout(clear);
+      } catch { /* ignore storage errors */ }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isEditMode, draftKey, isDirty, draftData]);
+
+  useEffect(() => {
+    if (isEditMode || !draftKey) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) setHasDraftToRestore(true);
+    } catch { /* ignore */ }
+  }, [isEditMode, draftKey]);
+
+  const restoreDraft = useCallback(() => {
+    if (!draftKey) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (!saved) return;
+      const d = JSON.parse(saved) as typeof draftData;
+      setTitle(d.title ?? "");
+      setOperationType(d.operationType ?? "SALE");
+      setPriceAmount(d.priceAmount ?? "");
+      setPriceCurrency(d.priceCurrency ?? "ARS");
+      setDescription(d.description ?? "");
+      setPropertyType(d.propertyType ?? "HOUSE");
+      setRooms(d.rooms ?? "");
+      setBathrooms(d.bathrooms ?? "");
+      setAreaM2(d.areaM2 ?? "");
+      setCoveredAreaM2(d.coveredAreaM2 ?? "");
+      setSemiCoveredAreaM2(d.semiCoveredAreaM2 ?? "");
+      setBedrooms(d.bedrooms ?? "");
+      setFloorsCount(d.floorsCount ?? "");
+      setAddressLine(d.addressLine ?? "");
+      setLocalityId(d.localityId ?? "");
+      setParty(d.party ?? "");
+      setProvince(d.province ?? "");
+      setNeighborhood(d.neighborhood ?? "");
+      setPostalCode(d.postalCode ?? "");
+      setUnitLabel(d.unitLabel ?? "");
+      setLat(d.lat);
+      setLng(d.lng);
+      setAddressQuery(d.addressQuery ?? "");
+      setLocationLoadMode(d.locationLoadMode ?? "GUIDED");
+      setShowMapLocation(d.showMapLocation ?? true);
+      setCadastralType(d.cadastralType ?? "PARTIDA");
+      setCadastralValue(d.cadastralValue ?? "");
+      setContactWhatsapp(d.contactWhatsapp ?? "");
+      setContactPhone(d.contactPhone ?? "");
+      setExpensesAmount(d.expensesAmount ?? "");
+      setExpensesCurrency(d.expensesCurrency ?? "ARS");
+      setFinancingAvailable(d.financingAvailable ?? false);
+      setFinancingAmount(d.financingAmount ?? "");
+      setFinancingCurrency(d.financingCurrency ?? "ARS");
+      setRentGuarantees(d.rentGuarantees ?? "");
+      setRentEntryMonths(d.rentEntryMonths ?? "");
+      setRentContractDuration(d.rentContractDuration ?? "");
+      setRentIndexFrequency(d.rentIndexFrequency ?? "");
+      setRentIndexType(d.rentIndexType ?? "");
+      setRentIndexValue(d.rentIndexValue ?? "");
+      setRentInfoPublic(d.rentInfoPublic ?? true);
+      setHasGarage(d.hasGarage ?? false);
+      setGarageSpots(d.garageSpots ?? "");
+      setGarageType(d.garageType ?? "COVERED");
+      setPetsAllowed(d.petsAllowed ?? false);
+      setKidsAllowed(d.kidsAllowed ?? false);
+      setHasPatio(d.hasPatio ?? false);
+      setPatioType(d.patioType ?? "GRASS");
+      setHasLaundry(d.hasLaundry ?? false);
+      setFurnished(d.furnished ?? false);
+      setAgeYears(d.ageYears ?? "");
+      setFrontageM(d.frontageM ?? "");
+      setDepthM(d.depthM ?? "");
+      setBuildable(d.buildable ?? false);
+      setFloor(d.floor ?? "");
+      setUnit(d.unit ?? "");
+      setLotOrParcel(d.lotOrParcel ?? "");
+      setFacing(d.facing ?? "FRONT");
+      setAmenityAir(d.amenityAir ?? false);
+      setAmenityHeater(d.amenityHeater ?? false);
+      setAmenityKitchen(d.amenityKitchen ?? false);
+      setAmenityGrill(d.amenityGrill ?? false);
+      setAmenityPool(d.amenityPool ?? false);
+      setAmenityJacuzzi(d.amenityJacuzzi ?? false);
+      setAmenitySolarium(d.amenitySolarium ?? false);
+      setAmenityElevator(d.amenityElevator ?? false);
+      setAmenitySecurity(d.amenitySecurity ?? false);
+      setAmenityCameras(d.amenityCameras ?? false);
+      setAmenityQuincho(d.amenityQuincho ?? false);
+      setBusinessFood(d.businessFood ?? false);
+      setBusinessEvents(d.businessEvents ?? false);
+      setBusinessRetail(d.businessRetail ?? false);
+      setBusinessFactory(d.businessFactory ?? false);
+      setBusinessOffices(d.businessOffices ?? false);
+      setBusinessClinics(d.businessClinics ?? false);
+      setGatedCommunity(d.gatedCommunity ?? "");
+      setOfficeMeetingRoom(d.officeMeetingRoom ?? false);
+      setOfficeReception(d.officeReception ?? false);
+      setOfficePrivateOffices(d.officePrivateOffices ?? false);
+      setWarehouseTruckAccess(d.warehouseTruckAccess ?? false);
+      setWarehouseHeight(d.warehouseHeight ?? "");
+      setWarehouseGateHeight(d.warehouseGateHeight ?? "");
+      setLandInvestment(d.landInvestment ?? false);
+      setServiceElectricity(d.serviceElectricity ?? false);
+      setServiceGas(d.serviceGas ?? false);
+      setServiceWater(d.serviceWater ?? false);
+      setServiceSewer(d.serviceSewer ?? false);
+      setServiceInternet(d.serviceInternet ?? false);
+      setServicePavement(d.servicePavement ?? false);
+      setSummaryHighlights(d.summaryHighlights ?? []);
+      if (typeof d.step === "number" && d.step >= 0 && d.step <= 4) {
+        setStep(d.step as Step);
+      }
+      setHasDraftToRestore(false);
+      setAutoSaveStatus("restored");
+      setTimeout(() => setAutoSaveStatus("idle"), 3000);
+    } catch { /* ignore */ }
+  }, [draftKey]);
+
+  const clearDraft = useCallback(() => {
+    if (!draftKey) return;
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    setHasDraftToRestore(false);
+  }, [draftKey]);
 
   useEffect(() => {
     if (!isEditMode || !editPropertyId) {
@@ -1497,6 +1675,17 @@ export function PublishPage() {
     }
   };
 
+  const saveExistingPhotoOrder = useCallback(async (orderedPhotos: { id: string; url: string }[]) => {
+    if (!isEditMode || !editPropertyId || !sessionToken) return;
+    try {
+      await fetch(`${env.apiUrl}/properties/${editPropertyId}/photos/reorder`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${sessionToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ order: orderedPhotos.map((p, i) => ({ id: p.id, sortOrder: i })) }),
+      });
+    } catch { /* silently ignore – order is cosmetic */ }
+  }, [isEditMode, editPropertyId, sessionToken]);
+
   const handleFindApproxAddress = async () => {
     const query = (
       addressQuery.trim()
@@ -1992,6 +2181,7 @@ export function PublishPage() {
         isEditMode ? "Cambios guardados con exito." : "Publicación creada con exito.",
         "success"
       );
+      if (!isEditMode) clearDraft();
       if (isEditMode) {
         setTimeout(() => navigate("/panel?tab=listings"), 250);
       }
@@ -2041,6 +2231,36 @@ export function PublishPage() {
 
   return (
     <div className="max-w-full min-w-0 overflow-hidden space-y-4 pb-safe-tabs md:space-y-8 md:pb-0">
+      {!isEditMode && hasDraftToRestore && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-500/40 bg-gold-500/10 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 text-gold-300">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 shrink-0"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            <span>Tenés un borrador guardado sin publicar.</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-full border border-gold-500/50 bg-gold-500/15 px-3 py-1 text-xs font-semibold text-gold-300 hover:bg-gold-500/25"
+              onClick={restoreDraft}
+            >
+              Restaurar borrador
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#D1C7BD] hover:text-white"
+              onClick={clearDraft}
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+      {!isEditMode && autoSaveStatus !== "idle" && (
+        <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs ${autoSaveStatus === "restored" ? "border-sky-500/40 bg-sky-500/10 text-sky-300" : "border-white/15 bg-night-900/55 text-[#D1C7BD]"}`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5 shrink-0"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          {autoSaveStatus === "restored" ? "Borrador restaurado correctamente." : "Borrador guardado automáticamente."}
+        </div>
+      )}
       <section className="relative max-w-full min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-night-900/75 p-4 sm:p-5 md:rounded-[28px] md:p-5">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(175,140,92,0.28),transparent_40%),radial-gradient(circle_at_85%_80%,rgba(209,199,189,0.16),transparent_45%)]" />
         <div className="relative grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] lg:items-center">
@@ -3517,17 +3737,40 @@ export function PublishPage() {
           <div className="space-y-6">
             {isEditMode && (
               <div className="space-y-3">
-                <label className="text-xs text-[#D1C7BD]">Fotos actuales</label>
+                <label className="text-xs text-[#D1C7BD]">Fotos actuales — arrastrá para reordenar, la primera es la principal.</label>
                 {existingPhotos.length > 0 ? (
                   <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {existingPhotos.map((photo) => (
+                    {existingPhotos.map((photo, index) => (
                       <div
                         key={photo.id}
-                        className="relative overflow-hidden rounded-xl border border-white/10 bg-night-900/48"
+                        draggable
+                        onDragStart={() => setDraggingExistingPhotoIndex(index)}
+                        onDragEnd={() => { setDraggingExistingPhotoIndex(null); setDragOverExistingPhotoIndex(null); }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverExistingPhotoIndex(index); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggingExistingPhotoIndex === null || draggingExistingPhotoIndex === index) return;
+                          setExistingPhotos((prev) => {
+                            const next = [...prev];
+                            const [moved] = next.splice(draggingExistingPhotoIndex, 1);
+                            next.splice(index, 0, moved);
+                            void saveExistingPhotoOrder(next);
+                            return next;
+                          });
+                          setIsDirty(true);
+                          setDraggingExistingPhotoIndex(null);
+                          setDragOverExistingPhotoIndex(null);
+                        }}
+                        className={`relative cursor-grab overflow-hidden rounded-xl border bg-night-900/48 transition ${dragOverExistingPhotoIndex === index && draggingExistingPhotoIndex !== index ? "border-gold-400/60 opacity-75" : draggingExistingPhotoIndex === index ? "border-white/30 opacity-50" : "border-white/10"}`}
                       >
+                        {index === 0 && (
+                          <span className="absolute left-2 top-2 z-10 rounded-full border border-gold-400/60 bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-gold-300">
+                            Principal
+                          </span>
+                        )}
                         <button
                           type="button"
-                          className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
+                          className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
                           onClick={() => void removeExistingPhoto(photo.id)}
                         >
                           Quitar
@@ -3536,6 +3779,7 @@ export function PublishPage() {
                           src={photo.url}
                           alt="Foto actual"
                           className="h-24 w-full object-cover"
+                          draggable={false}
                         />
                       </div>
                     ))}
@@ -3550,11 +3794,35 @@ export function PublishPage() {
               <label className="text-xs text-[#D1C7BD]">
                 {isEditMode ? "Agregar nuevas fotos (hasta 12)" : "Fotos (hasta 12)"}
               </label>
+              <div
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${photoDropActive ? "border-gold-400/60 bg-gold-500/10" : "border-white/15 bg-night-900/35 hover:border-white/30"}`}
+                onDragOver={(e) => { e.preventDefault(); setPhotoDropActive(true); }}
+                onDragLeave={() => setPhotoDropActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setPhotoDropActive(false);
+                  const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+                  if (!files.length) return;
+                  setPhotos((prev) => {
+                    const next = [...prev, ...files];
+                    const deduped = next.filter((file, index, all) =>
+                      all.findIndex((item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified) === index
+                    );
+                    return deduped.slice(0, 12);
+                  });
+                  setIsDirty(true);
+                }}
+                onClick={() => document.getElementById("photoFileInput")?.click()}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-8 w-8 text-[#D1C7BD]"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <p className="text-xs text-[#D1C7BD]">Arrastrá fotos aquí o <span className="text-gold-300 underline">seleccioná archivos</span></p>
+              </div>
               <input
+                id="photoFileInput"
                 type="file"
                 accept="image/*"
                 multiple
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-[#E7E2DD]"
+                className="hidden"
                 onChange={(event) => {
                   const files = event.target.files ? Array.from(event.target.files) : [];
                   if (!files.length) return;
@@ -3571,12 +3839,12 @@ export function PublishPage() {
                     );
                     return deduped.slice(0, 12);
                   });
+                  setIsDirty(true);
                   event.target.value = "";
                 }}
               />
               <p className="text-[11px] leading-relaxed text-[#D1C7BD]">
-                Podés elegir una foto o varias. Cada selección se suma a las anteriores hasta 12;
-                si alguna no te gusta, quitála desde la vista previa de abajo.
+                La primera foto es la principal. Arrastrá las miniaturas para cambiar el orden.
               </p>
               {photos.length > 0 && (
                 <div className="space-y-3">
@@ -3584,14 +3852,35 @@ export function PublishPage() {
                     {photos.length}/12 fotos seleccionadas.
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {photoPreviews.map((item) => (
+                    {photoPreviews.map((item, index) => (
                       <div
                         key={item.url}
-                        className="relative overflow-hidden rounded-xl border border-white/10 bg-night-900/48"
+                        draggable
+                        onDragStart={() => setDraggingPhotoIndex(index)}
+                        onDragEnd={() => { setDraggingPhotoIndex(null); setDragOverPhotoIndex(null); }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverPhotoIndex(index); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggingPhotoIndex === null || draggingPhotoIndex === index) return;
+                          setPhotos((prev) => {
+                            const next = [...prev];
+                            const [moved] = next.splice(draggingPhotoIndex, 1);
+                            next.splice(index, 0, moved);
+                            return next;
+                          });
+                          setDraggingPhotoIndex(null);
+                          setDragOverPhotoIndex(null);
+                        }}
+                        className={`relative cursor-grab overflow-hidden rounded-xl border bg-night-900/48 transition ${dragOverPhotoIndex === index && draggingPhotoIndex !== index ? "border-gold-400/60 opacity-75" : draggingPhotoIndex === index ? "border-white/30 opacity-50" : "border-white/10"}`}
                       >
+                        {index === 0 && (
+                          <span className="absolute left-2 top-2 z-10 rounded-full border border-gold-400/60 bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-gold-300">
+                            Principal
+                          </span>
+                        )}
                         <button
                           type="button"
-                          className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
+                          className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
                           onClick={() =>
                             setPhotos((prev) => prev.filter((file) => file !== item.file))
                           }
@@ -3602,6 +3891,7 @@ export function PublishPage() {
                           src={item.url}
                           alt={item.file.name}
                           className="h-24 w-full object-cover"
+                          draggable={false}
                         />
                       </div>
                     ))}

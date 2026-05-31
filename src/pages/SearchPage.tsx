@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useExchangeRate } from "../shared/hooks/useExchangeRate";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
@@ -11,6 +12,7 @@ import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { trackEvent } from "../shared/analytics/posthog";
 import { useSeo } from "../shared/seo/useSeo";
+import { reverseGeocode } from "../shared/map/geocode";
 
 type AdItem = {
   id: string;
@@ -153,6 +155,83 @@ const renderFeatureIcon = (icon: FeatureIconName) => {
   );
 };
 
+function LocalityAutocomplete({
+  localities,
+  localityId,
+  onSelect,
+}: {
+  localities: LocalityOption[];
+  localityId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = localities.find((l) => l.id === localityId);
+  const displayValue = open ? query : (selected?.name ?? "");
+
+  const filtered = query.trim()
+    ? localities.filter((l) => l.name.toLowerCase().includes(query.toLowerCase())).slice(0, 10)
+    : localities.slice(0, 10);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="space-y-2 text-xs text-[#D1C7BD]">
+      Zona
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#9a948a] focus:border-gold-400/50 focus:outline-none"
+          placeholder="Buscar zona..."
+          value={displayValue}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => { setQuery(""); setOpen(true); }}
+        />
+        {localityId && (
+          <button
+            type="button"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#D1C7BD] hover:text-white"
+            onClick={() => { onSelect(""); setQuery(""); setOpen(false); }}
+            aria-label="Limpiar zona"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        )}
+        {open && filtered.length > 0 && (
+          <div className="absolute left-0 right-0 top-full z-[200] mt-1 max-h-52 overflow-y-auto rounded-xl border border-white/15 bg-night-900 shadow-xl">
+            <button
+              type="button"
+              className="w-full px-3 py-2 text-left text-sm text-[#D1C7BD] hover:bg-white/5"
+              onMouseDown={() => { onSelect(""); setQuery(""); setOpen(false); }}
+            >
+              Todas las zonas
+            </button>
+            {filtered.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-white/5 ${l.id === localityId ? "text-gold-300" : "text-[#E7E2DD]"}`}
+                onMouseDown={() => { onSelect(l.id); setQuery(""); setOpen(false); }}
+              >
+                <span>{l.name}</span>
+                <span className="text-[10px] text-[#D1C7BD]">{l.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SearchPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -176,12 +255,17 @@ export function SearchPage() {
   const [priceCurrency, setPriceCurrency] = useState<"" | "ARS" | "USD">("");
   const [minPriceInput, setMinPriceInput] = useState("");
   const [maxPriceInput, setMaxPriceInput] = useState("");
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "price_asc" | "price_desc">("date_desc");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const usdToArs = useExchangeRate();
+  const [detectedCityName, setDetectedCityName] = useState<string | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const hasMore = page < totalPages;
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const sessionUser = getSessionUser();
   const activeFilters = useMemo(() => {
     const chips: { key: string; label: string; onClear: () => void }[] = [];
@@ -337,6 +421,37 @@ export function SearchPage() {
   useSeo(searchSeo);
   const pageProgress = totalPages > 1 ? Math.min(100, Math.max(0, (page / totalPages) * 100)) : 100;
 
+  // Detectar ciudad del usuario para auto-filtrar localidad al entrar sin filtros
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const result = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+          const city = result?.locality ?? result?.party ?? null;
+          if (city) setDetectedCityName(city);
+        } catch { /* ignore */ }
+      },
+      () => {},
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  }, []);
+
+  // Cuando se detectó la ciudad y ya cargaron las localidades, auto-seleccionar si no hay filtro activo
+  useEffect(() => {
+    if (!detectedCityName || !localities.length || localityId) return;
+    const cityLower = detectedCityName.toLowerCase();
+    const match = localities.find(
+      (l) =>
+        l.name.toLowerCase().includes(cityLower) ||
+        cityLower.includes(l.name.toLowerCase())
+    );
+    if (match) {
+      setLocalityId(match.id);
+      setPage(1);
+    }
+  }, [detectedCityName, localities, localityId]);
+
   useEffect(() => {
     const updateViewport = () => {
       setIsMobileViewport(window.innerWidth < 768);
@@ -362,6 +477,7 @@ export function SearchPage() {
       status: "ACTIVE",
       page: String(page),
       pageSize: String(pageSize),
+      sortBy,
     });
     if (operationType) {
       params.set("operationType", operationType);
@@ -385,7 +501,7 @@ export function SearchPage() {
       params.set("maxPrice", maxPriceInput);
     }
     return `${env.apiUrl}/properties?${params.toString()}`;
-  }, [page, pageSize, operationType, propertyType, publisherType, localityId, priceCurrency, minPriceInput, maxPriceInput]);
+  }, [page, pageSize, sortBy, operationType, propertyType, publisherType, localityId, priceCurrency, minPriceInput, maxPriceInput]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -396,6 +512,7 @@ export function SearchPage() {
     const nextPriceCurrency = (params.get("priceCurrency") ?? "") as typeof priceCurrency;
     const nextMinPrice = params.get("minPrice") ?? "";
     const nextMaxPrice = params.get("maxPrice") ?? "";
+    const nextSortBy = (params.get("sortBy") ?? "date_desc") as typeof sortBy;
     setOperationType(nextOperation);
     setPropertyType(nextProperty);
     setPublisherType(nextPublisherType);
@@ -403,6 +520,7 @@ export function SearchPage() {
     setPriceCurrency(nextPriceCurrency);
     setMinPriceInput(nextMinPrice);
     setMaxPriceInput(nextMaxPrice);
+    setSortBy(nextSortBy);
     setPage(1);
   }, [location.search]);
 
@@ -429,6 +547,9 @@ export function SearchPage() {
     if (maxPriceInput) {
       params.set("maxPrice", maxPriceInput);
     }
+    if (sortBy !== "date_desc") {
+      params.set("sortBy", sortBy);
+    }
     const nextSearch = params.toString();
     const currentSearch = location.search.startsWith("?")
       ? location.search.slice(1)
@@ -436,7 +557,7 @@ export function SearchPage() {
     if (nextSearch !== currentSearch) {
       navigate(nextSearch ? `/buscar?${nextSearch}` : "/buscar", { replace: true });
     }
-  }, [navigate, location.search, operationType, propertyType, publisherType, localityId, priceCurrency, minPriceInput, maxPriceInput]);
+  }, [navigate, location.search, operationType, propertyType, publisherType, localityId, priceCurrency, minPriceInput, maxPriceInput, sortBy]);
 
   useEffect(() => {
     let ignore = false;
@@ -455,11 +576,12 @@ export function SearchPage() {
         });
         if (ignore) return;
         if (data.items.length > 0) {
-          setListings(data.items.map(mapPropertyToSearchListing));
+          const mapped = data.items.map(mapPropertyToSearchListing);
+          setListings((prev) => (page === 1 ? mapped : [...prev, ...mapped]));
           setTotal(data.total ?? data.items.length);
           setListStatus("idle");
         } else {
-          setListings([]);
+          if (page === 1) setListings([]);
           setListStatus("idle");
           setListError("");
         }
@@ -479,6 +601,22 @@ export function SearchPage() {
       controller.abort();
     };
   }, [listUrl]);
+
+  // Infinite scroll — observe sentinel at bottom of list
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasMore && listStatus === "idle") {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, listStatus]);
 
   useEffect(() => {
     let ignore = false;
@@ -620,6 +758,12 @@ export function SearchPage() {
       operation: listing.operation,
       propertyType: listing.propertyType,
     });
+    // Track view (fire-and-forget)
+    void fetch(`${env.apiUrl}/properties/${listing.id}/view`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "search" }),
+    }).catch(() => {});
     navigate(`/publicacion/${listing.id}`, {
       state: {
         returnTo: `${location.pathname}${location.search}`,
@@ -753,24 +897,11 @@ export function SearchPage() {
             <option value="AGENCY">Inmobiliaria</option>
           </select>
         </label>
-        <label className="space-y-2 text-xs text-[#D1C7BD]">
-          Zona
-          <select
-            className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-            value={localityId}
-            onChange={(event) => {
-              setLocalityId(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Todas las zonas</option>
-            {localities.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} ({item.count})
-              </option>
-            ))}
-          </select>
-        </label>
+        <LocalityAutocomplete
+          localities={localities}
+          localityId={localityId}
+          onSelect={(id) => { setLocalityId(id); setPage(1); }}
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-2 text-xs text-[#D1C7BD]">
             Precio mínimo
@@ -822,7 +953,14 @@ export function SearchPage() {
           </label>
         </div>
         <label className="space-y-2 text-xs text-[#D1C7BD]">
-          Moneda
+          <span className="flex items-center justify-between">
+            <span>Moneda</span>
+            {usdToArs && (
+              <span className="text-[10px] text-gold-300">
+                USD 1 ≈ ARS {new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(usdToArs)}
+              </span>
+            )}
+          </span>
           <select
             className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
             value={priceCurrency}
@@ -986,9 +1124,23 @@ export function SearchPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Resultados</h3>
-              <p className="text-xs text-[#D1C7BD]">Ordenados por relevancia y actualización.</p>
+              <p className="text-xs text-[#D1C7BD]">{total > 0 ? `${total} inmuebles encontrados` : "Explorá las publicaciones"}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="rounded-full border border-white/15 bg-night-900/48 px-3 py-1 text-xs text-white"
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as typeof sortBy);
+                  setPage(1);
+                }}
+                aria-label="Ordenar por"
+              >
+                <option value="date_desc">Más recientes</option>
+                <option value="date_asc">Más antiguos</option>
+                <option value="price_asc">Menor precio</option>
+                <option value="price_desc">Mayor precio</option>
+              </select>
               <span className="hidden text-xs text-[#D1C7BD] sm:inline">Vista</span>
               {!isMobileViewport && (
                 <button
@@ -1030,27 +1182,9 @@ export function SearchPage() {
               style={{ width: `${pageProgress}%` }}
             />
           </div>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#D1C7BD]">
-            <div>
-              Pagina {page} de {totalPages}
-            </div>
-            <div className="flex items-center gap-2">
-              <span>Por página</span>
-              <select
-                className="rounded-full border border-white/15 bg-night-900/48 px-3 py-1 text-xs text-white"
-                value={pageSize}
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  if (isMobileViewport) return;
-                  setPageSize(next);
-                  setPage(1);
-                }}
-                disabled={isMobileViewport}
-              >
-                {!isMobileViewport && <option value={5}>5</option>}
-                <option value={9}>9</option>
-              </select>
-            </div>
+          <div className="mt-3 flex items-center justify-between text-xs text-[#D1C7BD]">
+            <div>{listings.length > 0 ? `${listings.length} de ${total} resultados` : ""}</div>
+            {hasMore && <div className="text-[11px] text-[#D1C7BD]/70">Scroll para ver más</div>}
           </div>
         </div>
         {listStatus === "loading" && (
@@ -1281,6 +1415,12 @@ export function SearchPage() {
                         >
                           {item.operation}
                         </span>
+                        {item.featured && (
+                          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold-300/70 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-300 backdrop-blur-sm">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            Destacado
+                          </span>
+                        )}
                       </div>
                       <div className="min-w-0 p-3 md:p-4 md:pr-2">
                         <div className="flex h-full flex-col gap-2 overflow-hidden">
@@ -1473,6 +1613,12 @@ export function SearchPage() {
                       >
                         {item.operation}
                       </span>
+                      {item.featured && (
+                        <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold-300/70 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-300 backdrop-blur-sm">
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                          Destacado
+                        </span>
+                      )}
                       <span className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#1A1613] shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
                         {item.price}
                       </span>
@@ -1571,29 +1717,24 @@ export function SearchPage() {
                 );
               })}
         </div>
-        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-night-900/45 p-3 text-xs text-[#D1C7BD]">
-          <button
-            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] disabled:cursor-not-allowed disabled:opacity-45"
-            type="button"
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            disabled={page <= 1 || listStatus === "loading"}
-          >
-            Anterior
-          </button>
-          <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
-            Pagina {page}/{totalPages}
-          </span>
-          <button
-            className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] disabled:cursor-not-allowed disabled:opacity-45"
-            type="button"
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={page >= totalPages || listStatus === "loading"}
-          >
-            Siguiente
-          </button>
-        </div>
+        {/* Infinite scroll sentinel */}
+        <div ref={sentinelRef} className="h-4" aria-hidden="true" />
+        {listStatus === "loading" && page > 1 && (
+          <div className="flex items-center justify-center gap-2 py-4 text-xs text-[#D1C7BD]">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            Cargando más...
+          </div>
+        )}
+        {!hasMore && listings.length > 0 && listStatus === "idle" && (
+          <div className="py-4 text-center text-xs text-[#D1C7BD]">
+            {listings.length} de {total} resultados
+          </div>
+        )}
       </section>
         </div>
+
       </div>
 
       {mobileFiltersOpen && (

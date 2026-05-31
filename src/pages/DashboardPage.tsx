@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cloudinaryCard } from "../shared/utils/cloudinaryUrl";
 import { MapContainer, TileLayer, CircleMarker, useMapEvents } from "react-leaflet";
 import {
   CardNumber,
@@ -156,7 +157,8 @@ type AgencyProfile = {
 };
 
 type PanelSection = "profile" | "subscription" | "listings" | "requests" | "my-requests";
-const planCountedStatuses = ["DRAFT", "ACTIVE", "PAUSED", "TEMPORARILY_UNAVAILABLE"];
+// PAUSED is excluded: pausing a listing frees the slot (matches backend PLAN_LIMIT_COUNTED_STATUSES)
+const planCountedStatuses = ["DRAFT", "ACTIVE", "TEMPORARILY_UNAVAILABLE"];
 
 export function DashboardPage() {
   const location = useLocation();
@@ -246,6 +248,7 @@ export function DashboardPage() {
       : "rounded-2xl border border-white/10 bg-night-900/45 p-4";
 
   const [items, setItems] = useState<PropertyApiListItem[]>([]);
+  const [propertyStats, setPropertyStats] = useState<Record<string, { totalViews: number; last7dViews: number; totalContacts: number; last7dContacts: number }>>({});
   const [propertyStatus, setPropertyStatus] = useState<"idle" | "loading" | "error">(
     "idle"
   );
@@ -255,6 +258,8 @@ export function DashboardPage() {
   const [planUsageCount, setPlanUsageCount] = useState(0);
   const [planUsageStatus, setPlanUsageStatus] = useState<"idle" | "loading" | "error">("idle");
   const [planUsageError, setPlanUsageError] = useState("");
+  const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(null);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; title: string } | null>(null);
   const subscriptionInitialRefreshTriggeredRef = useRef(false);
   const [agencyStatus, setAgencyStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
@@ -491,6 +496,27 @@ export function DashboardPage() {
       const data = (await response.json()) as { items: PropertyApiListItem[] };
       setItems(data.items);
       setPropertyStatus("idle");
+
+      // Load stats for each active property
+      if (sessionToken && data.items.length) {
+        const statsResults = await Promise.allSettled(
+          data.items.slice(0, 20).map(async (prop) => {
+            const r = await fetch(`${env.apiUrl}/properties/${prop.id}/stats`, {
+              headers: { Authorization: `Bearer ${sessionToken}` },
+            });
+            if (!r.ok) return null;
+            const s = (await r.json()) as { totalViews: number; last7dViews: number; totalContacts: number; last7dContacts: number };
+            return { id: prop.id, stats: s };
+          })
+        );
+        const statsMap: Record<string, { totalViews: number; last7dViews: number; totalContacts: number; last7dContacts: number }> = {};
+        for (const result of statsResults) {
+          if (result.status === "fulfilled" && result.value) {
+            statsMap[result.value.id] = result.value.stats;
+          }
+        }
+        setPropertyStats(statsMap);
+      }
     } catch (error) {
       setPropertyStatus("error");
       setPropertyError(
@@ -1824,6 +1850,34 @@ export function DashboardPage() {
     } catch (error) {
       setPropertyStatus("error");
       setPropertyError(error instanceof Error ? error.message : "No pudimos actualizar el estado.");
+    }
+  };
+
+  const deleteProperty = (propertyId: string, title: string) => {
+    setDeleteConfirmItem({ id: propertyId, title });
+  };
+
+  const confirmDeleteProperty = async () => {
+    if (!deleteConfirmItem) return;
+    const { id: propertyId } = deleteConfirmItem;
+    setDeleteConfirmItem(null);
+    setDeletingPropertyId(propertyId);
+    try {
+      const response = await fetch(`${env.apiUrl}/properties/${propertyId}`, {
+        method: "DELETE",
+        headers: { ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error((body as { message?: string })?.message ?? "No pudimos eliminar el inmueble.");
+      }
+      await loadProperties();
+      await loadPlanUsage();
+      addToast("Inmueble eliminado.", "success");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "No pudimos eliminar el inmueble.", "error");
+    } finally {
+      setDeletingPropertyId(null);
     }
   };
 
@@ -3839,6 +3893,46 @@ export function DashboardPage() {
           {propertyStatus === "idle" && items.length === 0 && (
             <p className="text-xs text-[#D1C7BD]">No hay publicaciones cargadas.</p>
           )}
+          {items.length > 0 && Object.keys(propertyStats).length > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-2xl border border-white/10 bg-night-900/35 p-4">
+              {[
+                {
+                  label: "Vistas totales",
+                  value: Object.values(propertyStats).reduce((s, p) => s + p.totalViews, 0),
+                  sub: `+${Object.values(propertyStats).reduce((s, p) => s + p.last7dViews, 0)} esta semana`,
+                  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 text-sky-400"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+                },
+                {
+                  label: "Contactos totales",
+                  value: Object.values(propertyStats).reduce((s, p) => s + p.totalContacts, 0),
+                  sub: `+${Object.values(propertyStats).reduce((s, p) => s + p.last7dContacts, 0)} esta semana`,
+                  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 text-emerald-400"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+                },
+                {
+                  label: "Publicaciones",
+                  value: items.length,
+                  sub: `${items.filter(i => i.status === "ACTIVE").length} activas`,
+                  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 text-gold-300"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+                },
+                {
+                  label: "Tasa de contacto",
+                  value: (() => {
+                    const views = Object.values(propertyStats).reduce((s, p) => s + p.totalViews, 0);
+                    const contacts = Object.values(propertyStats).reduce((s, p) => s + p.totalContacts, 0);
+                    return views > 0 ? `${((contacts / views) * 100).toFixed(1)}%` : "—";
+                  })(),
+                  sub: "contactos / vistas",
+                  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 text-gold-400"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+                },
+              ].map((metric) => (
+                <div key={metric.label} className="flex flex-col items-center gap-1 text-center">
+                  <div className="flex items-center gap-1">{metric.icon}<span className="text-[10px] uppercase tracking-wider text-[#D1C7BD]">{metric.label}</span></div>
+                  <div className="text-xl font-bold text-white">{metric.value}</div>
+                  <div className="text-[10px] text-[#D1C7BD]">{metric.sub}</div>
+                </div>
+              ))}
+            </div>
+          )}
           {items.length > 0 && (
             <div className="space-y-3">
               {items.map((item) => (
@@ -3849,7 +3943,7 @@ export function DashboardPage() {
                   <div className="grid gap-4 rounded-[calc(1.5rem-1px)] border border-white/6 bg-night-900/65 p-3 sm:p-4 xl:grid-cols-[220px_minmax(0,1fr)_250px]">
                     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-night-950/80">
                       <img
-                        src={item.photos?.[0]?.url ?? "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80"}
+                        src={cloudinaryCard(item.photos?.[0]?.url) ?? "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80"}
                         alt={item.title}
                         className="h-[160px] w-full object-cover xl:h-full xl:min-h-[180px]"
                         loading="lazy"
@@ -3913,6 +4007,26 @@ export function DashboardPage() {
                     </div>
 
                     <div className="flex min-w-0 flex-col justify-end gap-3 rounded-2xl border border-white/10 bg-black/15 p-3">
+                      {propertyStats[item.id] ? (
+                        <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-night-900/50 p-2.5">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-[#D1C7BD]">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                              Vistas
+                            </div>
+                            <div className="mt-0.5 text-base font-bold text-white">{propertyStats[item.id].totalViews}</div>
+                            <div className="text-[10px] text-[#D1C7BD]">+{propertyStats[item.id].last7dViews} esta semana</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-[#D1C7BD]">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                              Contactos
+                            </div>
+                            <div className="mt-0.5 text-base font-bold text-white">{propertyStats[item.id].totalContacts}</div>
+                            <div className="text-[10px] text-[#D1C7BD]">+{propertyStats[item.id].last7dContacts} esta semana</div>
+                          </div>
+                        </div>
+                      ) : null}
                       <label className="space-y-1 text-[11px] text-[#D1C7BD]">
                         Estado de publicación
                         <select
@@ -3949,6 +4063,14 @@ export function DashboardPage() {
                           onClick={() => openPublicFromList(item)}
                         >
                           Ver ficha pública
+                        </button>
+                        <button
+                          className="col-span-2 rounded-full border border-rose-400/30 bg-rose-500/8 px-3 py-2 text-xs text-rose-200 transition hover:border-rose-400/55 disabled:opacity-50"
+                          type="button"
+                          disabled={deletingPropertyId === item.id}
+                          onClick={() => void deleteProperty(item.id, item.title)}
+                        >
+                          {deletingPropertyId === item.id ? "Eliminando..." : "Dar de baja / Eliminar"}
                         </button>
                       </div>
                     </div>
@@ -5160,6 +5282,50 @@ export function DashboardPage() {
             </>
           }
         />
+      )}
+      {/* ── Modal: confirmar eliminación de inmueble ── */}
+      {deleteConfirmItem && (
+        <div className="fixed inset-0 z-[1900] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-[0_24px_60px_rgba(0,0,0,0.7)]">
+            <div className="border-b border-white/10 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-rose-400/30 bg-rose-500/10">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-rose-300">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Dar de baja / Eliminar</h3>
+                  <p className="mt-0.5 text-[11px] text-[#D1C7BD]">Esta acción es irreversible</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-sm text-[#E7E2DD]">
+                ¿Eliminar <span className="font-semibold text-white">"{deleteConfirmItem.title}"</span>?
+              </p>
+              <p className="mt-2 text-xs text-[#BFB8AD]">
+                Se borrarán permanentemente el inmueble, sus fotos y todas las solicitudes de contacto asociadas. No se puede deshacer.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-white/10 px-6 py-4">
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] hover:border-white/35 transition"
+                onClick={() => setDeleteConfirmItem(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-rose-400/40 bg-rose-500/15 px-4 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-500/25 transition"
+                onClick={() => void confirmDeleteProperty()}
+              >
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <ConfirmLeaveModal open={show} onConfirm={confirmLeave} onCancel={cancelLeave} />
       </div>

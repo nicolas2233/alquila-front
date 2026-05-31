@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, LayersControl } from "react-leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, LayersControl, ZoomControl } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
 
@@ -29,13 +29,31 @@ type MapViewProps = {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onOpen?: (id: string) => void;
+  center?: [number, number] | null;
+  fullHeight?: boolean;
+  hideExpandButton?: boolean;
+  disableAutoFit?: boolean;
 };
 
 const defaultCenter: LatLngExpression = [-35.1197, -60.4899];
-const ESRI_SATELLITE =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-const ESRI_ATTRIBUTION =
-  "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics";
+
+const TILE_LAYERS = {
+  osm: {
+    name: "Mapa",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  satellite: {
+    name: "Satélite",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics",
+  },
+  cartoDark: {
+    name: "Oscuro",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+} as const;
 
 const createMarkerIcon = (color: string, isSelected: boolean, count?: number) =>
   L.divIcon({
@@ -59,22 +77,33 @@ const createMarkerIcon = (color: string, isSelected: boolean, count?: number) =>
     `,
     iconSize:
       typeof count === "number" && count > 1
-        ? isSelected
-          ? [44, 44]
-          : [38, 38]
-        : isSelected
-          ? [40, 40]
-          : [34, 34],
+        ? isSelected ? [44, 44] : [38, 38]
+        : isSelected ? [40, 40] : [34, 34],
     iconAnchor:
       typeof count === "number" && count > 1
-        ? isSelected
-          ? [22, 22]
-          : [19, 19]
-        : isSelected
-          ? [20, 38]
-          : [17, 33],
+        ? isSelected ? [22, 22] : [19, 19]
+        : isSelected ? [20, 38] : [17, 33],
     popupAnchor: [0, -34],
   });
+
+function MapZoomControlRemover() {
+  const map = useMap();
+  useEffect(() => {
+    if (map.zoomControl) map.zoomControl.remove();
+  }, [map]);
+  return null;
+}
+
+function MapSetCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  const prevRef = useRef<[number, number] | null>(null);
+  useEffect(() => {
+    if (prevRef.current && prevRef.current[0] === center[0] && prevRef.current[1] === center[1]) return;
+    prevRef.current = center;
+    map.flyTo(center, 14, { duration: 1.5, easeLinearity: 0.25 });
+  }, [center, map]);
+  return null;
+}
 
 function MapAutoFit({
   points,
@@ -109,7 +138,6 @@ function MapInteractionBridge({ onMapClick, onZoomStart }: { onMapClick: () => v
     click: () => onMapClick(),
     zoomstart: () => onZoomStart(),
   });
-
   return null;
 }
 
@@ -118,11 +146,9 @@ function spreadNearbyPoints(points: MapPoint[]) {
 
   for (const point of points) {
     if (point.spiderfied) {
-      // Los puntos ya "abiertos" en abanico no se vuelven a separar para evitar movimientos raros.
       buckets.set(`spider:${point.id}`, [point]);
       continue;
     }
-    // Agrupa por ~5m aprox para evitar que dos pines queden exactamente superpuestos.
     const key = `${point.lat.toFixed(5)}:${point.lng.toFixed(5)}`;
     const list = buckets.get(key);
     if (list) list.push(point);
@@ -131,13 +157,11 @@ function spreadNearbyPoints(points: MapPoint[]) {
 
   const result: MapPoint[] = [];
   for (const group of buckets.values()) {
-    // Si ya viene como cluster (count > 1) respetamos el punto agregado del backend/frontend.
     if (group.length === 1 || (group[0].count && group[0].count > 1)) {
       result.push(...group);
       continue;
     }
-
-    const radius = 0.00006; // ~6-7m
+    const radius = 0.00006;
     group.forEach((point, index) => {
       const angle = (Math.PI * 2 * index) / group.length;
       result.push({
@@ -155,7 +179,6 @@ function clusterNearbyPoints(points: MapPoint[], selectedId: string | null) {
   const buckets = new Map<string, MapPoint[]>();
 
   for (const point of points) {
-    // Bucket más amplio (~11m) para cluster visual inicial.
     const key = `${point.lat.toFixed(4)}:${point.lng.toFixed(4)}`;
     const list = buckets.get(key);
     if (list) list.push(point);
@@ -168,14 +191,10 @@ function clusterNearbyPoints(points: MapPoint[], selectedId: string | null) {
       result.push(group[0]);
       continue;
     }
-
-    // Si hay un punto seleccionado en el grupo, evitamos clusterizarlo para no perder foco.
     if (selectedId && group.some((point) => point.id === selectedId)) {
       result.push(...group);
       continue;
     }
-
-    // Si ya es un cluster generado aguas arriba, lo respetamos.
     if (group.some((point) => (point.count ?? 0) > 1)) {
       result.push(...group);
       continue;
@@ -239,7 +258,7 @@ function expandSpiderfiedCluster(points: MapPoint[], spiderfiedClusterId: string
       continue;
     }
 
-    const radius = 0.00009; // ~10m
+    const radius = 0.00009;
     point.clusterSourcePoints.forEach((sourcePoint, index) => {
       const angle = (Math.PI * 2 * index) / point.clusterSourcePoints!.length;
       const nextLat = point.lat + Math.sin(angle) * radius;
@@ -261,7 +280,7 @@ function expandSpiderfiedCluster(points: MapPoint[], spiderfiedClusterId: string
   return { points: result, links };
 }
 
-export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) {
+export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeight, hideExpandButton, disableAutoFit }: MapViewProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [spiderfiedClusterId, setSpiderfiedClusterId] = useState<string | null>(null);
   const { renderPoints, spiderLinks } = useMemo(() => {
@@ -273,14 +292,16 @@ export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) 
     };
   }, [points, selectedId, spiderfiedClusterId]);
 
+  const effectiveExpanded = !fullHeight && isExpanded;
+
   useEffect(() => {
-    if (!isExpanded) return;
+    if (!effectiveExpanded) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isExpanded]);
+  }, [effectiveExpanded]);
 
   useEffect(() => {
     if (selectedId) {
@@ -288,60 +309,69 @@ export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) 
     }
   }, [selectedId]);
 
+  const outerClass = effectiveExpanded
+    ? "fixed inset-0 z-[1350] bg-night-950 p-3 sm:p-5"
+    : fullHeight
+      ? "relative h-full w-full"
+      : "relative z-0";
+
+  const innerClass = effectiveExpanded
+    ? "relative h-full overflow-hidden rounded-[28px] border border-white/10 bg-night-950 shadow-soft"
+    : fullHeight
+      ? "relative h-full w-full overflow-hidden"
+      : "relative overflow-hidden rounded-[32px] border border-white/10 shadow-soft";
+
+  const mapClass = effectiveExpanded || fullHeight ? "h-full w-full" : "h-[420px] w-full";
+
   return (
-    <div
-      className={
-        isExpanded
-          ? "fixed inset-0 z-[1350] bg-night-950 p-3 sm:p-5"
-          : "relative z-0"
-      }
-    >
-      <div
-        className={
-          isExpanded
-            ? "relative h-full overflow-hidden rounded-[28px] border border-white/10 bg-night-950 shadow-soft"
-            : "relative overflow-hidden rounded-[32px] border border-white/10 shadow-soft"
-        }
-      >
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex justify-between p-3">
-          <div className="pointer-events-auto rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[11px] text-white/90 backdrop-blur">
-            {renderPoints.length} puntos
+    <div className={outerClass}>
+      <div className={innerClass}>
+        {!fullHeight && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex justify-between p-3">
+            <div className="pointer-events-auto rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[11px] text-white/90 backdrop-blur">
+              {renderPoints.length} puntos
+            </div>
+            {!hideExpandButton && (
+              <button
+                type="button"
+                className="pointer-events-auto rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[11px] text-white transition hover:bg-black/70"
+                onClick={() => setIsExpanded((prev) => !prev)}
+              >
+                {effectiveExpanded ? "Cerrar mapa" : "Ampliar mapa"}
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            className="pointer-events-auto rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[11px] text-white transition hover:bg-black/70"
-            onClick={() => setIsExpanded((prev) => !prev)}
-          >
-            {isExpanded ? "Cerrar mapa" : "Ampliar mapa"}
-          </button>
-        </div>
+        )}
 
         <MapContainer
-          center={defaultCenter}
+          center={center ?? defaultCenter}
           zoom={13}
-          className={isExpanded ? "h-full w-full" : "h-[420px] w-full"}
+          className={mapClass}
           scrollWheelZoom={false}
+          zoomControl={false}
         >
+          <ZoomControl position="topright" />
+          <MapZoomControlRemover />
           <MapInteractionBridge
             onMapClick={() => setSpiderfiedClusterId(null)}
             onZoomStart={() => setSpiderfiedClusterId(null)}
           />
-          <LayersControl position="topleft">
-            <LayersControl.BaseLayer checked name="Mapa">
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Satelite">
-              <TileLayer attribution={ESRI_ATTRIBUTION} url={ESRI_SATELLITE} />
-            </LayersControl.BaseLayer>
+          <LayersControl position="topright">
+            {(Object.keys(TILE_LAYERS) as Array<keyof typeof TILE_LAYERS>).map((key) => (
+              <LayersControl.BaseLayer key={key} checked={key === "osm"} name={TILE_LAYERS[key].name}>
+                <TileLayer attribution={TILE_LAYERS[key].attribution} url={TILE_LAYERS[key].url} />
+              </LayersControl.BaseLayer>
+            ))}
           </LayersControl>
+
+          {center && <MapSetCenter center={center} />}
+
           <MapAutoFit
             points={renderPoints}
             selectedId={selectedId}
-            freezeAutoFit={Boolean(spiderfiedClusterId)}
+            freezeAutoFit={Boolean(spiderfiedClusterId) || Boolean(disableAutoFit) || Boolean(center)}
           />
+
           {spiderLinks.map((link) => (
             <Polyline
               key={link.id}
@@ -357,10 +387,7 @@ export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) 
               icon={createMarkerIcon(point.color ?? "#AF8C5C", point.id === selectedId, point.count)}
               eventHandlers={{
                 click: () => {
-                  if (point.id.startsWith("cluster:")) {
-                    // Dejar que Leaflet abra el popup del cluster; el despliegue en abanico se hace desde el popup.
-                    return;
-                  }
+                  if (point.id.startsWith("cluster:")) return;
                   setSpiderfiedClusterId(null);
                   onSelect(point.id);
                 },
@@ -375,7 +402,8 @@ export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) 
                       : 0
               }
             >
-              <Popup className="domusbrag-popup" closeButton={false} offset={[0, -28]}>
+              {/* En full-height usamos nuestra propia card flotante; solo mantenemos popup para clusters */}
+              {(!fullHeight || point.id.startsWith("cluster:")) && <Popup className="domusbrag-popup" closeButton={false} offset={[0, -28]}>
                 <div className="map-popup-body w-52 space-y-2">
                   {point.count && point.count > 1 ? (
                     <>
@@ -486,7 +514,7 @@ export function MapView({ points, selectedId, onSelect, onOpen }: MapViewProps) 
                     </>
                   )}
                 </div>
-              </Popup>
+              </Popup>}
             </Marker>
           ))}
         </MapContainer>

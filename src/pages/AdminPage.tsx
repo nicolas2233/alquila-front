@@ -73,6 +73,8 @@ type AdminProperty = {
   priceAmount: string;
   priceCurrency: string;
   updatedAt: string;
+  featured?: boolean;
+  featuredUntil?: string | null;
   ownerUser?: { id: string; name?: string | null; email?: string | null } | null;
   agency?: { id: string; name?: string | null } | null;
   location?: { addressLine?: string | null; locality?: { name: string } | null } | null;
@@ -189,6 +191,70 @@ function formatShortDateTime(value?: string | null) {
   }).format(date);
 }
 
+function Pagination({
+  page,
+  total,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}) {
+  const pages = Math.ceil(total / pageSize);
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 pt-3 text-xs">
+      <button
+        type="button"
+        disabled={page === 1}
+        onClick={() => onChange(page - 1)}
+        className="rounded-full border border-white/20 px-3 py-1 text-[#E7E2DD] disabled:opacity-40"
+      >
+        ← Anterior
+      </button>
+      <span className="text-[#9f988d]">
+        {page} / {pages} &middot; {total} total
+      </span>
+      <button
+        type="button"
+        disabled={page >= pages}
+        onClick={() => onChange(page + 1)}
+        className="rounded-full border border-white/20 px-3 py-1 text-[#E7E2DD] disabled:opacity-40"
+      >
+        Siguiente →
+      </button>
+    </div>
+  );
+}
+
+function VerificationPayload({ payload }: { payload: Record<string, unknown> }) {
+  const labels: Record<string, string> = {
+    firstName: "Nombre",
+    lastName: "Apellido",
+    birthDate: "Fecha nac.",
+    dni: "DNI / CUIT",
+    phone: "Teléfono",
+    email: "Email",
+    company: "Empresa",
+    address: "Dirección",
+    type: "Tipo",
+  };
+  const entries = Object.entries(payload);
+  if (entries.length === 0) return <span className="text-[#9f988d]">Sin datos</span>;
+  return (
+    <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      {entries.map(([key, value]) => (
+        <>
+          <span key={`${key}-k`} className="shrink-0 text-[#9f988d]">{labels[key] ?? key}</span>
+          <span key={`${key}-v`} className="break-all text-[#E7E2DD]">{String(value ?? "—")}</span>
+        </>
+      ))}
+    </div>
+  );
+}
+
 function normalizePlan(plan: AdminPlan): AdminPlan {
   return {
     ...plan,
@@ -284,6 +350,7 @@ export function AdminPage() {
     "idle"
   );
   const [propertiesError, setPropertiesError] = useState("");
+  const [featuredSavingId, setFeaturedSavingId] = useState<string | null>(null);
 
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [reportsStatus, setReportsStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -322,6 +389,26 @@ export function AdminPage() {
   const [adPriority, setAdPriority] = useState("0");
   const [adSaving, setAdSaving] = useState(false);
 
+  // Pagination / search
+  const [userPage, setUserPage] = useState(1);
+  const [userTotal, setUserTotal] = useState(0);
+  const [userSearchCommitted, setUserSearchCommitted] = useState("");
+
+  const [propertiesPage, setPropertiesPage] = useState(1);
+  const [propertiesTotal, setPropertiesTotal] = useState(0);
+  const [propertiesStatusFilter, setPropertiesStatusFilter] = useState("");
+
+  const [verificationsPage, setVerificationsPage] = useState(1);
+  const [verificationsTotal, setVerificationsTotal] = useState(0);
+  const [verificationsStatusFilter, setVerificationsStatusFilter] = useState("");
+
+  // Ads edit
+  const [adEditId, setAdEditId] = useState<string | null>(null);
+  const [adEditDraft, setAdEditDraft] = useState({
+    title: "", body: "", imageUrl: "", linkUrl: "", ctaText: "", priority: "0",
+  });
+  const [adEditSaving, setAdEditSaving] = useState(false);
+
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") {
       return;
@@ -353,42 +440,50 @@ export function AdminPage() {
     setUsersStatus("loading");
     setUsersError("");
     const params = new URLSearchParams();
-    if (userSearch.trim()) params.set("q", userSearch.trim());
-    fetch(`${env.apiUrl}/admin/users${params.toString() ? `?${params.toString()}` : ""}`, {
+    if (userSearchCommitted.trim()) params.set("q", userSearchCommitted.trim());
+    params.set("page", String(userPage));
+    params.set("pageSize", "15");
+    fetch(`${env.apiUrl}/admin/users?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(await readApiError(response, "No pudimos cargar usuarios."));
         }
-        return response.json() as Promise<{ items: AdminUser[] }>;
+        return response.json() as Promise<{ items: AdminUser[]; total: number }>;
       })
       .then((data) => {
         setUsers(data.items ?? []);
+        setUserTotal(data.total ?? 0);
         setUsersStatus("idle");
       })
       .catch((error) => {
         setUsersStatus("error");
         setUsersError(error instanceof Error ? error.message : "Error al cargar usuarios.");
       });
-  }, [token, effectiveRole, tab]);
+  }, [token, effectiveRole, tab, userPage, userSearchCommitted]);
 
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") return;
     if (tab !== "verifications") return;
     setVerificationsStatus("loading");
     setVerificationsError("");
-    fetch(`${env.apiUrl}/admin/verifications`, {
+    const params = new URLSearchParams();
+    params.set("page", String(verificationsPage));
+    params.set("pageSize", "15");
+    if (verificationsStatusFilter) params.set("status", verificationsStatusFilter);
+    fetch(`${env.apiUrl}/admin/verifications?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(await readApiError(response, "No pudimos cargar verificaciones."));
         }
-        return response.json() as Promise<{ items: AdminVerification[] }>;
+        return response.json() as Promise<{ items: AdminVerification[]; total: number }>;
       })
       .then((data) => {
         setVerifications(data.items ?? []);
+        setVerificationsTotal(data.total ?? 0);
         setVerificationsStatus("idle");
       })
       .catch((error) => {
@@ -397,24 +492,29 @@ export function AdminPage() {
           error instanceof Error ? error.message : "Error al cargar verificaciones."
         );
       });
-  }, [token, effectiveRole, tab]);
+  }, [token, effectiveRole, tab, verificationsPage, verificationsStatusFilter]);
 
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") return;
     if (tab !== "properties") return;
     setPropertiesStatus("loading");
     setPropertiesError("");
-    fetch(`${env.apiUrl}/admin/properties`, {
+    const params = new URLSearchParams();
+    params.set("page", String(propertiesPage));
+    params.set("pageSize", "20");
+    if (propertiesStatusFilter) params.set("status", propertiesStatusFilter);
+    fetch(`${env.apiUrl}/admin/properties?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(await readApiError(response, "No pudimos cargar publicaciones."));
         }
-        return response.json() as Promise<{ items: AdminProperty[] }>;
+        return response.json() as Promise<{ items: AdminProperty[]; total: number }>;
       })
       .then((data) => {
         setProperties(data.items ?? []);
+        setPropertiesTotal(data.total ?? 0);
         setPropertiesStatus("idle");
       })
       .catch((error) => {
@@ -423,7 +523,7 @@ export function AdminPage() {
           error instanceof Error ? error.message : "Error al cargar publicaciónes."
         );
       });
-  }, [token, effectiveRole, tab]);
+  }, [token, effectiveRole, tab, propertiesPage, propertiesStatusFilter]);
 
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") return;
@@ -613,6 +713,31 @@ export function AdminPage() {
       addToast(message, "error");
     } finally {
       setUserGrantSavingId(null);
+    }
+  };
+
+  const toggleFeatured = async (property: AdminProperty, days?: number) => {
+    if (!token) return;
+    setFeaturedSavingId(property.id);
+    try {
+      const nextFeatured = !property.featured;
+      const response = await fetch(`${env.apiUrl}/admin/properties/${property.id}/featured`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ featured: nextFeatured, featuredDays: nextFeatured ? (days ?? 30) : undefined }),
+      });
+      if (!response.ok) throw new Error("No pudimos actualizar el estado.");
+      const data = (await response.json()) as { featured: boolean; featuredUntil?: string | null };
+      setProperties((prev) =>
+        prev.map((item) =>
+          item.id === property.id ? { ...item, featured: data.featured, featuredUntil: data.featuredUntil ?? null } : item
+        )
+      );
+      addToast(nextFeatured ? "Propiedad destacada." : "Destaque removido.", "success");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Error al actualizar.", "error");
+    } finally {
+      setFeaturedSavingId(null);
     }
   };
 
@@ -877,6 +1002,46 @@ export function AdminPage() {
     setAds((prev) => prev.map((ad) => (ad.id === adId ? { ...ad, isActive } : ad)));
   };
 
+  const startEditAd = (ad: AdminAd) => {
+    setAdEditId(ad.id);
+    setAdEditDraft({
+      title: ad.title,
+      body: ad.body ?? "",
+      imageUrl: ad.imageUrl ?? "",
+      linkUrl: ad.linkUrl ?? "",
+      ctaText: ad.ctaText ?? "",
+      priority: String(ad.priority),
+    });
+  };
+
+  const saveEditAd = async () => {
+    if (!token || !adEditId) return;
+    setAdEditSaving(true);
+    try {
+      const response = await fetch(`${env.apiUrl}/admin/ads/${adEditId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: adEditDraft.title.trim(),
+          body: adEditDraft.body || undefined,
+          imageUrl: adEditDraft.imageUrl || undefined,
+          linkUrl: adEditDraft.linkUrl || undefined,
+          ctaText: adEditDraft.ctaText || undefined,
+          priority: Number(adEditDraft.priority) || 0,
+        }),
+      });
+      if (!response.ok) throw new Error(await readApiError(response, "No pudimos actualizar la publicidad."));
+      const updated = (await response.json()) as AdminAd;
+      setAds((prev) => prev.map((ad) => (ad.id === adEditId ? { ...ad, ...updated } : ad)));
+      setAdEditId(null);
+      addToast("Publicidad actualizada.", "success");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Error al actualizar.", "error");
+    } finally {
+      setAdEditSaving(false);
+    }
+  };
+
   const deleteAd = async (adId: string) => {
     if (!token) return;
     const response = await fetch(`${env.apiUrl}/admin/ads/${adId}`, {
@@ -1001,7 +1166,9 @@ export function AdminPage() {
                         {plan.code}
                       </span>
                       <span className="text-xs text-[#9f988d]">
-                        Act. {formatShortDateTime(plan.updatedAt ?? plan.createdAt)}
+                        {plan.updatedAt && plan.updatedAt !== plan.createdAt
+                          ? `Actualizado ${formatShortDateTime(plan.updatedAt)}`
+                          : `Creado ${formatShortDateTime(plan.createdAt)}`}
                       </span>
                     </div>
                     <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-[#E7E2DD]">
@@ -1082,15 +1249,30 @@ export function AdminPage() {
                 Buscá, revisá publicaciones y aplicá beneficios comerciales manuales.
               </p>
             </div>
-            <label className="w-full space-y-2 text-xs text-[#D1C7BD] sm:max-w-sm">
-              Buscar usuario
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={userSearch}
-                onChange={(event) => setUserSearch(event.target.value)}
-                placeholder="Nombre, email o teléfono"
-              />
-            </label>
+            <div className="w-full space-y-1 sm:max-w-sm">
+              <span className="text-xs text-[#D1C7BD]">Buscar usuario</span>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      setUserSearchCommitted(userSearch);
+                      setUserPage(1);
+                    }
+                  }}
+                  placeholder="Nombre, email o teléfono"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUserSearchCommitted(userSearch); setUserPage(1); }}
+                  className="rounded-xl border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] hover:border-white/40"
+                >
+                  Buscar
+                </button>
+              </div>
+            </div>
           </div>
           {usersStatus === "loading" && (
             <div className="text-xs text-[#D1C7BD]">Cargando usuarios...</div>
@@ -1098,15 +1280,23 @@ export function AdminPage() {
           {usersStatus === "error" && (
             <div className="text-xs text-[#AF8C5C]">{usersError}</div>
           )}
+          {userTotal > 0 && (
+            <div className="text-right text-[11px] text-[#9f988d]">{userTotal} usuario{userTotal !== 1 ? "s" : ""} encontrado{userTotal !== 1 ? "s" : ""}</div>
+          )}
+          {usersStatus === "idle" && users.length === 0 && (
+            <div className="text-xs text-[#9f988d]">No se encontraron usuarios.</div>
+          )}
           {users.map((user) => (
             <div
               key={user.id}
               className="grid gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs lg:grid-cols-[1.1fr_0.9fr]"
             >
               <div>
-                <div className="text-sm text-white">{user.name ?? "Sin nombre"}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-white">{user.name ?? "Sin nombre"}</span>
+                  <span className="rounded-full border border-white/10 bg-night-900/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[#9f988d]">{user.role}</span>
+                </div>
                 <div className="text-[#D1C7BD]">{user.email}</div>
-                <div className="text-[#D1C7BD]">{user.role}</div>
                 {user.subscription && (
                   <div className="mt-2 rounded-xl border border-white/10 bg-night-900/36 px-2.5 py-2 text-[11px] text-[#ddd5c9]">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1181,13 +1371,27 @@ export function AdminPage() {
                   </select>
                 </div>
                 {(user.role === "OWNER" || user.role === "AGENCY_ADMIN" || user.role === "AGENCY_AGENT") && (
-                  <div className="rounded-2xl border border-white/10 bg-night-950/35 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
-                      Beneficio comercial
+                  <div className="rounded-2xl border border-gold-500/25 bg-gold-500/5 p-3">
+                    <div className="flex items-center gap-2">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 shrink-0 text-gold-300"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-300">
+                        Acceso Premium Gratuito
+                      </p>
+                    </div>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-[#D1C7BD]">
+                      Otorgá acceso premium sin tarjeta de crédito. El usuario podrá publicar inmuebles durante los meses que definas, sin necesidad de cargar un medio de pago.
                     </p>
+                    {user.subscription?.isAdminGrantActive && user.subscription.adminGrantedUntil && (
+                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0 text-emerald-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+                        <span className="text-[11px] text-emerald-300">
+                          Acceso activo hasta {new Date(user.subscription.adminGrantedUntil).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                        </span>
+                      </div>
+                    )}
                     <div className="mt-3 grid gap-2 sm:grid-cols-3">
                       <label className="space-y-1 text-[11px] text-[#D1C7BD] sm:col-span-3">
-                        Cambiar plan sin pago
+                        Plan a otorgar (sin tarjeta)
                         <select
                           className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                           value={userGrantDrafts[user.id]?.planInternalCode ?? ""}
@@ -1195,7 +1399,7 @@ export function AdminPage() {
                             updateUserGrantDraft(user.id, "planInternalCode", event.target.value)
                           }
                         >
-                          <option value="">Mantener plan actual</option>
+                          <option value="">Mantener plan actual ({user.subscription?.planCode ?? "FREE"})</option>
                           {plans
                             .filter((plan) =>
                               user.role === "OWNER"
@@ -1210,11 +1414,12 @@ export function AdminPage() {
                         </select>
                       </label>
                       <label className="space-y-1 text-[11px] text-[#D1C7BD]">
-                        Meses gratis
+                        Meses gratuitos
                         <input
                           type="number"
                           min={0}
                           max={24}
+                          placeholder="0"
                           className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                           value={userGrantDrafts[user.id]?.freeMonths ?? "0"}
                           onChange={(event) =>
@@ -1244,7 +1449,7 @@ export function AdminPage() {
                         disabled={userGrantSavingId === user.id}
                         onClick={() => void saveUserGrant(user)}
                       >
-                        {userGrantSavingId === user.id ? "Aplicando..." : "Aplicar"}
+                        {userGrantSavingId === user.id ? "Aplicando..." : "Otorgar acceso"}
                       </button>
                     </div>
                   </div>
@@ -1276,24 +1481,57 @@ export function AdminPage() {
               </div>
             </div>
           ))}
+          <Pagination page={userPage} total={userTotal} pageSize={15} onChange={(p) => setUserPage(p)} />
         </section>
       )}
 
       {tab === "properties" && (
         <section className="glass-card space-y-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Publicaciones</h3>
+              {propertiesTotal > 0 && (
+                <p className="text-xs text-[#9f988d]">{propertiesTotal} publicaciones en total</p>
+              )}
+            </div>
+            <select
+              value={propertiesStatusFilter}
+              onChange={(event) => { setPropertiesStatusFilter(event.target.value); setPropertiesPage(1); }}
+              className="rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
+            >
+              <option value="">Todos los estados</option>
+              <option value="ACTIVE">Activo</option>
+              <option value="PAUSED">Pausado</option>
+              <option value="DRAFT">Borrador</option>
+              <option value="SOLD">Vendido</option>
+              <option value="RENTED">Alquilado</option>
+              <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
+            </select>
+          </div>
           {propertiesStatus === "loading" && (
             <div className="text-xs text-[#D1C7BD]">Cargando publicaciónes...</div>
           )}
           {propertiesStatus === "error" && (
             <div className="text-xs text-[#AF8C5C]">{propertiesError}</div>
           )}
+          {propertiesStatus === "idle" && properties.length === 0 && (
+            <div className="text-xs text-[#9f988d]">No hay publicaciones con ese filtro.</div>
+          )}
           {properties.map((item) => (
             <div
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 text-xs ${item.featured ? "border-gold-500/40 bg-gold-500/5" : "border-white/10 bg-night-900/48"}`}
             >
-              <div>
-                <div className="text-sm text-white">{item.title}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {item.featured && (
+                    <span className="flex items-center gap-1 rounded-full border border-gold-400/50 bg-gold-400/10 px-2 py-0.5 text-[10px] font-semibold text-gold-300">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-2.5 w-2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      Destacado{item.featuredUntil ? ` hasta ${new Date(item.featuredUntil).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}` : ""}
+                    </span>
+                  )}
+                  <div className="text-sm text-white">{item.title}</div>
+                </div>
                 <div className="text-[#D1C7BD]">
                   {item.operationType} - {item.propertyType} - {item.priceCurrency} {item.priceAmount}
                 </div>
@@ -1301,22 +1539,33 @@ export function AdminPage() {
                   {item.location?.addressLine} {item.location?.locality?.name ? `- ${item.location.locality.name}` : ""}
                 </div>
               </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
-                {item.status}
-              </span>
-              <select
-                className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
-                value={item.status}
-                onChange={(event) => updatePropertyStatus(item.id, event.target.value)}
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="PAUSED">Paused</option>
-                <option value="SOLD">Sold</option>
-                <option value="RENTED">Rented</option>
-                <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
-              </select>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={featuredSavingId === item.id}
+                  onClick={() => void toggleFeatured(item, 30)}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition disabled:opacity-60 ${item.featured ? "border-gold-400/50 bg-gold-400/15 text-gold-300 hover:bg-gold-400/25" : "border-white/20 bg-white/5 text-[#D1C7BD] hover:border-gold-400/40 hover:text-gold-300"}`}
+                >
+                  {featuredSavingId === item.id ? "..." : item.featured ? "Quitar destaque" : "Destacar (30d)"}
+                </button>
+                <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
+                  {item.status}
+                </span>
+                <select
+                  className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
+                  value={item.status}
+                  onChange={(event) => updatePropertyStatus(item.id, event.target.value)}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="PAUSED">Paused</option>
+                  <option value="SOLD">Sold</option>
+                  <option value="RENTED">Rented</option>
+                  <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
+                </select>
+              </div>
             </div>
           ))}
+          <Pagination page={propertiesPage} total={propertiesTotal} pageSize={20} onChange={(p) => setPropertiesPage(p)} />
         </section>
       )}
 
@@ -1368,25 +1617,52 @@ export function AdminPage() {
 
       {tab === "verifications" && (
         <section className="glass-card space-y-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg text-white">Verificaciones</h3>
+              {verificationsTotal > 0 && (
+                <p className="text-xs text-[#9f988d]">{verificationsTotal} en total</p>
+              )}
+            </div>
+            <select
+              value={verificationsStatusFilter}
+              onChange={(event) => { setVerificationsStatusFilter(event.target.value); setVerificationsPage(1); }}
+              className="rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
+            >
+              <option value="">Todos los estados</option>
+              <option value="PENDING">Pendiente</option>
+              <option value="APPROVED">Aprobado</option>
+              <option value="REJECTED">Rechazado</option>
+            </select>
+          </div>
           {verificationsStatus === "loading" && (
             <div className="text-xs text-[#D1C7BD]">Cargando verificaciones...</div>
           )}
           {verificationsStatus === "error" && (
             <div className="text-xs text-[#AF8C5C]">{verificationsError}</div>
           )}
+          {verificationsStatus === "idle" && verifications.length === 0 && (
+            <div className="text-xs text-[#9f988d]">No hay verificaciones con ese filtro.</div>
+          )}
           {verifications.map((item) => (
             <div
               key={item.id}
               className="rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
             >
-              <div className="text-sm text-white">
-                {(item.user.name ?? item.user.email ?? "Usuario")} - {item.type}
-              </div>
-              <div className="text-[#D1C7BD]">Estado: {item.status}</div>
-              <div className="mt-2 text-[#D1C7BD]">
-                Datos: {JSON.stringify(item.payload)}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    {item.user.name ?? item.user.email ?? "Usuario"}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#D1C7BD]">
+                    <span>{item.user.email}</span>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em]">{item.type}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${item.status === "APPROVED" ? "bg-emerald-500/15 text-emerald-300" : item.status === "REJECTED" ? "bg-rose-500/15 text-rose-300" : "bg-gold-500/15 text-gold-300"}`}>
+                      {item.status === "PENDING" ? "Pendiente" : item.status === "APPROVED" ? "Aprobado" : "Rechazado"}
+                    </span>
+                    <span className="text-[#9f988d]">{formatShortDateTime(item.createdAt)}</span>
+                  </div>
+                </div>
                 <select
                   className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
                   value={item.status}
@@ -1397,8 +1673,12 @@ export function AdminPage() {
                   <option value="REJECTED">Rejected</option>
                 </select>
               </div>
+              <div className="mt-3 rounded-xl border border-white/8 bg-night-900/30 px-3 py-2.5 text-[11px]">
+                <VerificationPayload payload={item.payload} />
+              </div>
             </div>
           ))}
+          <Pagination page={verificationsPage} total={verificationsTotal} pageSize={15} onChange={(p) => setVerificationsPage(p)} />
         </section>
       )}
 
@@ -1603,112 +1883,184 @@ export function AdminPage() {
           <div className="space-y-1">
             <h3 className="text-sm text-white">Publicidad</h3>
             <p className="text-xs text-[#D1C7BD]">
-              Las cards publicitarias se muestran entre los inmuebles.
+              Administrá las cards patrocinadas que aparecen en el mapa, listados y la home. Mayor prioridad = aparece primero.
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="space-y-2 text-xs text-[#D1C7BD]">
-              Titulo
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={adTitle}
-                onChange={(event) => setAdTitle(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#D1C7BD]">
-              Prioridad (mayor primero)
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={adPriority}
-                onChange={(event) => setAdPriority(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
-              Texto
-              <textarea
-                rows={3}
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={adBody}
-                onChange={(event) => setAdBody(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
-              Imagen (URL)
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={adImageUrl}
-                onChange={(event) => setAdImageUrl(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
-              Link de destino
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={adLinkUrl}
-                onChange={(event) => setAdLinkUrl(event.target.value)}
-              />
-            </label>
-            <label className="space-y-2 text-xs text-[#D1C7BD]">
-              Texto boton
-              <input
-                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                value={adCtaText}
-                onChange={(event) => setAdCtaText(event.target.value)}
-                placeholder="Visitar"
-              />
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
-              onClick={createAd}
-              disabled={adSaving}
-            >
-              {adSaving ? "Guardando..." : "Agregar publicidad"}
-            </button>
-            {adsError && <span className="text-xs text-[#AF8C5C]">{adsError}</span>}
+          {/* New ad form */}
+          <div className="rounded-2xl border border-gold-500/20 bg-gold-500/5 p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-300">Nueva publicidad</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                Título *
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={adTitle}
+                  onChange={(event) => setAdTitle(event.target.value)}
+                  placeholder="Ej: Inmobiliaria Central"
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                Prioridad (mayor = primero)
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={adPriority}
+                  onChange={(event) => setAdPriority(event.target.value)}
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-[#D1C7BD] md:col-span-2">
+                Descripción
+                <textarea
+                  rows={2}
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={adBody}
+                  onChange={(event) => setAdBody(event.target.value)}
+                  placeholder="Texto breve del anuncio"
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                Imagen (URL)
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={adImageUrl}
+                  onChange={(event) => setAdImageUrl(event.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                Texto del botón
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={adCtaText}
+                  onChange={(event) => setAdCtaText(event.target.value)}
+                  placeholder="Visitar"
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-[#D1C7BD] md:col-span-2">
+                Link de destino
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                  value={adLinkUrl}
+                  onChange={(event) => setAdLinkUrl(event.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
+                onClick={createAd}
+                disabled={adSaving}
+              >
+                {adSaving ? "Guardando..." : "Agregar publicidad"}
+              </button>
+              {adsError && <span className="text-xs text-[#AF8C5C]">{adsError}</span>}
+            </div>
           </div>
 
+          {/* Ads list */}
           <div className="space-y-3">
-            <div className="text-xs text-[#D1C7BD]">Listado</div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#D1C7BD]">Publicidades activas e inactivas</span>
+              <span className="text-[11px] text-[#9f988d]">{ads.length} total</span>
+            </div>
             {adsStatus === "loading" && (
               <div className="text-xs text-[#D1C7BD]">Cargando publicidad...</div>
             )}
             {adsStatus === "error" && (
               <div className="text-xs text-[#AF8C5C]">{adsError}</div>
             )}
+            {adsStatus === "idle" && ads.length === 0 && (
+              <div className="text-xs text-[#9f988d]">No hay publicidades creadas.</div>
+            )}
             {ads.map((ad) => (
               <div
                 key={ad.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-night-900/48 p-3 text-xs"
+                className={`rounded-2xl border p-3 text-xs transition ${ad.isActive ? "border-white/10 bg-night-900/48" : "border-white/6 bg-night-900/24 opacity-60"}`}
               >
-                <div>
-                  <div className="text-sm text-white">{ad.title}</div>
-                  <div className="text-[#D1C7BD]">
-                    Prioridad {ad.priority} {ad.linkUrl ? `- ${ad.linkUrl}` : ""}
+                {adEditId === ad.id ? (
+                  /* ── Edit mode ── */
+                  <div className="space-y-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gold-300">Editando publicidad</p>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Título
+                        <input className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white" value={adEditDraft.title} onChange={(e) => setAdEditDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Prioridad
+                        <input type="number" min={0} className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white" value={adEditDraft.priority} onChange={(e) => setAdEditDraft((prev) => ({ ...prev, priority: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD] md:col-span-2">
+                        Descripción
+                        <textarea rows={2} className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white" value={adEditDraft.body} onChange={(e) => setAdEditDraft((prev) => ({ ...prev, body: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Imagen (URL)
+                        <input className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white" value={adEditDraft.imageUrl} onChange={(e) => setAdEditDraft((prev) => ({ ...prev, imageUrl: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD]">
+                        Texto botón
+                        <input className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white" value={adEditDraft.ctaText} onChange={(e) => setAdEditDraft((prev) => ({ ...prev, ctaText: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1 text-[11px] text-[#D1C7BD] md:col-span-2">
+                        Link de destino
+                        <input className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white" value={adEditDraft.linkUrl} onChange={(e) => setAdEditDraft((prev) => ({ ...prev, linkUrl: e.target.value }))} />
+                      </label>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" disabled={adEditSaving} onClick={() => void saveEditAd()} className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-1.5 text-[11px] font-semibold text-night-900 disabled:opacity-60">
+                        {adEditSaving ? "Guardando..." : "Guardar cambios"}
+                      </button>
+                      <button type="button" onClick={() => setAdEditId(null)} className="rounded-full border border-white/20 px-4 py-1.5 text-[11px] text-[#D1C7BD]">
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-[#E7E2DD]">
-                    {ad.isActive ? "Activo" : "Inactivo"}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
-                    onClick={() => updateAdStatus(ad.id, !ad.isActive)}
-                  >
-                    {ad.isActive ? "Desactivar" : "Activar"}
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-full border border-rose-400/40 px-3 py-1 text-xs text-rose-200"
-                    onClick={() => deleteAd(ad.id)}
-                  >
-                    Borrar
-                  </button>
-                </div>
+                ) : (
+                  /* ── View mode ── */
+                  <div className="flex flex-wrap items-start gap-3">
+                    {ad.imageUrl && (
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10">
+                        <img src={ad.imageUrl} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-white">{ad.title}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ad.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
+                          {ad.isActive ? "Activo" : "Inactivo"}
+                        </span>
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-[#9f988d]">
+                          Prioridad {ad.priority}
+                        </span>
+                      </div>
+                      {ad.body && <p className="mt-0.5 text-[#D1C7BD]">{ad.body}</p>}
+                      {ad.linkUrl && (
+                        <p className="mt-0.5 truncate text-[11px] text-[#9f988d]">{ad.linkUrl}</p>
+                      )}
+                      {ad.ctaText && (
+                        <span className="mt-1 inline-block rounded-full border border-gold-500/25 bg-gold-500/8 px-2 py-0.5 text-[10px] text-gold-300">
+                          {ad.ctaText}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <button type="button" onClick={() => startEditAd(ad)} className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD] hover:border-white/40">
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => updateAdStatus(ad.id, !ad.isActive)} className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD] hover:border-white/40">
+                        {ad.isActive ? "Desactivar" : "Activar"}
+                      </button>
+                      <button type="button" onClick={() => deleteAd(ad.id)} className="rounded-full border border-rose-400/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-400/10">
+                        Borrar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
