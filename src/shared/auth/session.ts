@@ -9,6 +9,7 @@ export type SessionUser = {
   avatarUrl?: string | null;
   emailVerifiedAt?: string | null;
   mustChangePassword?: boolean;
+  isBetaUser?: boolean;
   subscription?: {
     planCode: string;
     planName: string;

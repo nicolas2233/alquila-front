@@ -207,6 +207,14 @@ export function RegisterPage() {
   const locationState = location.state as { from?: string } | null;
   const formRef = useRef<HTMLFormElement | null>(null);
 
+  // Beta invite state
+  const betaParam = useMemo(() => new URLSearchParams(location.search).get("beta"), [location.search]);
+  const [betaMode, setBetaMode] = useState(false);
+  const [betaTargetRole, setBetaTargetRole] = useState<"OWNER" | "AGENCY" | null>(null);
+  const [betaInviteLabel, setBetaInviteLabel] = useState<string | null>(null);
+  const [betaAccepted, setBetaAccepted] = useState(false);
+  const [betaCheckStatus, setBetaCheckStatus] = useState<"idle" | "loading" | "invalid">("idle");
+
   const [accountType, setAccountType] = useState<AccountType>("viewer");
   const [plan, setPlan] = useState<PlanKey>("free");
   const [firstName, setFirstName] = useState("");
@@ -256,6 +264,26 @@ export function RegisterPage() {
   }, [locationState?.from]);
 
   useEffect(() => {
+    if (!betaParam) return;
+    setBetaCheckStatus("loading");
+    fetch(`${env.apiUrl}/beta/invite-info?token=${encodeURIComponent(betaParam)}`)
+      .then((r) => r.json())
+      .then((data: { valid?: boolean; targetRole?: string; label?: string | null }) => {
+        if (data.valid && (data.targetRole === "OWNER" || data.targetRole === "AGENCY")) {
+          setBetaMode(true);
+          setBetaTargetRole(data.targetRole);
+          setBetaInviteLabel(data.label ?? null);
+          setAccountType(data.targetRole === "AGENCY" ? "agency" : "owner");
+          setPlan(data.targetRole === "AGENCY" ? "platinum" : "gold");
+          setBetaCheckStatus("idle");
+        } else {
+          setBetaCheckStatus("invalid");
+        }
+      })
+      .catch(() => setBetaCheckStatus("invalid"));
+  }, [betaParam]);
+
+  useEffect(() => {
     if (!availablePlans.includes(plan)) {
       setPlan(availablePlans[0]);
     }
@@ -287,6 +315,11 @@ export function RegisterPage() {
       if (!termsAccepted) {
         setFieldErrors({ termsAccepted: true });
         throw new Error("Debes aceptar los términos y condiciones.");
+      }
+
+      if (betaMode && !betaAccepted) {
+        setFieldErrors({ betaAccepted: true });
+        throw new Error("Debes aceptar el compromiso beta para continuar.");
       }
 
       if (contrasena.length < 8) {
@@ -367,6 +400,7 @@ export function RegisterPage() {
           dni: ownerDni,
           birthDate: ownerBirthDate,
           planCode: planCodeByKey[plan],
+          ...(betaMode && betaParam ? { betaToken: betaParam } : {}),
           termsAccepted: true,
           termsVersion: LEGAL_TERMS_VERSION,
           privacyAccepted: true,
@@ -383,6 +417,7 @@ export function RegisterPage() {
           cuit: agencyCuit,
           licenseNumber: agencyLicense,
           planCode: planCodeByKey[plan],
+          ...(betaMode && betaParam ? { betaToken: betaParam } : {}),
           termsAccepted: true,
           termsVersion: LEGAL_TERMS_VERSION,
           privacyAccepted: true,
@@ -447,15 +482,35 @@ export function RegisterPage() {
             Iniciar sesión
           </button>
 
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-soft">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">Crear cuenta</p>
-            <h2 className="mt-2 font-display text-[2rem] leading-tight text-white">
-              Empeza en DomusBrag con el perfil correcto
-            </h2>
-            <p className="mt-2 max-w-sm text-sm text-[#E7E2DD]">
-              Buscador, dueño directo o inmobiliaria. Un flujo claro y rápido para arrancar.
-            </p>
-          </div>
+          {betaMode ? (
+            <div className="rounded-2xl border border-gold-500/40 bg-gold-500/8 p-4 shadow-soft">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/50 bg-gold-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300">
+                ✦ Acceso Beta
+              </span>
+              <h2 className="mt-2 font-display text-[1.6rem] leading-tight text-white">
+                Bienvenido a DomusBrag
+              </h2>
+              <p className="mt-2 text-sm text-[#E7E2DD]">
+                Una nueva plataforma inmobiliaria pensada para facilitar la publicación y búsqueda de propiedades de forma más simple, ordenada y cercana.
+              </p>
+              <p className="mt-3 text-sm text-[#D1C7BD]">
+                La plataforma muestra propiedades según la ubicación del usuario, pero también permite buscar y publicar en otras localidades, ampliando el alcance para quienes quieren vender, alquilar o encontrar una propiedad en distintos lugares.
+              </p>
+              {betaInviteLabel && (
+                <p className="mt-3 text-[11px] text-[#9f988d]">Grupo: {betaInviteLabel}</p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-soft">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">Crear cuenta</p>
+              <h2 className="mt-2 font-display text-[2rem] leading-tight text-white">
+                Empeza en DomusBrag con el perfil correcto
+              </h2>
+              <p className="mt-2 max-w-sm text-sm text-[#E7E2DD]">
+                Buscador, dueño directo o inmobiliaria. Un flujo claro y rápido para arrancar.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2 rounded-2xl border border-white/10 bg-black/15 p-3">
             <div className="flex items-center justify-between">
@@ -498,10 +553,25 @@ export function RegisterPage() {
             <div className="flex items-center justify-between">
               <p className="text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</p>
               <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-[#E7E2DD]">
-                {planChoices.find((item) => item.key === plan)?.label}
+                {betaMode ? "Gold Beta" : planChoices.find((item) => item.key === plan)?.label}
               </span>
             </div>
-            {accountType !== "viewer" && (
+            {betaMode ? (
+              <div className="rounded-2xl border border-gold-500/30 bg-gold-500/8 p-3">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-gold-300">
+                    Gold · 30 días gratis
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-[#D1C7BD]">
+                  Como usuario beta obtenés acceso Gold sin costo por 30 días desde la creación de tu cuenta. A cambio, nos comprometemos a escuchar tu feedback.
+                </p>
+                <p className="mt-1.5 text-[11px] text-[#9f988d]">
+                  Sin tarjeta requerida. El acceso vence automáticamente al mes 30.
+                </p>
+              </div>
+            ) : null}
+            {!betaMode && accountType !== "viewer" && (
               <div className="space-y-1">
                 <p className="text-[11px] leading-tight text-[#D1C7BD]">
                   Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en
@@ -576,9 +646,40 @@ export function RegisterPage() {
           }`}
         >
           <form ref={formRef} className="w-full max-w-2xl space-y-4" onSubmit={handleSubmit}>
+            {betaCheckStatus === "loading" && (
+              <div className="rounded-2xl border border-gold-500/20 bg-gold-500/5 p-4 text-xs text-[#D1C7BD]">
+                Verificando invitación beta...
+              </div>
+            )}
+            {betaCheckStatus === "invalid" && (
+              <div className="rounded-2xl border border-rose-400/30 bg-rose-500/8 p-4 text-xs text-rose-200">
+                El link de invitación no es válido o ya expiró. Podés registrarte normalmente sin beneficio beta.
+              </div>
+            )}
+            {betaMode && (
+              <div className="rounded-2xl border border-gold-500/40 bg-gold-500/8 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-gold-400/50 bg-gold-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">
+                    ✦ Invitación Beta · Acceso Gold 30 días
+                  </span>
+                  {betaInviteLabel && (
+                    <span className="text-[11px] text-[#9f988d]">{betaInviteLabel}</span>
+                  )}
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-[#D1C7BD]">
+                  Estás accediendo como usuario beta de DomusBrag. Obtenés el plan Gold sin costo por 30 días. A cambio, nos comprometemos a escuchar tu experiencia y observaciones desde el panel.
+                </p>
+              </div>
+            )}
             <div className="space-y-1.5 text-center lg:text-left">
-              <h1 className="font-display text-3xl text-white sm:text-[2rem]">Crear cuenta</h1>
-              <p className="text-sm text-[#D1C7BD]">Elegi tu perfil y completa los datos.</p>
+              <h1 className="font-display text-3xl text-white sm:text-[2rem]">
+                {betaMode ? "Registrate como beta tester" : "Crear cuenta"}
+              </h1>
+              <p className="text-sm text-[#D1C7BD]">
+                {betaMode
+                  ? `Completa tus datos para activar el acceso ${betaTargetRole === "AGENCY" ? "de inmobiliaria" : "de dueño directo"}.`
+                  : "Elegi tu perfil y completa los datos."}
+              </p>
             </div>
 
             <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 lg:hidden">
@@ -811,6 +912,35 @@ export function RegisterPage() {
                 <p className="text-[11px] text-[#AF8C5C]">
                   Debes aceptar términos y privacidad para continuar.
                 </p>
+              )}
+
+              {betaMode && (
+                <>
+                  <div className="border-t border-white/10 pt-3">
+                    <div className="mb-2 rounded-xl border border-gold-500/20 bg-gold-500/6 p-3 text-[11px] leading-relaxed text-[#D1C7BD]">
+                      <strong className="text-gold-300">Compromiso del usuario beta:</strong> como parte de este programa, me comprometo a utilizar la plataforma y compartir mis observaciones, sugerencias y experiencia de uso desde la sección "Observaciones Beta" del panel. A cambio, DomusBrag me otorga 30 días de acceso Gold sin costo.
+                    </div>
+                    <label className="flex items-start gap-3 text-xs text-[#D1C7BD]">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 accent-[#AF8C5C]"
+                        checked={betaAccepted}
+                        onChange={(event) => {
+                          setBetaAccepted(event.target.checked);
+                          setFieldErrors((prev) => ({ ...prev, betaAccepted: false }));
+                        }}
+                      />
+                      <span>
+                        Acepto el compromiso beta: utilizaré la plataforma y compartiré mi feedback sincero a cambio del acceso Gold gratuito por 30 días.
+                      </span>
+                    </label>
+                  </div>
+                  {fieldErrors.betaAccepted && (
+                    <p className="text-[11px] text-[#AF8C5C]">
+                      Debes aceptar el compromiso beta para continuar.
+                    </p>
+                  )}
+                </>
               )}
             </section>
 
