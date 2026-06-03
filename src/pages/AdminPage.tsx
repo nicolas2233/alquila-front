@@ -138,6 +138,28 @@ type AdminPlan = {
   updatedAt?: string;
 };
 
+type AdminBetaInvite = {
+  id: string;
+  token: string;
+  label?: string | null;
+  targetRole: string;
+  usedCount: number;
+  maxUses?: number | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type AdminBetaFeedback = {
+  id: string;
+  title: string;
+  body: string;
+  category: string;
+  status: string;
+  createdAt: string;
+  inviteToken?: string | null;
+  user: { id: string; name?: string | null; email?: string | null; role: string };
+};
+
 type TabKey =
   | "overview"
   | "users"
@@ -146,7 +168,8 @@ type TabKey =
   | "reports"
   | "verifications"
   | "pois"
-  | "ads";
+  | "ads"
+  | "beta";
 
 const poiCategoryLabels: Record<PoiCategory, string> = {
   SCHOOL: "Escuela",
@@ -402,6 +425,20 @@ export function AdminPage() {
   const [verificationsTotal, setVerificationsTotal] = useState(0);
   const [verificationsStatusFilter, setVerificationsStatusFilter] = useState("");
 
+  // Beta invites + feedback
+  const [betaInvites, setBetaInvites] = useState<AdminBetaInvite[]>([]);
+  const [betaInvitesStatus, setBetaInvitesStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [betaInviteLabel, setBetaInviteLabel] = useState("");
+  const [betaInviteRole, setBetaInviteRole] = useState<"OWNER" | "AGENCY">("OWNER");
+  const [betaInviteMaxUses, setBetaInviteMaxUses] = useState("");
+  const [betaInviteSaving, setBetaInviteSaving] = useState(false);
+
+  const [betaFeedbackList, setBetaFeedbackList] = useState<AdminBetaFeedback[]>([]);
+  const [betaFeedbackStatus, setBetaFeedbackStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [betaFeedbackTotal, setBetaFeedbackTotal] = useState(0);
+  const [betaFeedbackPage, setBetaFeedbackPage] = useState(1);
+  const [betaFeedbackStatusFilter, setBetaFeedbackStatusFilter] = useState("");
+
   // Ads edit
   const [adEditId, setAdEditId] = useState<string | null>(null);
   const [adEditDraft, setAdEditDraft] = useState({
@@ -609,6 +646,43 @@ export function AdminPage() {
         setPlansError(error instanceof Error ? error.message : "Error al cargar planes.");
       });
   }, [token, effectiveRole, tab]);
+
+  useEffect(() => {
+    if (!token || effectiveRole !== "ADMIN") return;
+    if (tab !== "beta") return;
+    setBetaInvitesStatus("loading");
+    fetch(`${env.apiUrl}/admin/beta-invites`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(await readApiError(r, "Error al cargar invitaciones."));
+        return r.json() as Promise<{ items: AdminBetaInvite[] }>;
+      })
+      .then((data) => {
+        setBetaInvites(data.items ?? []);
+        setBetaInvitesStatus("idle");
+      })
+      .catch(() => setBetaInvitesStatus("error"));
+  }, [token, effectiveRole, tab]);
+
+  useEffect(() => {
+    if (!token || effectiveRole !== "ADMIN") return;
+    if (tab !== "beta") return;
+    setBetaFeedbackStatus("loading");
+    const params = new URLSearchParams();
+    params.set("page", String(betaFeedbackPage));
+    params.set("pageSize", "20");
+    if (betaFeedbackStatusFilter) params.set("status", betaFeedbackStatusFilter);
+    fetch(`${env.apiUrl}/admin/beta-feedback?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(await readApiError(r, "Error al cargar observaciones."));
+        return r.json() as Promise<{ items: AdminBetaFeedback[]; total: number }>;
+      })
+      .then((data) => {
+        setBetaFeedbackList(data.items ?? []);
+        setBetaFeedbackTotal(data.total ?? 0);
+        setBetaFeedbackStatus("idle");
+      })
+      .catch(() => setBetaFeedbackStatus("error"));
+  }, [token, effectiveRole, tab, betaFeedbackPage, betaFeedbackStatusFilter]);
 
   useEffect(() => {
     if (!token || effectiveRole !== "ADMIN") return;
@@ -1002,6 +1076,66 @@ export function AdminPage() {
     setAds((prev) => prev.map((ad) => (ad.id === adId ? { ...ad, isActive } : ad)));
   };
 
+  const createBetaInvite = async () => {
+    if (!token) return;
+    setBetaInviteSaving(true);
+    try {
+      const response = await fetch(`${env.apiUrl}/admin/beta-invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          label: betaInviteLabel.trim() || undefined,
+          targetRole: betaInviteRole,
+          maxUses: betaInviteMaxUses ? Number(betaInviteMaxUses) : undefined,
+        }),
+      });
+      if (!response.ok) throw new Error(await readApiError(response, "Error al crear invitación."));
+      const created = (await response.json()) as AdminBetaInvite;
+      setBetaInvites((prev) => [created, ...prev]);
+      setBetaInviteLabel("");
+      setBetaInviteMaxUses("");
+      addToast("Invitación creada.", "success");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Error al crear.", "error");
+    } finally {
+      setBetaInviteSaving(false);
+    }
+  };
+
+  const toggleBetaInvite = async (invite: AdminBetaInvite) => {
+    if (!token) return;
+    const response = await fetch(`${env.apiUrl}/admin/beta-invites/${invite.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ isActive: !invite.isActive }),
+    });
+    if (!response.ok) return;
+    const updated = (await response.json()) as AdminBetaInvite;
+    setBetaInvites((prev) => prev.map((item) => (item.id === invite.id ? updated : item)));
+  };
+
+  const deleteBetaInvite = async (id: string) => {
+    if (!token) return;
+    const response = await fetch(`${env.apiUrl}/admin/beta-invites/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return;
+    setBetaInvites((prev) => prev.filter((item) => item.id !== id));
+    addToast("Invitación eliminada.", "success");
+  };
+
+  const updateBetaFeedbackStatus = async (id: string, status: string) => {
+    if (!token) return;
+    const response = await fetch(`${env.apiUrl}/admin/beta-feedback/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) return;
+    setBetaFeedbackList((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+  };
+
   const startEditAd = (ad: AdminAd) => {
     setAdEditId(ad.id);
     setAdEditDraft({
@@ -1098,6 +1232,17 @@ export function AdminPage() {
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            className={
+              tab === "beta"
+                ? "rounded-full border border-gold-500/40 bg-night-900/48 px-3 py-1 text-gold-300"
+                : "rounded-full border border-gold-500/20 bg-gold-500/8 px-3 py-1 text-gold-400"
+            }
+            onClick={() => setTab("beta")}
+          >
+            ✦ Beta
+          </button>
         </div>
       </div>
 
@@ -2065,6 +2210,196 @@ export function AdminPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {tab === "beta" && (
+        <div className="space-y-6">
+          {/* Invite management */}
+          <section className="glass-card space-y-4 p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm text-white">Invitaciones beta</h3>
+              <p className="text-xs text-[#D1C7BD]">
+                Generá links únicos para invitar usuarios beta. El link lleva al registro con acceso Gold gratuito por 30 días.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gold-500/20 bg-gold-500/5 p-4">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-300">Nueva invitación</p>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                  Etiqueta (opcional)
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={betaInviteLabel}
+                    onChange={(e) => setBetaInviteLabel(e.target.value)}
+                    placeholder="Ej: Inmobiliarias Mar 2026"
+                  />
+                </label>
+                <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                  Tipo de perfil
+                  <select
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={betaInviteRole}
+                    onChange={(e) => setBetaInviteRole(e.target.value as "OWNER" | "AGENCY")}
+                  >
+                    <option value="OWNER">Dueño directo</option>
+                    <option value="AGENCY">Inmobiliaria</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-xs text-[#D1C7BD]">
+                  Máximo de usos (vacío = sin límite)
+                  <input
+                    type="number"
+                    min={1}
+                    className="w-full rounded-xl border border-white/10 bg-night-900/60 px-3 py-2 text-sm text-white"
+                    value={betaInviteMaxUses}
+                    onChange={(e) => setBetaInviteMaxUses(e.target.value)}
+                    placeholder="Ilimitado"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                disabled={betaInviteSaving}
+                onClick={() => void createBetaInvite()}
+                className="mt-3 rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 disabled:opacity-60"
+              >
+                {betaInviteSaving ? "Generando..." : "Generar link"}
+              </button>
+            </div>
+
+            {betaInvitesStatus === "loading" && <p className="text-xs text-[#D1C7BD]">Cargando...</p>}
+            {betaInvites.length === 0 && betaInvitesStatus === "idle" && (
+              <p className="text-xs text-[#9f988d]">No hay invitaciones creadas todavía.</p>
+            )}
+            <div className="space-y-3">
+              {betaInvites.map((invite) => {
+                const url = `${window.location.origin}/registro?beta=${invite.token}`;
+                return (
+                  <div
+                    key={invite.id}
+                    className={`rounded-2xl border p-3 text-xs ${invite.isActive ? "border-white/10 bg-night-900/48" : "border-white/6 bg-night-900/24 opacity-60"}`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${invite.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
+                            {invite.isActive ? "Activa" : "Inactiva"}
+                          </span>
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-[#9f988d]">
+                            {invite.targetRole === "OWNER" ? "Dueño directo" : "Inmobiliaria"}
+                          </span>
+                          <span className="text-[#D1C7BD]">
+                            {invite.usedCount} uso{invite.usedCount !== 1 ? "s" : ""}
+                            {invite.maxUses ? ` / ${invite.maxUses}` : ""}
+                          </span>
+                          {invite.label && <span className="font-semibold text-white">{invite.label}</span>}
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className="truncate max-w-xs text-[11px] text-[#9f988d] font-mono">{url}</span>
+                          <button
+                            type="button"
+                            onClick={() => { void navigator.clipboard.writeText(url); addToast("Link copiado.", "success"); }}
+                            className="shrink-0 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-[#E7E2DD] hover:border-white/40"
+                          >
+                            Copiar
+                          </button>
+                        </div>
+                        <p className="mt-0.5 text-[10px] text-[#9f988d]">
+                          Creada {formatShortDateTime(invite.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void toggleBetaInvite(invite)}
+                          className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD] hover:border-white/40"
+                        >
+                          {invite.isActive ? "Desactivar" : "Activar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteBetaInvite(invite.id)}
+                          className="rounded-full border border-rose-400/40 px-3 py-1 text-xs text-rose-200 hover:bg-rose-400/10"
+                        >
+                          Borrar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Feedback from beta users */}
+          <section className="glass-card space-y-4 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm text-white">Observaciones de usuarios beta</h3>
+                {betaFeedbackTotal > 0 && (
+                  <p className="text-xs text-[#9f988d]">{betaFeedbackTotal} observaciones en total</p>
+                )}
+              </div>
+              <select
+                value={betaFeedbackStatusFilter}
+                onChange={(e) => { setBetaFeedbackStatusFilter(e.target.value); setBetaFeedbackPage(1); }}
+                className="rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
+              >
+                <option value="">Todas</option>
+                <option value="UNREAD">Sin leer</option>
+                <option value="READ">Vistas</option>
+                <option value="ADDRESSED">Atendidas</option>
+              </select>
+            </div>
+
+            {betaFeedbackStatus === "loading" && <p className="text-xs text-[#D1C7BD]">Cargando...</p>}
+            {betaFeedbackStatus === "idle" && betaFeedbackList.length === 0 && (
+              <p className="text-xs text-[#9f988d]">No hay observaciones con ese filtro.</p>
+            )}
+
+            <div className="space-y-3">
+              {betaFeedbackList.map((item) => {
+                const catLabels: Record<string, string> = { UX: "UX", FEATURE: "Mejora", BUG: "Error", GENERAL: "General" };
+                return (
+                  <div key={item.id} className={`rounded-2xl border p-3 text-xs ${item.status === "UNREAD" ? "border-gold-500/20 bg-night-900/48" : "border-white/8 bg-night-900/32"}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-white">{item.title}</span>
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-[#9f988d]">{catLabels[item.category] ?? item.category}</span>
+                          {item.status === "UNREAD" && (
+                            <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">Nueva</span>
+                          )}
+                          {item.status === "READ" && (
+                            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-300">Vista</span>
+                          )}
+                          {item.status === "ADDRESSED" && (
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300">Atendida</span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-[#9f988d]">
+                          {item.user.name ?? item.user.email} · {formatShortDateTime(item.createdAt)}
+                        </div>
+                      </div>
+                      <select
+                        value={item.status}
+                        onChange={(e) => void updateBetaFeedbackStatus(item.id, e.target.value)}
+                        className="rounded-full border border-white/20 bg-night-900/48 px-3 py-1 text-xs text-white"
+                      >
+                        <option value="UNREAD">Sin leer</option>
+                        <option value="READ">Vista</option>
+                        <option value="ADDRESSED">Atendida</option>
+                      </select>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap leading-relaxed text-[#D1C7BD]">{item.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <Pagination page={betaFeedbackPage} total={betaFeedbackTotal} pageSize={20} onChange={(p) => setBetaFeedbackPage(p)} />
+          </section>
+        </div>
       )}
     </div>
   );

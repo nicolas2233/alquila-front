@@ -156,7 +156,7 @@ type AgencyProfile = {
   lng?: number | null;
 };
 
-type PanelSection = "profile" | "subscription" | "listings" | "requests" | "my-requests";
+type PanelSection = "profile" | "subscription" | "listings" | "requests" | "my-requests" | "beta-feedback";
 // PAUSED is excluded: pausing a listing frees the slot (matches backend PLAN_LIMIT_COUNTED_STATUSES)
 const planCountedStatuses = ["DRAFT", "ACTIVE", "TEMPORARILY_UNAVAILABLE"];
 
@@ -312,6 +312,13 @@ export function DashboardPage() {
   const [ownerBirthDate, setOwnerBirthDate] = useState("");
   const [activeSection, setActiveSection] = useState<PanelSection>("profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Beta feedback state
+  const [betaFeedbackItems, setBetaFeedbackItems] = useState<Array<{ id: string; title: string; body: string; category: string; status: string; createdAt: string }>>([]);
+  const [betaFeedbackStatus, setBetaFeedbackStatus] = useState<"idle" | "loading" | "submitting" | "error">("idle");
+  const [betaFeedbackTitle, setBetaFeedbackTitle] = useState("");
+  const [betaFeedbackBody, setBetaFeedbackBody] = useState("");
+  const [betaFeedbackCategory, setBetaFeedbackCategory] = useState<"UX" | "FEATURE" | "BUG" | "GENERAL">("GENERAL");
   const [isDirty, setIsDirty] = useState(false);
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const lockIcon = (
@@ -451,6 +458,40 @@ export function DashboardPage() {
       console.error("[mercadopago-sdk] init failed", error);
     }
   }, []);
+
+  // Load beta feedback when section becomes active
+  useEffect(() => {
+    if (activeSection !== "beta-feedback" || !sessionToken) return;
+    setBetaFeedbackStatus("loading");
+    fetch(`${env.apiUrl}/beta/feedback/mine`, { headers: { Authorization: `Bearer ${sessionToken}` } })
+      .then((r) => r.json())
+      .then((data: { items?: typeof betaFeedbackItems }) => {
+        setBetaFeedbackItems(data.items ?? []);
+        setBetaFeedbackStatus("idle");
+      })
+      .catch(() => setBetaFeedbackStatus("error"));
+  }, [activeSection, sessionToken]);
+
+  const submitBetaFeedback = async () => {
+    if (!sessionToken || !betaFeedbackTitle.trim() || !betaFeedbackBody.trim()) return;
+    setBetaFeedbackStatus("submitting");
+    try {
+      const response = await fetch(`${env.apiUrl}/beta/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ title: betaFeedbackTitle.trim(), body: betaFeedbackBody.trim(), category: betaFeedbackCategory }),
+      });
+      if (!response.ok) throw new Error("No pudimos enviar tu observación.");
+      const created = (await response.json()) as typeof betaFeedbackItems[0];
+      setBetaFeedbackItems((prev) => [created, ...prev]);
+      setBetaFeedbackTitle("");
+      setBetaFeedbackBody("");
+      setBetaFeedbackCategory("GENERAL");
+      setBetaFeedbackStatus("idle");
+    } catch {
+      setBetaFeedbackStatus("error");
+    }
+  };
 
   const loadProperties = useCallback(async () => {
     if (!sessionUser) {
@@ -2434,6 +2475,11 @@ export function DashboardPage() {
       title: "Mis solicitudes",
       description: "Revisa el estado de tus consultas y conversaciones abiertas.",
     },
+    "beta-feedback": {
+      badge: "Beta",
+      title: "Observaciones beta",
+      description: "Compartí tu experiencia, sugerencias y observaciones para mejorar DomusBrag.",
+    },
   };
   const currentSectionMeta = sectionMeta[activeSection];
   const isPremiumPanelHero =
@@ -2677,6 +2723,16 @@ export function DashboardPage() {
               className={sidebarButtonClass("my-requests")}
             >
               Mis solicitudes
+            </button>
+          )}
+          {sessionUser?.isBetaUser && (
+            <button
+              type="button"
+              onClick={() => handleSelectSection("beta-feedback")}
+              className={`${sidebarButtonClass("beta-feedback")} flex items-center justify-between gap-2`}
+            >
+              <span>Observaciones beta</span>
+              <span className="shrink-0 rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-gold-300">Beta</span>
             </button>
           )}
       </aside>
@@ -4368,6 +4424,114 @@ export function DashboardPage() {
           )}
         </div>
       )}
+
+      {activeSection === "beta-feedback" && sessionUser?.isBetaUser && (
+        <div className="glass-card space-y-6 p-6">
+          <div className="rounded-2xl border border-gold-500/30 bg-gold-500/8 p-4">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-gold-400/40 bg-gold-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">
+                ✦ Usuario Beta
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-[#D1C7BD]">
+              Tu opinión es fundamental para mejorar DomusBrag. Compartí lo que te parece bien, lo que mejorarías y cualquier funcionalidad que te gustaría ver. No hay respuestas incorrectas.
+            </p>
+          </div>
+
+          {/* New feedback form */}
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#AF8C5C]">
+              Nueva observación
+            </p>
+            <label className="block space-y-1.5 text-xs text-[#D1C7BD]">
+              Categoría
+              <select
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={betaFeedbackCategory}
+                onChange={(e) => setBetaFeedbackCategory(e.target.value as typeof betaFeedbackCategory)}
+              >
+                <option value="GENERAL">General</option>
+                <option value="UX">Experiencia de uso (UX)</option>
+                <option value="FEATURE">Funcionalidad / mejora</option>
+                <option value="BUG">Error o problema</option>
+              </select>
+            </label>
+            <label className="block space-y-1.5 text-xs text-[#D1C7BD]">
+              Título
+              <input
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={betaFeedbackTitle}
+                onChange={(e) => setBetaFeedbackTitle(e.target.value)}
+                placeholder="Resumí en una línea tu observación"
+                maxLength={120}
+              />
+            </label>
+            <label className="block space-y-1.5 text-xs text-[#D1C7BD]">
+              Detalle
+              <textarea
+                rows={5}
+                className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                value={betaFeedbackBody}
+                onChange={(e) => setBetaFeedbackBody(e.target.value)}
+                placeholder="Describí con detalle: qué pasó, qué esperabas, qué mejorarías o qué te gustaría que existiera..."
+                maxLength={3000}
+              />
+              <span className="text-[11px] text-[#9f988d]">{betaFeedbackBody.length}/3000</span>
+            </label>
+            {betaFeedbackStatus === "error" && (
+              <p className="text-xs text-[#AF8C5C]">No pudimos enviar tu observación. Intentá nuevamente.</p>
+            )}
+            <button
+              type="button"
+              disabled={betaFeedbackStatus === "submitting" || !betaFeedbackTitle.trim() || betaFeedbackBody.trim().length < 10}
+              onClick={() => void submitBetaFeedback()}
+              className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-xs font-semibold text-night-900 disabled:opacity-60"
+            >
+              {betaFeedbackStatus === "submitting" ? "Enviando..." : "Enviar observación"}
+            </button>
+          </div>
+
+          {/* Previous feedback */}
+          {betaFeedbackStatus === "loading" && (
+            <p className="text-xs text-[#D1C7BD]">Cargando observaciones...</p>
+          )}
+          {betaFeedbackItems.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#9f988d]">Observaciones enviadas</p>
+              {betaFeedbackItems.map((item) => {
+                const catLabels: Record<string, string> = { UX: "UX", FEATURE: "Mejora", BUG: "Error", GENERAL: "General" };
+                const statusLabelsMap: Record<string, { label: string; cls: string }> = {
+                  UNREAD: { label: "Recibida", cls: "bg-white/8 text-[#9f988d]" },
+                  READ: { label: "Vista", cls: "bg-sky-500/15 text-sky-300" },
+                  ADDRESSED: { label: "Atendida", cls: "bg-emerald-500/15 text-emerald-300" },
+                };
+                const statusInfo = statusLabelsMap[item.status] ?? statusLabelsMap.UNREAD;
+                return (
+                  <div key={item.id} className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-white">{item.title}</div>
+                        <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-[#9f988d]">
+                          <span>{catLabels[item.category] ?? item.category}</span>
+                          <span>{new Date(item.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
+                        </div>
+                      </div>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusInfo.cls}`}>
+                        {statusInfo.label}
+                      </span>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap leading-relaxed text-[#D1C7BD]">{item.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {betaFeedbackStatus === "idle" && betaFeedbackItems.length === 0 && (
+            <p className="text-xs text-[#9f988d]">Todavía no enviaste observaciones. ¡Tu opinión ayuda a mejorar la plataforma!</p>
+          )}
+        </div>
+      )}
+
       {paymentMethodModalOpen && (
         <div className="fixed inset-0 z-[1320] flex items-end justify-center bg-night-950 px-3 py-3 sm:items-center sm:px-4 sm:py-6">
           <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#191613] shadow-[0_30px_80px_rgba(0,0,0,0.58)] sm:max-h-[calc(100svh-3rem)] sm:rounded-3xl">
