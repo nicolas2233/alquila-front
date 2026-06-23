@@ -33,7 +33,7 @@ const hexToRgb = (value?: string | null): [number, number, number] => {
   return [(numeric >> 16) & 255, (numeric >> 8) & 255, numeric & 255];
 };
 
-type SocialIconType = "WEB" | "IG" | "FB";
+type SocialIconType = "WEB" | "IG" | "FB" | "WA";
 
 const renderSocialIcon = (icon: SocialIconType) => {
   if (icon === "WEB") {
@@ -64,6 +64,13 @@ const renderSocialIcon = (icon: SocialIconType) => {
         <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
         <circle cx="12" cy="12" r="4" />
         <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  if (icon === "WA") {
+    return (
+      <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.52 3.48A11.94 11.94 0 0 0 12.06 0C5.46 0 .1 5.37.1 11.96c0 2.1.55 4.15 1.6 5.96L0 24l6.25-1.64a11.9 11.9 0 0 0 5.8 1.49h.01c6.6 0 11.96-5.37 11.96-11.96 0-3.2-1.25-6.2-3.5-8.41Zm-8.46 18.35h-.01a9.9 9.9 0 0 1-5.05-1.39l-.36-.21-3.71.98.99-3.61-.23-.37a9.88 9.88 0 0 1-1.52-5.27c0-5.46 4.44-9.9 9.9-9.9 2.64 0 5.12 1.03 6.98 2.9a9.82 9.82 0 0 1 2.9 6.98c0 5.46-4.44 9.9-9.89 9.9Zm5.43-7.43c-.3-.15-1.78-.88-2.06-.98-.27-.1-.47-.15-.67.15-.2.3-.77.98-.95 1.18-.17.2-.35.22-.65.08-.3-.15-1.25-.46-2.37-1.46a8.94 8.94 0 0 1-1.64-2.03c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.53.08-.8.38-.28.3-1.05 1.03-1.05 2.52 0 1.48 1.07 2.91 1.22 3.11.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.09 1.78-.73 2.03-1.43.25-.7.25-1.31.17-1.44-.07-.13-.27-.2-.57-.35Z" />
       </svg>
     );
   }
@@ -445,16 +452,44 @@ export function AgencyProfilePage() {
   const websiteUrl = normalizeExternalUrl(agency?.website);
   const instagramUrl = normalizeExternalUrl(agency?.instagram);
   const facebookUrl = normalizeExternalUrl(agency?.facebook);
+  const whatsappUrl = agency?.whatsapp
+    ? buildWhatsappLink(agency.whatsapp, "Hola, los contacto desde DomusBrag.")
+    : null;
   const socialLinks = [
-    { key: "website", label: "Sitio web", url: websiteUrl, icon: "WEB" as const },
+    { key: "whatsapp", label: "WhatsApp", url: whatsappUrl, icon: "WA" as const },
     { key: "instagram", label: "Instagram", url: instagramUrl, icon: "IG" as const },
     { key: "facebook", label: "Facebook", url: facebookUrl, icon: "FB" as const },
+    { key: "website", label: "Sitio web", url: websiteUrl, icon: "WEB" as const },
   ].filter(
     (
       item
     ): item is { key: string; label: string; url: string; icon: SocialIconType } =>
       Boolean(item.url)
   );
+  // Color de marca por red (ícono + borde + fondo sutil).
+  const socialBrand: Record<string, { background: string; border: string; iconColor: string }> = {
+    whatsapp: {
+      background: "rgba(37,211,102,0.16)",
+      border: "1px solid rgba(37,211,102,0.55)",
+      iconColor: "#3ddc84",
+    },
+    instagram: {
+      background:
+        "linear-gradient(45deg, rgba(240,148,51,0.22), rgba(220,39,67,0.22), rgba(188,24,136,0.22))",
+      border: "1px solid rgba(220,39,67,0.55)",
+      iconColor: "#f783b9",
+    },
+    facebook: {
+      background: "rgba(24,119,242,0.18)",
+      border: "1px solid rgba(24,119,242,0.6)",
+      iconColor: "#5b9bff",
+    },
+    website: {
+      background: `rgba(${heroR}, ${heroG}, ${heroB}, 0.16)`,
+      border: `1px solid rgba(${heroR}, ${heroG}, ${heroB}, 0.4)`,
+      iconColor: "#e2e9ff",
+    },
+  };
   const agencyInitials = (agency?.name ?? "I")
     .split(" ")
     .slice(0, 2)
@@ -594,23 +629,25 @@ export function AgencyProfilePage() {
               </p>
               {socialLinks.length > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                  {socialLinks.map((item) => (
-                    <a
-                      key={item.key}
-                      href={item.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-[#e2e9ff] transition hover:brightness-110"
-                      style={{
-                        border: `1px solid rgba(${heroR}, ${heroG}, ${heroB}, 0.4)`,
-                        backgroundColor: `rgba(${heroR}, ${heroG}, ${heroB}, 0.16)`,
-                      }}
-                      title={item.label}
-                    >
-                      {renderSocialIcon(item.icon)}
-                      <span>{item.label}</span>
-                    </a>
-                  ))}
+                  {socialLinks.map((item) => {
+                    const brand = socialBrand[item.key] ?? socialBrand.website;
+                    return (
+                      <a
+                        key={item.key}
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-[#e2e9ff] transition hover:brightness-110"
+                        style={{ border: brand.border, background: brand.background }}
+                        title={item.label}
+                      >
+                        <span className="inline-flex" style={{ color: brand.iconColor }}>
+                          {renderSocialIcon(item.icon)}
+                        </span>
+                        <span>{item.label}</span>
+                      </a>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
