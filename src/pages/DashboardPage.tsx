@@ -345,13 +345,15 @@ export function DashboardPage() {
   );
   const { isDirty, markPristine } = useDirtyTracker(dashboardDirtySnapshot);
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
-  // Refija la línea base cuando ambos formularios están en reposo (tras cargar o guardar),
-  // de modo que recién cargar datos o guardar nunca quede como "cambios sin guardar".
+  // Refija la línea base cada vez que un formulario termina de cargar/guardar (status "idle").
+  // Por-estado (no requiere que AMBOS estén idle): robusto si un form no carga o falla,
+  // así recién cargar datos nunca queda marcado como "cambios sin guardar".
   useEffect(() => {
-    if (agencyStatus === "idle" && ownerStatus === "idle") {
-      markPristine();
-    }
-  }, [agencyStatus, ownerStatus, markPristine]);
+    if (ownerStatus === "idle") markPristine();
+  }, [ownerStatus, markPristine]);
+  useEffect(() => {
+    if (agencyStatus === "idle") markPristine();
+  }, [agencyStatus, markPristine]);
   const lockIcon = (
     <span className="ml-1 inline-flex items-center text-[#BFB8AD]" title="No editable">
       <svg
