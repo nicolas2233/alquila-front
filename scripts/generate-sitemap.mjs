@@ -111,6 +111,7 @@ async function fetchProperties() {
 
       for (const item of items) {
         if (!item?.id) continue;
+        if (item?.features?.isDemo) continue; // no indexar publicaciones de ejemplo
         urls.push({
           path: buildPropertyPath(item),
           lastmod: item.updatedAt ?? null,

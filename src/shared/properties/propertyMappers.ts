@@ -24,6 +24,7 @@ export type PropertyApiListItem = {
   bathrooms?: number | null;
   areaM2?: number | null;
   features?: {
+    isDemo?: boolean;
     hasGarage?: boolean;
     garageSpots?: number;
     garageType?: "COVERED" | "OPEN";
@@ -212,6 +213,7 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
     lng: item.location.lng ?? undefined,
     featured: item.featured ?? false,
     featuredUntil: item.featuredUntil ?? undefined,
+    isDemo: item.features?.isDemo ?? false,
   };
 };
 
@@ -287,5 +289,6 @@ export const mapPropertyToDetailListing = (
       type: method.type,
       value: method.value,
     })),
+    isDemo: item.features?.isDemo ?? false,
   };
 };
