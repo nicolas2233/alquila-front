@@ -6,6 +6,7 @@ import type { PropertyDetailListing } from "../shared/properties/PropertyDetailM
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
+import { cloudinaryCard } from "../shared/utils/cloudinaryUrl";
 import { fetchJson } from "../shared/api/http";
 import { getSessionUser } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
@@ -13,6 +14,7 @@ import { useToast } from "../shared/ui/toast/ToastProvider";
 import { trackEvent } from "../shared/analytics/posthog";
 import { useSeo } from "../shared/seo/useSeo";
 import { reverseGeocode } from "../shared/map/geocode";
+import { requestGeolocationOnce } from "../shared/utils/geolocation";
 
 type AdItem = {
   id: string;
@@ -264,6 +266,9 @@ export function SearchPage() {
   );
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasMore = page < totalPages;
+  // La auto-selección de localidad por geolocalización se aplica UNA sola vez,
+  // para no re-imponer la ciudad detectada cuando el usuario borra/cambia el filtro.
+  const autoLocalityAppliedRef = useRef(false);
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const sessionUser = getSessionUser();
@@ -421,25 +426,30 @@ export function SearchPage() {
   useSeo(searchSeo);
   const pageProgress = totalPages > 1 ? Math.min(100, Math.max(0, (page / totalPages) * 100)) : 100;
 
-  // Detectar ciudad del usuario para auto-filtrar localidad al entrar sin filtros
+  // Detectar ciudad del usuario para auto-filtrar localidad al entrar sin filtros.
+  // Se pide una sola vez (recuerda la decisión, no molesta en cada visita).
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+    requestGeolocationOnce({
+      onSuccess: async (pos) => {
         try {
           const result = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
           const city = result?.locality ?? result?.party ?? null;
           if (city) setDetectedCityName(city);
         } catch { /* ignore */ }
       },
-      () => {},
-      { timeout: 8000, maximumAge: 300000 }
-    );
+      options: { timeout: 8000, maximumAge: 300000 },
+    });
   }, []);
 
-  // Cuando se detectó la ciudad y ya cargaron las localidades, auto-seleccionar si no hay filtro activo
+  // Auto-seleccionar la localidad detectada UNA sola vez (no re-imponerla si el usuario
+  // luego borra o cambia el filtro de localidad).
   useEffect(() => {
-    if (!detectedCityName || !localities.length || localityId) return;
+    if (autoLocalityAppliedRef.current) return;
+    // Esperar a tener ciudad detectada y localidades cargadas para usar el único intento.
+    if (!detectedCityName || !localities.length) return;
+    autoLocalityAppliedRef.current = true;
+    // Si el usuario ya tiene un filtro de localidad, respetarlo (no pisar).
+    if (localityId) return;
     const cityLower = detectedCityName.toLowerCase();
     const match = localities.find(
       (l) =>
@@ -1150,11 +1160,7 @@ export function SearchPage() {
                       : "rounded-full border border-white/15 px-3 py-1 text-xs text-[#D1C7BD]"
                   }
                   type="button"
-                  onClick={() => {
-                    setViewMode("list");
-                    setPageSize(5);
-                    setPage(1);
-                  }}
+                  onClick={() => setViewMode("list")}
                 >
                   Lista
                 </button>
@@ -1166,11 +1172,7 @@ export function SearchPage() {
                     : "rounded-full border border-white/15 px-3 py-1 text-xs text-[#D1C7BD]"
                 }
                 type="button"
-                onClick={() => {
-                  setViewMode("grid");
-                  setPageSize(9);
-                  setPage(1);
-                }}
+                onClick={() => setViewMode("grid")}
               >
                 Cuadricula
               </button>
@@ -1401,7 +1403,7 @@ export function SearchPage() {
                         >
                           <img
                             className="h-full w-full object-cover transition duration-300 hover:scale-[1.02]"
-                            src={item.image}
+                            src={cloudinaryCard(item.image)}
                             alt={item.title}
                             sizes="(min-width: 1024px) 320px, (min-width: 768px) 45vw, 90vw"
                             loading="lazy"
@@ -1599,7 +1601,7 @@ export function SearchPage() {
                       >
                         <img
                           className="h-full w-full rounded-t-2xl object-cover transition duration-300 hover:scale-[1.02]"
-                          src={item.image}
+                          src={cloudinaryCard(item.image)}
                           alt={item.title}
                           sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 92vw"
                           loading="lazy"

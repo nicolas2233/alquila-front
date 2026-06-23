@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { cloudinaryThumb } from "../utils/cloudinaryUrl";
+import { cloudinaryThumb, cloudinaryCard, cloudinaryFull } from "../utils/cloudinaryUrl";
 import { CircleMarker, MapContainer, TileLayer, LayersControl } from "react-leaflet";
 
 const ESRI_SATELLITE =
@@ -778,7 +778,7 @@ export function PropertyDetailModal({
                 <img
                   key={activeImageUrl}
                   className="h-56 w-full animate-fadeUp cursor-zoom-in object-cover sm:h-64 md:h-72"
-                  src={activeImageUrl}
+                  src={cloudinaryCard(activeImageUrl)}
                   alt={listing.title}
                   loading="eager"
                   decoding="async"
@@ -1345,7 +1345,7 @@ export function PropertyDetailModal({
             </button>
             <img
               key={activeImageUrl}
-              src={activeImageUrl}
+              src={cloudinaryFull(activeImageUrl)}
               alt={listing.title}
               className="max-h-[80vh] w-full rounded-2xl border border-white/10 object-contain bg-night-900 animate-fadeUp"
             />

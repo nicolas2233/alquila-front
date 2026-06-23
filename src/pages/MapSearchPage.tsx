@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MapView, type MapPoint } from "../shared/map/MapView";
 import { geocodeSuggestions, reverseGeocode } from "../shared/map/geocode";
+import { requestGeolocationOnce, forceRequestGeolocation } from "../shared/utils/geolocation";
 import { env } from "../shared/config/env";
 
 type OperationType = "SALE" | "RENT" | "TEMPORARY";
@@ -93,6 +94,9 @@ export function MapSearchPage() {
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cuando seteamos locationSearch programáticamente (geolocalización o al elegir una
+  // sugerencia) NO queremos volver a abrir el dropdown de sugerencias.
+  const skipSuggestionRef = useRef(false);
 
   // Close dropdown and suggestions on outside click
   useEffect(() => {
@@ -106,24 +110,27 @@ export function MapSearchPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Geolocation
+  // Geolocation: se pide una sola vez (recuerda la decisión, no molesta en cada visita).
   useEffect(() => {
-    if (!navigator.geolocation) return;
     setGeoStatus("requesting");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+    requestGeolocationOnce({
+      onSuccess: async (pos) => {
         const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setMapCenter(loc);
         setGeoStatus("granted");
         try {
           const result = await reverseGeocode(loc[0], loc[1]);
           const cityName = result?.locality ?? result?.party ?? null;
-          if (cityName) setLocationSearch(cityName);
+          // Autocompletar el campo sin disparar el dropdown de sugerencias.
+          if (cityName) {
+            skipSuggestionRef.current = true;
+            setLocationSearch(cityName);
+          }
         } catch { /* ignore */ }
       },
-      () => setGeoStatus("denied"),
-      { timeout: 8000, maximumAge: 60000 }
-    );
+      onError: () => setGeoStatus("denied"),
+      options: { timeout: 8000, maximumAge: 60000 },
+    });
   }, []);
 
   // Fetch properties
@@ -191,6 +198,13 @@ export function MapSearchPage() {
   // Location search debounce
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    // Cambio programático (geolocalización / selección de sugerencia): no reabrir el dropdown.
+    if (skipSuggestionRef.current) {
+      skipSuggestionRef.current = false;
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
     if (!locationSearch.trim() || locationSearch.length < 3) { setLocationSuggestions([]); return; }
     searchDebounce.current = setTimeout(async () => {
       try {
@@ -261,13 +275,15 @@ export function MapSearchPage() {
 
   const requestGeoLocation = () => {
     if (geoStatus === "granted" && mapCenter) { setMapCenter([...mapCenter]); return; }
-    if (!navigator.geolocation) return;
     setGeoStatus("requesting");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude]; setMapCenter(loc); setGeoStatus("granted"); },
-      () => setGeoStatus("denied"),
-      { timeout: 8000 }
-    );
+    forceRequestGeolocation({
+      onSuccess: (pos) => {
+        setMapCenter([pos.coords.latitude, pos.coords.longitude]);
+        setGeoStatus("granted");
+      },
+      onError: () => setGeoStatus("denied"),
+      options: { timeout: 8000 },
+    });
   };
 
   const openDetail = (id: string) =>
@@ -605,7 +621,7 @@ export function MapSearchPage() {
                 {locationSuggestions.map((s, i) => (
                   <button key={i} type="button"
                     className="flex w-full items-center gap-2.5 border-b border-white/8 px-3 py-2.5 text-left text-xs text-white/80 last:border-0 hover:bg-white/8 hover:text-white transition"
-                    onClick={() => { setMapCenter([s.lat, s.lng]); setLocationSearch(s.displayName.split(",")[0]?.trim() ?? s.displayName); setShowSuggestions(false); }}
+                    onClick={() => { skipSuggestionRef.current = true; setMapCenter([s.lat, s.lng]); setLocationSearch(s.displayName.split(",")[0]?.trim() ?? s.displayName); setShowSuggestions(false); setLocationSuggestions([]); }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 shrink-0 text-[#AF8C5C]">
                       <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
