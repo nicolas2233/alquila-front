@@ -10,6 +10,7 @@ import { useToast } from "../shared/ui/toast/ToastProvider";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { useDirtyTracker } from "../shared/hooks/useDirtyTracker";
 import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 import { scrollToFirstError } from "../shared/utils/scrollToFirstError";
 
@@ -235,8 +236,6 @@ export function PublishPage() {
   const navigate = useNavigate();
   const { id: editPropertyId } = useParams<{ id: string }>();
   const isEditMode = Boolean(editPropertyId);
-  const [isDirty, setIsDirty] = useState(false);
-  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const { addToast } = useToast();
   const sessionUser = getSessionUser();
   const sessionToken = getToken();
@@ -571,6 +570,23 @@ export function PublishPage() {
     serviceElectricity, serviceGas, serviceWater, serviceSewer, serviceInternet, servicePavement,
     summaryHighlights, step,
   ]);
+
+  // "Sucio" = el snapshot del formulario (campos + fotos) difiere de la línea base
+  // tomada al cargar/guardar. Excluimos `step` (navegar el wizard no es un cambio).
+  const dirtySnapshot = useMemo(() => {
+    const data: Record<string, unknown> = { ...draftData };
+    delete data.step;
+    data._existingPhotos = existingPhotos.map((p) => p.id);
+    data._newPhotos = photos.map((f) => `${f.name}:${f.size}:${f.lastModified}`);
+    return JSON.stringify(data);
+  }, [draftData, existingPhotos, photos]);
+  const { isDirty, markPristine } = useDirtyTracker(dirtySnapshot);
+  const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
+
+  // Al terminar de cargar una propiedad en modo edición, fijar la línea base.
+  useEffect(() => {
+    if (isEditMode && initialStatus === "idle") markPristine();
+  }, [isEditMode, initialStatus, markPristine]);
 
   useEffect(() => {
     if (isEditMode || !draftKey || !isDirty) return;
@@ -927,7 +943,6 @@ export function PublishPage() {
         setShowPreview(false);
         setStatus("idle");
         setErrorMessage("");
-        setIsDirty(false);
         setInitialStatus("idle");
       } catch (error) {
         if (ignore) return;
@@ -1669,7 +1684,6 @@ export function PublishPage() {
       }
       setExistingPhotos((prev) => prev.filter((photo) => photo.id !== photoId));
       addToast("Foto eliminada.", "success");
-      setIsDirty(true);
     } catch (error) {
       addToast(error instanceof Error ? error.message : "No pudimos eliminar la foto.", "error");
     }
@@ -2185,7 +2199,7 @@ export function PublishPage() {
       if (isEditMode) {
         setTimeout(() => navigate("/panel?tab=listings"), 250);
       }
-      setIsDirty(false);
+      markPristine();
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -2433,7 +2447,6 @@ export function PublishPage() {
         ref={formRef}
         className="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-white/20 bg-night-800/70 shadow-soft space-y-5 p-4 sm:p-5 md:space-y-6 md:p-6"
         onSubmit={handleSubmit}
-        onChange={() => setIsDirty(true)}
       >
         <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/45 p-4">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
@@ -3757,7 +3770,6 @@ export function PublishPage() {
                             void saveExistingPhotoOrder(next);
                             return next;
                           });
-                          setIsDirty(true);
                           setDraggingExistingPhotoIndex(null);
                           setDragOverExistingPhotoIndex(null);
                         }}
@@ -3810,7 +3822,6 @@ export function PublishPage() {
                     );
                     return deduped.slice(0, 12);
                   });
-                  setIsDirty(true);
                 }}
                 onClick={() => document.getElementById("photoFileInput")?.click()}
               >
@@ -3839,7 +3850,6 @@ export function PublishPage() {
                     );
                     return deduped.slice(0, 12);
                   });
-                  setIsDirty(true);
                   event.target.value = "";
                 }}
               />
