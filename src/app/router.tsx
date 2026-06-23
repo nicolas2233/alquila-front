@@ -1,52 +1,52 @@
-﻿import { lazy } from "react";
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import { AppLayout } from "../shared/layouts/AppLayout";
 import { ProtectedRoute } from "../shared/auth/ProtectedRoute";
 import { LazySection } from "../shared/ui/LazySection";
+import { lazyWithRetry } from "../shared/utils/lazyWithRetry";
 
-const HomePage = lazy(() => import("../pages/HomePage").then((m) => ({ default: m.HomePage })));
-const SearchPage = lazy(() => import("../pages/SearchPage").then((m) => ({ default: m.SearchPage })));
-const MapSearchPage = lazy(() =>
+const HomePage = lazyWithRetry(() => import("../pages/HomePage").then((m) => ({ default: m.HomePage })));
+const SearchPage = lazyWithRetry(() => import("../pages/SearchPage").then((m) => ({ default: m.SearchPage })));
+const MapSearchPage = lazyWithRetry(() =>
   import("../pages/MapSearchPage").then((m) => ({ default: m.MapSearchPage }))
 );
-const PublishPage = lazy(() => import("../pages/PublishPage").then((m) => ({ default: m.PublishPage })));
-const ListingPage = lazy(() => import("../pages/ListingPage").then((m) => ({ default: m.ListingPage })));
-const DashboardPage = lazy(() =>
+const PublishPage = lazyWithRetry(() => import("../pages/PublishPage").then((m) => ({ default: m.PublishPage })));
+const ListingPage = lazyWithRetry(() => import("../pages/ListingPage").then((m) => ({ default: m.ListingPage })));
+const DashboardPage = lazyWithRetry(() =>
   import("../pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
 );
-const RegisterPage = lazy(() => import("../pages/RegisterPage").then((m) => ({ default: m.RegisterPage })));
-const LoginPage = lazy(() => import("../pages/LoginPage").then((m) => ({ default: m.LoginPage })));
-const ForgotPasswordPage = lazy(() =>
+const RegisterPage = lazyWithRetry(() => import("../pages/RegisterPage").then((m) => ({ default: m.RegisterPage })));
+const LoginPage = lazyWithRetry(() => import("../pages/LoginPage").then((m) => ({ default: m.LoginPage })));
+const ForgotPasswordPage = lazyWithRetry(() =>
   import("../pages/ForgotPasswordPage").then((m) => ({ default: m.ForgotPasswordPage }))
 );
-const ResetPasswordPage = lazy(() =>
+const ResetPasswordPage = lazyWithRetry(() =>
   import("../pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage }))
 );
-const VerifyEmailPage = lazy(() =>
+const VerifyEmailPage = lazyWithRetry(() =>
   import("../pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage }))
 );
-const ChangePasswordPage = lazy(() =>
+const ChangePasswordPage = lazyWithRetry(() =>
   import("../pages/ChangePasswordPage").then((m) => ({ default: m.ChangePasswordPage }))
 );
-const AgencyProfilePage = lazy(() =>
+const AgencyProfilePage = lazyWithRetry(() =>
   import("../pages/AgencyProfilePage").then((m) => ({ default: m.AgencyProfilePage }))
 );
-const SavedSearchesPage = lazy(() =>
+const SavedSearchesPage = lazyWithRetry(() =>
   import("../pages/SavedSearchesPage").then((m) => ({ default: m.SavedSearchesPage }))
 );
-const NotificationsPage = lazy(() =>
+const NotificationsPage = lazyWithRetry(() =>
   import("../pages/NotificationsPage").then((m) => ({ default: m.NotificationsPage }))
 );
-const MyRequestsPage = lazy(() =>
+const MyRequestsPage = lazyWithRetry(() =>
   import("../pages/MyRequestsPage").then((m) => ({ default: m.MyRequestsPage }))
 );
-const UserProfilePage = lazy(() =>
+const UserProfilePage = lazyWithRetry(() =>
   import("../pages/UserProfilePage").then((m) => ({ default: m.UserProfilePage }))
 );
-const LegalPage = lazy(() => import("../pages/LegalPage").then((m) => ({ default: m.LegalPage })));
-const AdminPage = lazy(() => import("../pages/AdminPage").then((m) => ({ default: m.AdminPage })));
-const NotFoundPage = lazy(() =>
+const LegalPage = lazyWithRetry(() => import("../pages/LegalPage").then((m) => ({ default: m.LegalPage })));
+const AdminPage = lazyWithRetry(() => import("../pages/AdminPage").then((m) => ({ default: m.AdminPage })));
+const NotFoundPage = lazyWithRetry(() =>
   import("../pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage }))
 );
 
