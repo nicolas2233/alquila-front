@@ -6,7 +6,6 @@ import type { PropertyDetailListing } from "../shared/properties/PropertyDetailM
 import { env } from "../shared/config/env";
 import type { PropertyApiDetail, PropertyApiListItem, SearchListing } from "../shared/properties/propertyMappers";
 import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
-import { cloudinaryCard } from "../shared/utils/cloudinaryUrl";
 import { fetchJson } from "../shared/api/http";
 import { getSessionUser } from "../shared/auth/session";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
@@ -269,6 +268,9 @@ export function SearchPage() {
   // La auto-selección de localidad por geolocalización se aplica UNA sola vez,
   // para no re-imponer la ciudad detectada cuando el usuario borra/cambia el filtro.
   const autoLocalityAppliedRef = useRef(false);
+  // Última query que ESTE componente escribió en la URL. El efecto de lectura la ignora
+  // para no re-procesar nuestras propias navegaciones (evita el eco read<->URL).
+  const lastInternalSearchRef = useRef<string | null>(null);
   const detailCacheRef = useRef(new Map<string, PropertyDetailListing>());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const sessionUser = getSessionUser();
@@ -514,6 +516,12 @@ export function SearchPage() {
   }, [page, pageSize, sortBy, operationType, propertyType, publisherType, localityId, priceCurrency, minPriceInput, maxPriceInput]);
 
   useEffect(() => {
+    const currentSearch = location.search.startsWith("?")
+      ? location.search.slice(1)
+      : location.search;
+    // Si esta query la escribimos nosotros (efecto de abajo), los filtros ya coinciden:
+    // no re-procesar (rompe el posible loop de navegación).
+    if (currentSearch === lastInternalSearchRef.current) return;
     const params = new URLSearchParams(location.search);
     const nextOperation = (params.get("operationType") ?? "") as typeof operationType;
     const nextProperty = (params.get("propertyType") ?? "") as typeof propertyType;
@@ -565,6 +573,7 @@ export function SearchPage() {
       ? location.search.slice(1)
       : location.search;
     if (nextSearch !== currentSearch) {
+      lastInternalSearchRef.current = nextSearch;
       navigate(nextSearch ? `/buscar?${nextSearch}` : "/buscar", { replace: true });
     }
   }, [navigate, location.search, operationType, propertyType, publisherType, localityId, priceCurrency, minPriceInput, maxPriceInput, sortBy]);
@@ -1403,7 +1412,7 @@ export function SearchPage() {
                         >
                           <img
                             className="h-full w-full object-cover transition duration-300 hover:scale-[1.02]"
-                            src={cloudinaryCard(item.image)}
+                            src={item.image}
                             alt={item.title}
                             sizes="(min-width: 1024px) 320px, (min-width: 768px) 45vw, 90vw"
                             loading="lazy"
@@ -1601,7 +1610,7 @@ export function SearchPage() {
                       >
                         <img
                           className="h-full w-full rounded-t-2xl object-cover transition duration-300 hover:scale-[1.02]"
-                          src={cloudinaryCard(item.image)}
+                          src={item.image}
                           alt={item.title}
                           sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 92vw"
                           loading="lazy"
