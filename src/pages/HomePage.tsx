@@ -101,7 +101,7 @@ export function HomePage() {
     canonicalPath: "/",
     noindex: false,
     structuredData: [
-      { "@context": "https://schema.org", "@type": "Organization", name: "DomusBrag", url: env.siteUrl, description: "Plataforma inmobiliaria digital para buscar, publicar y contactar propiedades." },
+      { "@context": "https://schema.org", "@type": "Organization", name: "DomusBrag", url: env.siteUrl, logo: `${env.siteUrl}/domusbrag.jpg`, description: "Plataforma inmobiliaria digital para buscar, publicar y contactar propiedades." },
       { "@context": "https://schema.org", "@type": "WebSite", name: "DomusBrag", url: env.siteUrl, potentialAction: { "@type": "SearchAction", target: `${env.siteUrl}/buscar`, "query-input": "required name=search_term_string" } },
     ],
   });

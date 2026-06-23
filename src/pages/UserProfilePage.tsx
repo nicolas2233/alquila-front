@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
@@ -27,7 +27,13 @@ export function UserProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<"idle" | "sending">("idle");
   const [verificationCooldown, setVerificationCooldown] = useState(0);
-  const [isDirty, setIsDirty] = useState(false);
+  // "Sucio" se calcula comparando los campos editables contra una línea base tomada
+  // al cargar/guardar (no por onChange, que daba falsos positivos). La contraseña es
+  // write-only: cuenta como cambio solo si el usuario escribió algo.
+  const emptyBaseline = JSON.stringify({ phone: "", birthDate: "", address: "", avatarUrl: "" });
+  const baselineRef = useRef<string>(emptyBaseline);
+  const profileSnapshot = JSON.stringify({ phone, birthDate, address, avatarUrl });
+  const isDirty = profileSnapshot !== baselineRef.current || contrasena.trim().length > 0;
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
   const lockIcon = (
     <span className="ml-1 inline-flex items-center text-[#BFB8AD]" title="No editable">
@@ -108,12 +114,22 @@ export function UserProfilePage() {
         setEmail(data.email ?? "");
         setEmailVerifiedAt(data.emailVerifiedAt ?? "");
         setDni(data.dni ?? "");
-        setBirthDate(
-          data.birthDate ? new Date(data.birthDate).toISOString().slice(0, 10) : ""
-        );
-        setPhone(data.phone ?? "");
-        setAddress(data.address ?? "");
-        setAvatarUrl(data.avatarUrl ?? "");
+        const birthVal = data.birthDate
+          ? new Date(data.birthDate).toISOString().slice(0, 10)
+          : "";
+        const phoneVal = data.phone ?? "";
+        const addressVal = data.address ?? "";
+        const avatarVal = data.avatarUrl ?? "";
+        setBirthDate(birthVal);
+        setPhone(phoneVal);
+        setAddress(addressVal);
+        setAvatarUrl(avatarVal);
+        baselineRef.current = JSON.stringify({
+          phone: phoneVal,
+          birthDate: birthVal,
+          address: addressVal,
+          avatarUrl: avatarVal,
+        });
         setStatus("idle");
       } catch (error) {
         setStatus("error");
@@ -164,7 +180,7 @@ export function UserProfilePage() {
         })
       );
       addToast("Perfil actualizado.", "success");
-      setIsDirty(false);
+      baselineRef.current = JSON.stringify({ phone, birthDate, address, avatarUrl });
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -207,7 +223,7 @@ export function UserProfilePage() {
   };
 
   return (
-    <div className="space-y-6" onChange={() => setIsDirty(true)}>
+    <div className="space-y-6">
       <div>
         <h2 className="text-3xl text-white">Mi perfil</h2>
         <p className="text-sm text-[#D1C7BD]">

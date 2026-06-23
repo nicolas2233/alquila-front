@@ -187,9 +187,11 @@ export function AppLayout() {
     trackPageView(location.pathname);
   }, [location.pathname]);
 
+  // Subir al tope solo al navegar a otra página (cambio de pathname), NO al cambiar
+  // la query (filtros/orden en /buscar): así no se pierde la posición de scroll al filtrar.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [location.pathname, location.search]);
+  }, [location.pathname]);
 
   useEffect(() => {
     let ignore = false;

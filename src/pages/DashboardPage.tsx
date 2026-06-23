@@ -23,6 +23,7 @@ import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { formatRentalRequirements } from "../shared/utils/rentalRequirements";
 import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
+import { useDirtyTracker } from "../shared/hooks/useDirtyTracker";
 import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
 
 const statusLabels: Record<string, string> = {
@@ -319,8 +320,38 @@ export function DashboardPage() {
   const [betaFeedbackTitle, setBetaFeedbackTitle] = useState("");
   const [betaFeedbackBody, setBetaFeedbackBody] = useState("");
   const [betaFeedbackCategory, setBetaFeedbackCategory] = useState<"UX" | "FEATURE" | "BUG" | "GENERAL">("GENERAL");
-  const [isDirty, setIsDirty] = useState(false);
+  // "Sucio" = los campos editables de los formularios (agencia + dueño) difieren de la
+  // línea base tomada al cargar/guardar. Reemplaza el `onChange` global, que marcaba
+  // sucio ante cualquier evento aunque no se modificara nada.
+  const dashboardDirtySnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        agencyName, agencyPhone, agencyAddress, agencyAbout, agencyWhatsapp, agencyWebsite,
+        agencyInstagram, agencyFacebook, agencyLogo, agencyHeroColor, agencyHeroImage,
+        agencyHeroImagePosition, agencyHeroImageOpacity, agencyContactCardColor,
+        agencyContactCardOpacity, agencyLat, agencyLng,
+        ownerFirstName, ownerLastName, ownerEmail, ownerPhone, ownerAddress, ownerAvatarUrl,
+        ownerShowNamePublic, ownerDniTramite, ownerBirthDate,
+        ownerHasNewPassword: ownerPassword.trim().length > 0,
+      }),
+    [
+      agencyName, agencyPhone, agencyAddress, agencyAbout, agencyWhatsapp, agencyWebsite,
+      agencyInstagram, agencyFacebook, agencyLogo, agencyHeroColor, agencyHeroImage,
+      agencyHeroImagePosition, agencyHeroImageOpacity, agencyContactCardColor,
+      agencyContactCardOpacity, agencyLat, agencyLng,
+      ownerFirstName, ownerLastName, ownerEmail, ownerPhone, ownerAddress, ownerAvatarUrl,
+      ownerShowNamePublic, ownerDniTramite, ownerBirthDate, ownerPassword,
+    ]
+  );
+  const { isDirty, markPristine } = useDirtyTracker(dashboardDirtySnapshot);
   const { show, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
+  // Refija la línea base cuando ambos formularios están en reposo (tras cargar o guardar),
+  // de modo que recién cargar datos o guardar nunca quede como "cambios sin guardar".
+  useEffect(() => {
+    if (agencyStatus === "idle" && ownerStatus === "idle") {
+      markPristine();
+    }
+  }, [agencyStatus, ownerStatus, markPristine]);
   const lockIcon = (
     <span className="ml-1 inline-flex items-center text-[#BFB8AD]" title="No editable">
       <svg
@@ -2252,7 +2283,6 @@ export function DashboardPage() {
       } else {
         addToast("Perfil actualizado.", "success");
       }
-      setIsDirty(false);
     } catch (error) {
       setAgencyStatus("error");
       setAgencyError(
@@ -2275,7 +2305,6 @@ export function DashboardPage() {
       const result = await geocodeAddress(query);
       setAgencyLat(result.lat);
       setAgencyLng(result.lng);
-      setIsDirty(true);
       const locationParts = [result.locality, result.party, result.province].filter(
         (part, index, arr) => Boolean(part) && arr.indexOf(part) === index
       ) as string[];
@@ -2297,7 +2326,6 @@ export function DashboardPage() {
   const handleAgencyMapPointChange = async (nextLat: number, nextLng: number) => {
     setAgencyLat(nextLat);
     setAgencyLng(nextLng);
-    setIsDirty(true);
     setAgencyGeoStatus("loading");
     setAgencyGeoMessage("Buscando dirección del punto...");
     try {
@@ -2397,7 +2425,6 @@ export function DashboardPage() {
         );
       }
       addToast("Perfil actualizado.", "success");
-      setIsDirty(false);
     } catch (error) {
       setOwnerStatus("error");
       setOwnerError(
@@ -2740,7 +2767,7 @@ export function DashboardPage() {
       <div className="space-y-6 md:space-y-8">
 
       {activeSection === "profile" && isAgency && (
-        <div className="glass-card space-y-6 p-6 md:p-7" onChangeCapture={() => setIsDirty(true)}>
+        <div className="glass-card space-y-6 p-6 md:p-7">
           <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
             <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
               Perfil público inmobiliaria
@@ -2941,7 +2968,6 @@ export function DashboardPage() {
                     onClick={() => {
                       setAgencyLat(undefined);
                       setAgencyLng(undefined);
-                      setIsDirty(true);
                       setAgencyGeoStatus("idle");
                       setAgencyGeoMessage("");
                     }}
@@ -3137,7 +3163,6 @@ export function DashboardPage() {
                         reader.onload = () => {
                           if (typeof reader.result === "string") {
                             setAgencyLogo(reader.result);
-                            setIsDirty(true);
                           }
                         };
                         reader.readAsDataURL(file);
@@ -3149,7 +3174,6 @@ export function DashboardPage() {
                     className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                     onClick={() => {
                       setAgencyLogo("");
-                      setIsDirty(true);
                     }}
                   >
                     Iniciales
@@ -3189,7 +3213,6 @@ export function DashboardPage() {
                         reader.onload = () => {
                           if (typeof reader.result === "string") {
                             setAgencyHeroImage(reader.result);
-                            setIsDirty(true);
                           }
                         };
                         reader.readAsDataURL(file);
@@ -3201,7 +3224,6 @@ export function DashboardPage() {
                     className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                     onClick={() => {
                       setAgencyHeroImage("");
-                      setIsDirty(true);
                     }}
                   >
                     Quitar
@@ -3252,7 +3274,7 @@ export function DashboardPage() {
       )}
 
       {activeSection === "profile" && isOwner && (
-        <div className="glass-card space-y-4 p-6" onChangeCapture={() => setIsDirty(true)}>
+        <div className="glass-card space-y-4 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Perfil de dueño</h3>
@@ -3312,7 +3334,6 @@ export function DashboardPage() {
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-night-900/48 text-base"
                       onClick={() => {
                         setOwnerAvatarUrl(`emoji:${emoji}`);
-                        setIsDirty(true);
                       }}
                     >
                       {emoji}
@@ -3331,7 +3352,6 @@ export function DashboardPage() {
                         reader.onload = () => {
                           if (typeof reader.result === "string") {
                             setOwnerAvatarUrl(reader.result);
-                            setIsDirty(true);
                           }
                         };
                         reader.readAsDataURL(file);
@@ -3343,7 +3363,6 @@ export function DashboardPage() {
                     className="rounded-full border border-white/20 px-3 py-1 text-xs text-[#E7E2DD]"
                     onClick={() => {
                       setOwnerAvatarUrl("");
-                      setIsDirty(true);
                     }}
                   >
                     Iniciales

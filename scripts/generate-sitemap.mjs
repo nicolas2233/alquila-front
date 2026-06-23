@@ -8,6 +8,34 @@ const strictMode = process.argv.includes("--strict");
 
 const now = new Date().toISOString();
 
+// Slug de propiedad: DEBE coincidir con src/shared/properties/slug.ts y el backend.
+const TYPE_SLUG = {
+  HOUSE: "casa", APARTMENT: "departamento", LAND: "terreno", FIELD: "campo",
+  QUINTA: "quinta", COMMERCIAL: "local-comercial", OFFICE: "oficina", WAREHOUSE: "deposito",
+};
+const OPERATION_SLUG = { SALE: "en-venta", RENT: "en-alquiler", TEMPORARY: "alquiler-temporal" };
+
+function slugify(text) {
+  return String(text)
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildPropertyPath(item) {
+  const locality = item?.location?.locality?.name ?? null;
+  const parts = [
+    item?.propertyType ? TYPE_SLUG[item.propertyType] ?? "" : "",
+    item?.operationType ? OPERATION_SLUG[item.operationType] ?? "" : "",
+    locality ? slugify(locality) : "",
+  ].filter(Boolean);
+  const slug = parts.join("-");
+  const tail = slug ? `${slug}-${item.id}` : item.id;
+  return `/publicacion/${tail}`;
+}
+
 function escapeXml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -17,16 +45,29 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} ${response.statusText} - ${url}`);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchJson(url, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText} - ${url}`);
+      }
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await sleep(attempt * 1000);
+      }
+    }
   }
-  return response.json();
+  throw lastError;
 }
 
 async function fetchAgencies() {
@@ -71,7 +112,7 @@ async function fetchProperties() {
       for (const item of items) {
         if (!item?.id) continue;
         urls.push({
-          path: `/publicacion/${item.id}`,
+          path: buildPropertyPath(item),
           lastmod: item.updatedAt ?? null,
           changefreq: "daily",
           priority: "0.7",
