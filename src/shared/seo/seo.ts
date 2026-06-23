@@ -12,8 +12,7 @@ const BRAND_NAME = "DomusBrag";
 const DEFAULT_TITLE = `${BRAND_NAME} | Propiedades en Bragado`;
 const DEFAULT_DESCRIPTION =
   "DomusBrag conecta personas, dueños directos e inmobiliarias en Bragado con búsqueda clara, mapa y contacto rápido.";
-const DEFAULT_OG_IMAGE =
-  "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80";
+const DEFAULT_OG_IMAGE = "https://domusbrag.com/domusbrag.jpg";
 
 function getSiteUrl() {
   const fromEnv = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim();
@@ -106,4 +105,19 @@ export function applySeo(config: SeoConfig) {
 
   upsertCanonical(canonicalUrl);
   upsertStructuredData(config.structuredData);
+}
+
+/** JSON-LD BreadcrumbList a partir de pares nombre/ruta (mejora el enlazado en buscadores). */
+export function buildBreadcrumbList(items: Array<{ name: string; path: string }>) {
+  const siteUrl = getSiteUrl();
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: new URL(item.path, `${siteUrl}/`).toString(),
+    })),
+  };
 }

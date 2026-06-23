@@ -122,8 +122,8 @@ export const router = createBrowserRouter([
         ),
       },
       { path: "agencia/:slug", element: withSuspense(<AgencyProfilePage />) },
-      { path: "publicacion/:id", element: withSuspense(<ListingPage />) },
-      { path: "publicación/:id", element: withSuspense(<ListingPage />) },
+      { path: "publicacion/:slugId", element: withSuspense(<ListingPage />) },
+      { path: "publicación/:slugId", element: withSuspense(<ListingPage />) },
       { path: "legal/:doc", element: withSuspense(<LegalPage />) },
       {
         path: "admin",

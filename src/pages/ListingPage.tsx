@@ -1,14 +1,20 @@
 ﻿import { lazy, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
-import type { PropertyApiDetail } from "../shared/properties/propertyMappers";
-import { mapPropertyToDetailListing } from "../shared/properties/propertyMappers";
+import type {
+  PropertyApiDetail,
+  PropertyApiListItem,
+  SearchListing,
+} from "../shared/properties/propertyMappers";
+import { mapPropertyToDetailListing, mapPropertyToSearchListing } from "../shared/properties/propertyMappers";
 import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { LazySection } from "../shared/ui/LazySection";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { useSeo } from "../shared/seo/useSeo";
+import { buildBreadcrumbList } from "../shared/seo/seo";
+import { buildPropertyPath, extractPropertyId } from "../shared/properties/slug";
 
 const PropertyDetailModal = lazy(() =>
   import("../shared/properties/PropertyDetailModal").then((m) => ({
@@ -23,7 +29,8 @@ const interestMessagePresets = [
 ] as const;
 
 export function ListingPage() {
-  const { id } = useParams();
+  const { slugId } = useParams();
+  const id = useMemo(() => extractPropertyId(slugId), [slugId]);
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
@@ -32,6 +39,7 @@ export function ListingPage() {
   const [status, setStatus] = useState<"loading" | "error" | "idle">("loading");
   const [error, setError] = useState("");
   const [property, setProperty] = useState<PropertyApiDetail | null>(null);
+  const [similar, setSimilar] = useState<SearchListing[]>([]);
   const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle"
   );
@@ -85,6 +93,27 @@ export function ListingPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!id) return;
+    let ignore = false;
+    setSimilar([]);
+    const loadSimilar = async () => {
+      try {
+        const response = await fetch(`${env.apiUrl}/properties/${id}/similar`);
+        if (!response.ok) return;
+        const data = (await response.json()) as { items?: PropertyApiListItem[] };
+        if (ignore) return;
+        setSimilar((data.items ?? []).map(mapPropertyToSearchListing));
+      } catch {
+        // Sección opcional: si falla, simplemente no se muestra.
+      }
+    };
+    void loadSimilar();
+    return () => {
+      ignore = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
     if (!interestPresetOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
@@ -103,6 +132,28 @@ export function ListingPage() {
     () => (property ? mapPropertyToDetailListing(property) : null),
     [property]
   );
+  const canonicalPath = useMemo(
+    () =>
+      property
+        ? buildPropertyPath({
+            id: property.id,
+            operationType: property.operationType,
+            propertyType: property.propertyType,
+            locality: property.location?.locality?.name ?? null,
+          })
+        : id
+          ? `/publicacion/${id}`
+          : "/publicacion",
+    [property, id]
+  );
+  // Normalizar la URL al slug amigable (sin recargar ni re-fetchear: el id no cambia).
+  useEffect(() => {
+    if (!property) return;
+    const current = `${location.pathname}`;
+    if (current !== canonicalPath) {
+      navigate(canonicalPath + location.search, { replace: true, state: location.state });
+    }
+  }, [property, canonicalPath, location.pathname, location.search, location.state, navigate]);
   useSeo({
     title: listing ? `${listing.operation} ${listing.propertyType} en Bragado` : "Ficha de inmueble",
     description: property
@@ -111,35 +162,43 @@ export function ListingPage() {
           .trim()
           .slice(0, 160)
       : "Detalle de inmueble en DomusBrag.",
-    canonicalPath: id ? `/publicacion/${id}` : "/publicacion",
+    canonicalPath,
     image: property?.photos?.[0]?.url,
     type: "article",
     noindex: false,
     structuredData:
       property && listing
-        ? {
-            "@context": "https://schema.org",
-            "@type": "Offer",
-            name: property.title,
-            description: property.description,
-            url:
-              typeof window !== "undefined"
-                ? `${window.location.origin}/publicacion/${property.id}`
-                : undefined,
-            price: String(property.priceAmount),
-            priceCurrency: property.priceCurrency,
-            itemOffered: {
-              "@type": "Residence",
-              name: `${listing.propertyType} en Bragado`,
-              address: {
+        ? [
+            {
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: property.title,
+              description: property.description,
+              category: `${listing.propertyType} ${listing.operation}`,
+              image: property.photos?.map((photo) => photo.url) ?? undefined,
+              offers: {
+                "@type": "Offer",
+                price: String(property.priceAmount),
+                priceCurrency: property.priceCurrency,
+                availability: "https://schema.org/InStock",
+                url:
+                  typeof window !== "undefined"
+                    ? `${window.location.origin}${canonicalPath}`
+                    : undefined,
+              },
+              areaServed: {
                 "@type": "PostalAddress",
                 streetAddress: property.location.addressLine,
                 addressLocality: property.location.locality?.name ?? "Bragado",
                 addressCountry: "AR",
               },
             },
-            image: property.photos?.map((photo) => photo.url) ?? undefined,
-          }
+            buildBreadcrumbList([
+              { name: "Inicio", path: "/" },
+              { name: "Buscar", path: "/buscar" },
+              { name: property.title, path: canonicalPath },
+            ]),
+          ]
         : undefined,
   });
   const contactMethods = property?.contactMethods ?? ([] as PropertyApiDetail["contactMethods"]);
@@ -258,30 +317,64 @@ export function ListingPage() {
     }
   };
 
+  const handleShare = async () => {
+    // Usamos el endpoint de preview del backend para que WhatsApp/Facebook/Twitter
+    // obtengan los meta OG reales de la propiedad (la SPA no los expone a los crawlers).
+    const shareUrl = `${env.apiUrl}/share${canonicalPath}`;
+    const shareTitle = listing
+      ? `${listing.operation} ${listing.propertyType} en Bragado | DomusBrag`
+      : "DomusBrag";
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: shareTitle, url: shareUrl });
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      addToast("Enlace copiado al portapapeles.", "success");
+    } catch {
+      addToast("No pudimos copiar el enlace.", "error");
+    }
+  };
+
   return (
     <LazySection fallback={<div className="h-12" />}>
       <PropertyDetailModal
         listing={listing}
         variant="page"
         headerAction={
-          <button
-            type="button"
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-night-950/55 px-3 py-1.5 text-xs font-medium text-[#E7E2DD] transition hover:border-gold-500/35 hover:text-white"
-            onClick={() => {
-              if (returnTo) {
-                navigate(returnTo);
-                return;
-              }
-              if (window.history.length > 1) {
-                navigate(-1);
-                return;
-              }
-              navigate("/buscar");
-            }}
-          >
-            <span aria-hidden="true">←</span>
-            {returnLabel}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-night-950/55 px-3 py-1.5 text-xs font-medium text-[#E7E2DD] transition hover:border-gold-500/35 hover:text-white"
+              onClick={() => {
+                if (returnTo) {
+                  navigate(returnTo);
+                  return;
+                }
+                if (window.history.length > 1) {
+                  navigate(-1);
+                  return;
+                }
+                navigate("/buscar");
+              }}
+            >
+              <span aria-hidden="true">←</span>
+              {returnLabel}
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-night-950/55 px-3 py-1.5 text-xs font-medium text-[#E7E2DD] transition hover:border-gold-500/35 hover:text-white"
+              aria-label="Compartir publicación"
+            >
+              <span aria-hidden="true">🔗</span>
+              Compartir
+            </button>
+          </div>
         }
         onReportProperty={handleReportProperty}
         onReportUser={listing.ownerUserId ? handleReportUser : undefined}
@@ -289,9 +382,7 @@ export function ListingPage() {
           <div className="grid w-full gap-2 sm:flex sm:flex-wrap sm:gap-3">
             {contactMethods?.map((contact) => {
               if (contact.type === "WHATSAPP") {
-                const message = `Hola, me interesa "${listing.title}". Link: ${
-                  window.location.origin
-                }/publicacion/${property?.id ?? ""}`;
+                const message = `Hola, me interesa "${listing.title}". Link: ${window.location.origin}${canonicalPath}`;
                 const link = buildWhatsappLink(contact.value, message);
                 if (!link) {
                   return null;
@@ -429,6 +520,37 @@ export function ListingPage() {
           </div>
         }
       />
+      {similar.length > 0 ? (
+        <section className="mx-auto mt-10 w-full max-w-5xl px-4">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#D1C7BD]">
+            Propiedades relacionadas
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {similar.map((rel) => (
+              <Link
+                key={rel.id}
+                to={`/publicacion/${rel.id}`}
+                className="group overflow-hidden rounded-2xl border border-white/10 bg-night-900/50 transition hover:border-gold-500/30"
+              >
+                <div className="aspect-[4/3] w-full overflow-hidden bg-night-800">
+                  <img
+                    src={rel.image}
+                    alt={rel.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-xs font-medium text-[#E7E2DD]">{rel.title}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-[#AF8C5C]">{rel.address}</p>
+                  <p className="mt-1 text-xs font-semibold text-white">{rel.price}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </LazySection>
   );
 }

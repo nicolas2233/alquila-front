@@ -14,3 +14,4 @@ Disallow: /reset-password
 Disallow: /change-password
 
 Sitemap: https://domusbrag.com/sitemap.xml
+Sitemap: https://alquila-back-production.up.railway.app/api/sitemap.xml
