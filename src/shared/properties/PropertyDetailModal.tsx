@@ -64,6 +64,7 @@ export type PropertyDetailListing = {
   showMapLocation?: boolean;
   featured?: boolean;
   featuredUntil?: string | null;
+  isDemo?: boolean;
 };
 
 type PropertyDetailModalProps = {
@@ -691,6 +692,11 @@ export function PropertyDetailModal({
         >
           <div className={isModal ? "space-y-1" : "space-y-1.5"}>
             {headerAction ? <div className="mb-1">{headerAction}</div> : null}
+            {listing.isDemo ? (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-1 text-[11px] font-semibold text-amber-200">
+                <span aria-hidden="true">●</span> Publicación de ejemplo
+              </span>
+            ) : null}
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
               Ficha de inmueble
             </p>
