@@ -408,17 +408,6 @@ export function AgencyProfilePage() {
     }
   };
 
-  if (!agency && agencyStatus === "error") {
-    return (
-      <div className="space-y-2">
-        <h2 className="text-3xl text-white">Agencia no encontrada</h2>
-        <p className="text-sm text-[#D1C7BD]">
-          No pudimos encontrar la agencia solicitada.
-        </p>
-      </div>
-    );
-  }
-
   const hasLogoImage =
     Boolean(agency?.logo) &&
     (agency?.logo?.startsWith("http") || agency?.logo?.startsWith("data:"));
@@ -528,6 +517,19 @@ export function AgencyProfilePage() {
         }
       : undefined,
   });
+
+  // Importante: este return va DESPUÉS de todos los hooks (incluido useSeo),
+  // para no romper el orden de hooks al pasar de "loading" a "error" (React #300).
+  if (!agency && agencyStatus === "error") {
+    return (
+      <div className="space-y-2">
+        <h2 className="text-3xl text-white">Agencia no encontrada</h2>
+        <p className="text-sm text-[#D1C7BD]">
+          No pudimos encontrar la agencia solicitada.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 md:space-y-10">
