@@ -8,20 +8,27 @@
     "dev": "vite",
     "seo:sitemap": "node ./scripts/generate-sitemap.mjs",
     "seo:sitemap:strict": "node ./scripts/generate-sitemap.mjs --strict",
-    "prebuild": "npm run seo:sitemap",
+    "prebuild": "npm run seo:sitemap:strict",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/leaflet": "^1.9.21",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.23",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^3.2.6"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.7",
