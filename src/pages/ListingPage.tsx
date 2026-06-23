@@ -40,6 +40,7 @@ export function ListingPage() {
   const [error, setError] = useState("");
   const [property, setProperty] = useState<PropertyApiDetail | null>(null);
   const [similar, setSimilar] = useState<SearchListing[]>([]);
+  const [ownerListings, setOwnerListings] = useState<SearchListing[]>([]);
   const [contactStatus, setContactStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle"
   );
@@ -112,6 +113,39 @@ export function ListingPage() {
       ignore = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    const ownerUserId = property?.ownerUserId;
+    // Solo para dueños directos (sin agencia): mostrar sus otras publicaciones activas.
+    if (!ownerUserId || property?.agencyId) {
+      setOwnerListings([]);
+      return;
+    }
+    let ignore = false;
+    const loadOwnerListings = async () => {
+      try {
+        const response = await fetch(
+          `${env.apiUrl}/properties?status=ACTIVE&ownerUserId=${encodeURIComponent(
+            ownerUserId
+          )}&pageSize=12`
+        );
+        if (!response.ok) return;
+        const data = (await response.json()) as { items?: PropertyApiListItem[] };
+        if (ignore) return;
+        setOwnerListings(
+          (data.items ?? [])
+            .filter((item) => item.id !== property?.id)
+            .map(mapPropertyToSearchListing)
+        );
+      } catch {
+        // Sección opcional: si falla, simplemente no se muestra.
+      }
+    };
+    void loadOwnerListings();
+    return () => {
+      ignore = true;
+    };
+  }, [property?.ownerUserId, property?.agencyId, property?.id]);
 
   useEffect(() => {
     if (!interestPresetOpen) return;
@@ -520,6 +554,37 @@ export function ListingPage() {
           </div>
         }
       />
+      {ownerListings.length > 0 ? (
+        <section className="mx-auto mt-10 w-full max-w-5xl px-4">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#D1C7BD]">
+            Más publicaciones de {property?.ownerDisplayName?.trim() || "este publicador"}
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {ownerListings.map((rel) => (
+              <Link
+                key={rel.id}
+                to={`/publicacion/${rel.id}`}
+                className="group overflow-hidden rounded-2xl border border-white/10 bg-night-900/50 transition hover:border-gold-500/30"
+              >
+                <div className="aspect-[4/3] w-full overflow-hidden bg-night-800">
+                  <img
+                    src={rel.image}
+                    alt={rel.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-xs font-medium text-[#E7E2DD]">{rel.title}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-[#AF8C5C]">{rel.address}</p>
+                  <p className="mt-1 text-xs font-semibold text-white">{rel.price}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {similar.length > 0 ? (
         <section className="mx-auto mt-10 w-full max-w-5xl px-4">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#D1C7BD]">
