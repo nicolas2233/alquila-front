@@ -183,11 +183,15 @@ export function ListingPage() {
   // Normalizar la URL al slug amigable (sin recargar ni re-fetchear: el id no cambia).
   useEffect(() => {
     if (!property) return;
+    // Solo si la propiedad cargada corresponde a la URL actual. Si navegamos a otra
+    // propiedad, `property` todavía es la anterior por un instante: esperar a que
+    // cargue la nueva (si no, normalizaríamos al slug viejo y volveríamos a ella).
+    if (property.id !== id) return;
     const current = `${location.pathname}`;
     if (current !== canonicalPath) {
       navigate(canonicalPath + location.search, { replace: true, state: location.state });
     }
-  }, [property, canonicalPath, location.pathname, location.search, location.state, navigate]);
+  }, [property, id, canonicalPath, location.pathname, location.search, location.state, navigate]);
   useSeo({
     title: listing ? `${listing.operation} ${listing.propertyType} en Bragado` : "Ficha de inmueble",
     description: property
