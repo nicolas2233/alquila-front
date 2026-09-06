@@ -12,6 +12,7 @@ import { buildWhatsappLink } from "../shared/utils/whatsapp";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { trackEvent } from "../shared/analytics/posthog";
 import { useSeo } from "../shared/seo/useSeo";
+import { buildPropertyPath } from "../shared/properties/slug";
 import { reverseGeocode } from "../shared/map/geocode";
 import { requestGeolocationOnce } from "../shared/utils/geolocation";
 
@@ -771,7 +772,10 @@ export function SearchPage() {
     });
   };
 
-  const openModal = async (listing: SearchListing) => {
+  // Efectos secundarios de abrir una ficha. La navegación la hace el <Link> de la tarjeta:
+  // así la ficha es una URL real (rastreable por buscadores, "abrir en pestaña nueva",
+  // copiar enlace, clic con la rueda) en lugar de un onClick sobre un <button>.
+  const trackListingOpen = (listing: SearchListing) => {
     trackEvent("view_listing", {
       propertyId: listing.id,
       operation: listing.operation,
@@ -783,13 +787,24 @@ export function SearchPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source: "search" }),
     }).catch(() => {});
-    navigate(`/publicacion/${listing.id}`, {
-      state: {
-        returnTo: `${location.pathname}${location.search}`,
-        returnLabel: "Volver a búsqueda",
-      },
-    });
   };
+
+  // Props comunes del enlace a la ficha. Apunta directo al slug canónico para que el
+  // href del listado sea la misma URL que declara la ficha y evitar el redirect interno.
+  const listingLinkProps = (listing: SearchListing) => ({
+    to: buildPropertyPath({
+      id: listing.id,
+      operationType: listing.operationTypeRaw,
+      propertyType: listing.propertyTypeRaw,
+      locality: listing.localityName,
+    }),
+    state: {
+      returnTo: `${location.pathname}${location.search}`,
+      returnLabel: "Volver a búsqueda",
+    },
+    onClick: () => trackListingOpen(listing),
+    onMouseEnter: () => prefetchDetail(listing.id),
+  });
 
   const handleCardWhatsapp = async (listing: SearchListing) => {
     if (!sessionUser) {
@@ -1403,11 +1418,9 @@ export function SearchPage() {
                       className="glass-card overflow-hidden animate-fadeUp md:grid md:min-h-[218.67px] md:grid-cols-[260px_minmax(0,1fr)_210px]"
                     >
                       <div className="relative h-44 md:h-[218.67px]">
-                        <button
-                          type="button"
+                        <Link
+                          {...listingLinkProps(item)}
                           className="block h-full w-full text-left"
-                          onClick={() => openModal(item)}
-                          onMouseEnter={() => prefetchDetail(item.id)}
                           aria-label={`Ver ficha de ${item.title}`}
                         >
                           <img
@@ -1418,7 +1431,7 @@ export function SearchPage() {
                             loading="lazy"
                             decoding="async"
                           />
-                        </button>
+                        </Link>
                         <span
                           className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${getImageOperationBadgeClass(
                             item.operation
@@ -1437,14 +1450,12 @@ export function SearchPage() {
                         <div className="flex h-full flex-col gap-2 overflow-hidden">
                           <div>
                             <h4 className="line-clamp-1 text-xl text-white">
-                              <button
-                                type="button"
+                              <Link
+                                {...listingLinkProps(item)}
                                 className="block max-w-full text-left transition hover:text-[#E7E2DD]"
-                                onClick={() => openModal(item)}
-                                onMouseEnter={() => prefetchDetail(item.id)}
                               >
                                 {item.title}
-                              </button>
+                              </Link>
                             </h4>
                             <p className="line-clamp-1 text-sm text-[#D1C7BD]">{item.address}</p>
                           </div>
@@ -1562,14 +1573,12 @@ export function SearchPage() {
                           </div>
                         </div>
                         <div className="mt-auto flex flex-wrap gap-1.5 md:flex-nowrap md:justify-end">
-                          <button
-                            className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-3 py-1.5 text-[11px] font-semibold text-night-900"
-                            type="button"
-                            onClick={() => openModal(item)}
-                            onMouseEnter={() => prefetchDetail(item.id)}
+                          <Link
+                            {...listingLinkProps(item)}
+                            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-3 py-1.5 text-[11px] font-semibold text-night-900"
                           >
                             Ver ficha
-                          </button>
+                          </Link>
                           <button
                             className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:brightness-110"
                             type="button"
@@ -1601,11 +1610,9 @@ export function SearchPage() {
                     className="glass-card flex h-full min-h-[470px] flex-col overflow-hidden animate-fadeUp"
                   >
                     <div className="relative h-44">
-                      <button
-                        type="button"
+                      <Link
+                        {...listingLinkProps(item)}
                         className="block h-full w-full text-left"
-                        onClick={() => openModal(item)}
-                        onMouseEnter={() => prefetchDetail(item.id)}
                         aria-label={`Ver ficha de ${item.title}`}
                       >
                         <img
@@ -1616,7 +1623,7 @@ export function SearchPage() {
                           loading="lazy"
                           decoding="async"
                         />
-                      </button>
+                      </Link>
                       <span
                         className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${getImageOperationBadgeClass(
                           item.operation
@@ -1638,14 +1645,12 @@ export function SearchPage() {
                     <div className="flex flex-1 flex-col p-4">
                       <div className="min-w-0">
                         <h4 className="line-clamp-1 text-xl text-white">
-                          <button
-                            type="button"
+                          <Link
+                            {...listingLinkProps(item)}
                             className="block max-w-full text-left transition hover:text-[#E7E2DD]"
-                            onClick={() => openModal(item)}
-                            onMouseEnter={() => prefetchDetail(item.id)}
                           >
                             {item.title}
-                          </button>
+                          </Link>
                         </h4>
                         <p className="line-clamp-1 text-sm text-[#D1C7BD]">{item.address}</p>
                       </div>
@@ -1698,14 +1703,12 @@ export function SearchPage() {
                       </div>
 
                       <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
-                        <button
-                          className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
-                          type="button"
-                          onClick={() => openModal(item)}
-                          onMouseEnter={() => prefetchDetail(item.id)}
+                        <Link
+                          {...listingLinkProps(item)}
+                          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
                         >
                           Ver ficha
-                        </button>
+                        </Link>
                         <button
                           className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
                           type="button"

@@ -100,6 +100,11 @@ export type SearchListing = PropertyDetailListing & {
   ownerDisplayName?: string | null;
   agencyLogo?: string | null;
   financingLabel?: string;
+  // Valores crudos (sin traducir a etiqueta) para armar el slug canónico de la ficha
+  // en el href de la tarjeta, sin tener que pasar por `/publicacion/<id>` y normalizar.
+  operationTypeRaw: string;
+  propertyTypeRaw: string;
+  localityName: string | null;
 };
 
 const fallbackImage =
@@ -189,6 +194,9 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
     laundry: item.features?.hasLaundry ?? false,
     operation: operationLabel(item.operationType),
     propertyType: propertyTypeLabel(item.propertyType),
+    operationTypeRaw: item.operationType,
+    propertyTypeRaw: item.propertyType,
+    localityName: item.location.locality?.name ?? null,
     agency: item.agency?.name ?? null,
     ownerDisplayName: item.ownerDisplayName ?? null,
     agencyLogo: item.agency?.logo ?? null,
