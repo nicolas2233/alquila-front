@@ -268,7 +268,7 @@ export function HomePage() {
                 icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
                 label: "Inmobiliaria",
                 title: "Tu vitrina digital",
-                body: "Perfil público con logo, hero y cartera completa. Gestión de solicitudes, agentes y suscripciones por equipo.",
+                body: "Perfil público con logo, portada y tu cartera completa. Gestioná tus publicaciones y las solicitudes de contacto desde un panel.",
                 cta: { label: "Crear perfil", to: "/registro" },
                 accent: "from-violet-500/20 to-violet-600/5",
                 border: "border-violet-500/20",
