@@ -73,7 +73,7 @@ const accountTypeOptions: Array<{
   {
     key: "agency",
     title: "Inmobiliaria",
-    text: "Gestiona cartera y equipo.",
+    text: "Gestioná tu cartera y las solicitudes.",
     image:
       "https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=480&q=70",
   },
