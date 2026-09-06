@@ -50,6 +50,15 @@ const enforcedPolicy = ["frame-ancestors 'none'", "base-uri 'self'", "object-src
 // El checkout salta entre dominios de MercadoPago y MercadoLibre segun el pais y el medio
 // de pago. Cada TLD se lista con y sin comodin: en CSP `*.mercadopago.com` no matchea el
 // dominio desnudo `mercadopago.com` ni otro TLD como `mercadopago.com.ar`.
+// Embeds de video de las fichas. Solo estos dos proveedores, en linea con lo que
+// acepta utils/videoEmbed.ts: el iframe corre dentro de domusbrag.com, asi que la
+// lista tiene que ser tan cerrada aca como en el validador.
+const VIDEO_ORIGINS = [
+  "https://www.youtube.com",
+  "https://www.youtube-nocookie.com",
+  "https://www.instagram.com",
+].join(" ");
+
 const MERCADOPAGO_ORIGINS = [
   "https://mercadopago.com",
   "https://*.mercadopago.com",
@@ -67,12 +76,12 @@ const resourcePolicy = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "script-src 'self' https://sdk.mercadopago.com",
-  "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://ui-avatars.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://server.arcgisonline.com",
+  "img-src 'self' data: blob: https://i.ytimg.com https://*.cdninstagram.com https://res.cloudinary.com https://images.unsplash.com https://ui-avatars.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://server.arcgisonline.com",
   `connect-src 'self' ${new URL(apiUrl).origin} https://app.posthog.com https://nominatim.openstreetmap.org https://geocode.maps.co https://photon.komoot.io https://api.mercadopago.com`,
   // Los dominios regionales van explicitos: el comodin de `*.mercadopago.com` NO cubre
   // `mercadopago.com.ar`, que es el que usa el checkout en Argentina. Report-Only lo
   // detecto contra produccion; enforced habria roto el pago en silencio.
-  `frame-src 'self' ${MERCADOPAGO_ORIGINS}`,
+  `frame-src 'self' ${MERCADOPAGO_ORIGINS} ${VIDEO_ORIGINS}`,
   `form-action 'self' ${MERCADOPAGO_ORIGINS}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",

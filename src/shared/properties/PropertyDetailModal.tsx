@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { cloudinaryThumb, cloudinaryCard, cloudinaryFull } from "../utils/cloudinaryUrl";
 import { CircleMarker, MapContainer, TileLayer, LayersControl } from "react-leaflet";
+import { parseVideoUrl } from "./videoEmbed";
 
 const ESRI_SATELLITE =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -9,6 +10,8 @@ const ESRI_ATTRIBUTION =
 
 export type PropertyDetailListing = {
   id: string;
+  /** Link de YouTube o Instagram, ya normalizado por el backend. */
+  videoUrl?: string;
   title: string;
   address: string;
   price: string;
@@ -930,6 +933,46 @@ export function PropertyDetailModal({
                 </p>
               )}
             </div>
+
+            {/* Video del inmueble. El src NUNCA sale de listing.videoUrl directamente:
+                parseVideoUrl reconstruye la URL de embed desde el id validado. */}
+            {(() => {
+              const video = parseVideoUrl(listing.videoUrl);
+              if (!video) return null;
+              return (
+                <div className="rounded-2xl border border-white/10 bg-night-800 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
+                      Video
+                    </div>
+                    <a
+                      href={video.watchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[#d8c5a4] underline"
+                    >
+                      Ver en {video.provider === "youtube" ? "YouTube" : "Instagram"}
+                    </a>
+                  </div>
+                  <div
+                    className="relative mt-2 overflow-hidden rounded-xl bg-black/40"
+                    style={{ aspectRatio: video.provider === "youtube" ? "16 / 9" : "4 / 5" }}
+                  >
+                    <iframe
+                      src={video.embedUrl}
+                      title={`Video de ${listing.title}`}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      // Sandbox acotado: el embed necesita scripts y su propio origen para
+                      // reproducir, pero no puede navegar la pestaña ni abrir popups.
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      className="absolute inset-0 h-full w-full border-0"
+                    />
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="rounded-2xl border border-white/10 bg-night-800 p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
