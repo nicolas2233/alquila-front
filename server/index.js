@@ -47,6 +47,20 @@ app.use(compression());
 //      el valor de `resourcePolicy` a la cabecera enforced de arriba.
 const enforcedPolicy = ["frame-ancestors 'none'", "base-uri 'self'", "object-src 'none'"].join("; ");
 
+// El checkout salta entre dominios de MercadoPago y MercadoLibre segun el pais y el medio
+// de pago. Cada TLD se lista con y sin comodin: en CSP `*.mercadopago.com` no matchea el
+// dominio desnudo `mercadopago.com` ni otro TLD como `mercadopago.com.ar`.
+const MERCADOPAGO_ORIGINS = [
+  "https://mercadopago.com",
+  "https://*.mercadopago.com",
+  "https://mercadopago.com.ar",
+  "https://*.mercadopago.com.ar",
+  "https://mercadolibre.com",
+  "https://*.mercadolibre.com",
+  "https://mercadolibre.com.ar",
+  "https://*.mercadolibre.com.ar",
+].join(" ");
+
 const resourcePolicy = [
   "default-src 'self'",
   // 'unsafe-inline' es necesario mientras el SDK de MercadoPago inyecte estilos.
@@ -55,8 +69,11 @@ const resourcePolicy = [
   "script-src 'self' https://sdk.mercadopago.com",
   "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://ui-avatars.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://server.arcgisonline.com",
   `connect-src 'self' ${new URL(apiUrl).origin} https://app.posthog.com https://nominatim.openstreetmap.org https://geocode.maps.co https://photon.komoot.io https://api.mercadopago.com`,
-  "frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com",
-  "form-action 'self' https://*.mercadopago.com",
+  // Los dominios regionales van explicitos: el comodin de `*.mercadopago.com` NO cubre
+  // `mercadopago.com.ar`, que es el que usa el checkout en Argentina. Report-Only lo
+  // detecto contra produccion; enforced habria roto el pago en silencio.
+  `frame-src 'self' ${MERCADOPAGO_ORIGINS}`,
+  `form-action 'self' ${MERCADOPAGO_ORIGINS}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
