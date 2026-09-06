@@ -7,6 +7,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
+import { parseVideoUrl } from "../shared/properties/videoEmbed";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
@@ -91,6 +92,7 @@ type SummaryPreviewMetric = {
 };
 
 type EditablePropertyFeatures = {
+  videoUrl?: string;
   hasGarage?: boolean;
   garageSpots?: number;
   garageType?: "COVERED" | "OPEN";
@@ -320,6 +322,7 @@ export function PublishPage() {
   const [suggestionsStatus, setSuggestionsStatus] = useState<"idle" | "loading">("idle");
   const [locationLoadMode, setLocationLoadMode] = useState<"GUIDED" | "MANUAL">("GUIDED");
   const [showMapLocation, setShowMapLocation] = useState(true);
+  const [videoUrl, setVideoUrl] = useState("");
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
   const [geoMessage, setGeoMessage] = useState("");
   const [cadastralType, setCadastralType] = useState("PARTIDA");
@@ -843,6 +846,7 @@ export function PublishPage() {
         setUnit(features.unit ?? "");
         setFacing(features.facing ?? "FRONT");
         setShowMapLocation(features.showMapLocation ?? true);
+        setVideoUrl(typeof features.videoUrl === "string" ? features.videoUrl : "");
 
         setBuildable(Boolean(features.buildable));
         setLandInvestment(Boolean(features.investmentOpportunity));
@@ -2033,6 +2037,9 @@ export function PublishPage() {
             officeFeatures: officeFeatures.length ? officeFeatures : undefined,
             warehouseFeatures: warehouseFeatures.length ? warehouseFeatures : undefined,
             showMapLocation,
+            // Se manda solo si parsea. El backend vuelve a validar y normalizar:
+            // esta comprobacion es para no mandar basura, no la barrera de seguridad.
+            videoUrl: parseVideoUrl(videoUrl) ? videoUrl.trim() : undefined,
           },
         services: {
           electricity: serviceElectricity,
@@ -3748,6 +3755,37 @@ export function PublishPage() {
 
         {step === 4 && (
           <div className="space-y-6">
+            {/* Video del inmueble. Es un link, no una subida: las inmobiliarias ya hacen
+                estos videos para Instagram, asi que aprovechamos el contenido que existe
+                sin costo de storage ni de ancho de banda. */}
+            <div className="space-y-2 rounded-2xl border border-white/10 bg-night-900/30 p-4">
+              <label className="text-xs text-[#D1C7BD]" htmlFor="videoUrl">
+                Video del inmueble <span className="text-[#9f988d]">(opcional)</span>
+              </label>
+              <input
+                id="videoUrl"
+                type="url"
+                inputMode="url"
+                value={videoUrl}
+                onChange={(event) => setVideoUrl(event.target.value)}
+                placeholder="https://www.instagram.com/reel/... o https://youtu.be/..."
+                className={inputClass(videoUrl.trim().length > 0 && !parseVideoUrl(videoUrl))}
+              />
+              {videoUrl.trim().length === 0 ? (
+                <p className="text-[11px] leading-tight text-[#9f988d]">
+                  Pegá el link de un reel de Instagram o un video de YouTube y se va a ver dentro
+                  de la ficha. Los avisos con video reciben más consultas.
+                </p>
+              ) : parseVideoUrl(videoUrl) ? (
+                <p className="text-[11px] leading-tight text-emerald-300/90">
+                  Link válido de {parseVideoUrl(videoUrl)!.provider === "youtube" ? "YouTube" : "Instagram"}.
+                </p>
+              ) : (
+                <p className="text-[11px] leading-tight text-[#AF8C5C]">
+                  Por ahora solo aceptamos links de YouTube o Instagram.
+                </p>
+              )}
+            </div>
             {isEditMode && (
               <div className="space-y-3">
                 <label className="text-xs text-[#D1C7BD]">Fotos actuales — arrastrá para reordenar, la primera es la principal.</label>

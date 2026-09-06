@@ -25,6 +25,7 @@ export type PropertyApiListItem = {
   areaM2?: number | null;
   features?: {
     isDemo?: boolean;
+    videoUrl?: string;
     hasGarage?: boolean;
     garageSpots?: number;
     garageType?: "COVERED" | "OPEN";
@@ -182,6 +183,7 @@ export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchLis
     areaM2: item.areaM2 ?? 0,
     coveredAreaM2: item.features?.coveredAreaM2 ?? undefined,
     summaryHighlights: item.features?.summaryHighlights ?? undefined,
+    videoUrl: item.features?.videoUrl ?? undefined,
     bathrooms: item.bathrooms ?? undefined,
     bedrooms: item.features?.bedrooms ?? undefined,
     garage: item.features?.hasGarage ?? false,
@@ -245,6 +247,7 @@ export const mapPropertyToDetailListing = (
     areaM2: item.areaM2 ?? 0,
     coveredAreaM2: item.features?.coveredAreaM2 ?? undefined,
     summaryHighlights: item.features?.summaryHighlights ?? undefined,
+    videoUrl: item.features?.videoUrl ?? undefined,
     rooms: item.rooms ?? 0,
     bathrooms: item.bathrooms ?? undefined,
     bedrooms: item.features?.bedrooms ?? undefined,
