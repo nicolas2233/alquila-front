@@ -8,6 +8,7 @@ import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { parseVideoUrl } from "../shared/properties/videoEmbed";
+import { buildAutoTitle, buildAutoDescription } from "../shared/properties/autoText";
 import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
 import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
@@ -296,6 +297,9 @@ export function PublishPage() {
   }, []);
 
   const [title, setTitle] = useState("");
+  // Mientras el usuario no escriba un titulo propio, lo mantenemos sincronizado con los
+  // datos que va cargando. Apenas lo edita, dejamos de tocarlo.
+  const [titleTouched, setTitleTouched] = useState(false);
   const [operationType, setOperationType] = useState("SALE");
   const [priceAmount, setPriceAmount] = useState("");
   const [priceCurrency, setPriceCurrency] = useState("ARS");
@@ -619,6 +623,7 @@ export function PublishPage() {
       if (!saved) return;
       const d = JSON.parse(saved) as typeof draftData;
       setTitle(d.title ?? "");
+      setTitleTouched(true);
       setOperationType(d.operationType ?? "SALE");
       setPriceAmount(d.priceAmount ?? "");
       setPriceCurrency(d.priceCurrency ?? "ARS");
@@ -760,6 +765,7 @@ export function PublishPage() {
         const rentalRequirements = features.rentalRequirements ?? {};
 
         setTitle(data.title ?? "");
+        setTitleTouched(true);
         setDescription(data.description ?? "");
         setPropertyType(data.propertyType ?? "HOUSE");
         setOperationType(data.operationType ?? "SALE");
@@ -1453,11 +1459,27 @@ export function PublishPage() {
   const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
   const digitsOnly = (value: string) => value.replace(/\D/g, "");
   const titleValid = !minLength(title, 3);
-  const descriptionValid = !isEmpty(description);
+  // Descripcion y superficie dejan de frenar la publicacion.
+  //
+  // La superficie total en m2 era obligatoria y frenaba en el paso 3 de 5, que es el
+  // peor lugar para perder a alguien: ya invirtio dos pasos. Y es un dato que mucha
+  // gente no sabe de memoria. En el backend ya era opcional (createPropertySchema),
+  // asi que la barrera era solo de este formulario.
+  //
+  // La descripcion sigue siendo obligatoria en el backend (z.string().min(1)) y
+  // alimenta la meta description de la ficha, asi que si queda vacia se genera una a
+  // partir de los datos cargados en vez de bloquear (ver buildAutoDescription).
+  const descriptionValid = true;
+  const areaValid = !areaM2.trim() || isPositiveNumber(areaM2);
   const priceValid = !isEmpty(priceAmount) && Number(priceAmount) > 0;
   const addressValid = !minLength(addressLine, 3);
+  // La direccion y la localidad siguen siendo obligatorias: son las que ubican el
+  // aviso en el mapa, que es el diferencial del portal.
   const localityValid = !isEmpty(localityId);
-  const areaValid = isPositiveNumber(areaM2);
+  // Una foto pasa a ser obligatoria. Es lo inverso de como estaba: se exigia lo que la
+  // gente no sabe y no se exigia lo unico que define si el aviso funciona. Un aviso sin
+  // fotos practicamente no recibe consultas.
+  const photosValid = photos.length > 0 || existingPhotos.length > 0;
 
   const titleError = showErrors && !titleValid;
   const descriptionError = showErrors && !descriptionValid;
@@ -1488,7 +1510,6 @@ export function PublishPage() {
     if (step === 0) {
       return [
         !titleValid ? "título" : null,
-        !descriptionValid ? "descripción" : null,
         !priceValid ? "precio" : null,
       ].filter(Boolean) as string[];
     }
@@ -1508,6 +1529,7 @@ export function PublishPage() {
     }
     if (step === 4) {
       return [
+        !photosValid ? "al menos una foto" : null,
         contactRequired ? "WhatsApp o teléfono" : null,
         !whatsappValid ? "WhatsApp válido" : null,
         !phoneValid ? "teléfono válido" : null,
@@ -1539,6 +1561,9 @@ export function PublishPage() {
     }
     if (step === 2) {
       return areaValid && roomsValid && bathroomsValid && bedroomsValid;
+    }
+    if (step === 4) {
+      return photosValid;
     }
     return true;
   }, [
@@ -1877,11 +1902,27 @@ export function PublishPage() {
     </div>
   );
 
+  // Titulo sugerido a partir de tipo, operacion, localidad y ambientes. Solo mientras el
+  // usuario no lo haya editado: pedirle que invente un titulo es una pagina en blanco, y
+  // ademas asi el titulo queda parejo con el que indexa Google y el de la preview.
+  useEffect(() => {
+    if (titleTouched) return;
+    const sugerido = buildAutoTitle({ propertyType, operationType, locality: localityId, rooms });
+    if (sugerido) setTitle(sugerido);
+  }, [titleTouched, propertyType, operationType, localityId, rooms]);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Texto final. En la carga express el titulo y la descripcion pueden venir vacios:
+    // se completan con los datos ya cargados en vez de frenar la publicacion. El backend
+    // exige ambos (title min 3, description min 1), asi que se resuelve antes de mandar.
+    const datosAuto = { propertyType, operationType, locality: localityId, rooms, bathrooms, areaM2 };
+    const tituloParaEnviar = title.trim() || buildAutoTitle(datosAuto) || "Propiedad en Bragado";
+    const descripcionParaEnviar = description.trim() || buildAutoDescription(datosAuto);
+
     const canSubmit =
       titleValid &&
-      descriptionValid &&
+      photosValid &&
       priceValid &&
       addressValid &&
       localityValid &&
@@ -1966,8 +2007,8 @@ export function PublishPage() {
       if (warehouseGateHeight) warehouseFeatures.push(`GATE_${warehouseGateHeight}`);
 
       const createPayload = {
-        title,
-        description,
+        title: tituloParaEnviar,
+        description: descripcionParaEnviar,
         propertyType,
         operationType,
         priceAmount: Number(priceAmount),
@@ -2065,8 +2106,8 @@ export function PublishPage() {
       };
 
       const updatePayload = {
-        title,
-        description,
+        title: tituloParaEnviar,
+        description: descripcionParaEnviar,
         propertyType,
         operationType,
         priceAmount: Number(priceAmount),
@@ -2526,7 +2567,10 @@ export function PublishPage() {
                     className={inputClass(titleError)}
                     data-error={titleError ? "true" : undefined}
                     value={title}
-                    onChange={(event) => setTitle(event.target.value)}
+                    onChange={(event) => {
+                      setTitleTouched(true);
+                      setTitle(event.target.value);
+                    }}
                     placeholder="Ej: Casa de 3 ambientes con patio"
                   />
                   {titleError && (
@@ -2608,9 +2652,10 @@ export function PublishPage() {
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="Contá lo más importante: estado, distribución, barrio, servicios y condiciones."
                 />
-                {descriptionError && (
-                  <span className="text-[11px] text-red-300">Obligatorio.</span>
-                )}
+                <span className="text-[11px] text-[#9f988d]">
+                  Opcional. Si la dejás vacía escribimos una con los datos del inmueble, y
+                  podés mejorarla cuando quieras.
+                </span>
               </label>
 
               {propertyType === "APARTMENT" && (
@@ -3198,9 +3243,11 @@ export function PublishPage() {
                     value={areaM2}
                     onChange={(event) => setAreaM2(event.target.value)}
                   />
-                  {areaError && (
-                    <span className="text-[11px] text-red-300">
-                      Obligatorio. Debe ser mayor a 0.
+                  {areaError ? (
+                    <span className="text-[11px] text-red-300">Debe ser mayor a 0.</span>
+                  ) : (
+                    <span className="text-[11px] text-[#9f988d]">
+                      Opcional. Si no la sabés, podés completarla después.
                     </span>
                   )}
                 </label>
@@ -3866,6 +3913,17 @@ export function PublishPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-8 w-8 text-[#D1C7BD]"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <p className="text-xs text-[#D1C7BD]">Arrastrá fotos aquí o <span className="text-gold-300 underline">seleccioná archivos</span></p>
               </div>
+              {/* Al menos una foto es obligatoria: un aviso sin imagenes practicamente
+                  no recibe consultas, asi que publicarlo no le sirve a nadie. */}
+              {photosValid ? (
+                <p className="text-[11px] text-[#9f988d]">
+                  La primera foto es la principal: es la que se ve en el listado y al compartir.
+                </p>
+              ) : (
+                <p className={`text-[11px] ${showErrors ? "text-red-300" : "text-[#AF8C5C]"}`}>
+                  Necesitás al menos una foto para publicar.
+                </p>
+              )}
               <input
                 id="photoFileInput"
                 type="file"
