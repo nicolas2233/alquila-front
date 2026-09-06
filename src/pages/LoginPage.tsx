@@ -20,12 +20,19 @@ export function LoginPage() {
   const [verifyStatus, setVerifyStatus] = useState<"idle" | "loading">("idle");
   const [verifyCooldown, setVerifyCooldown] = useState(0);
 
+  // Enciende la animacion de entrada UNA sola vez, al montar.
+  //
+  // Antes dependia de locationState?.from y eso la dejaba trabada: al llegar desde el
+  // registro con state {from:"register"} isEntering arranca en false (paneles en
+  // opacity-0), pero el efecto de abajo hace navigate("/login", {replace:true}) para
+  // limpiar el ?registered=1 y deja el state en null. Al cambiar la dependencia, React
+  // corria el cleanup y cancelaba el frame pendiente; en la re-ejecucion el `from` ya no
+  // era "register", asi que setIsEntering(true) nunca llegaba a ejecutarse y la tarjeta
+  // quedaba vacia. Con deps vacias el cleanup solo corre al desmontar.
   useEffect(() => {
-    if (locationState?.from === "register") {
-      const frame = window.requestAnimationFrame(() => setIsEntering(true));
-      return () => window.cancelAnimationFrame(frame);
-    }
-  }, [locationState?.from]);
+    const frame = window.requestAnimationFrame(() => setIsEntering(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);

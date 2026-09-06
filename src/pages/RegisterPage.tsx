@@ -146,12 +146,13 @@ export function RegisterPage() {
   const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contrasenaRemaining = Math.max(0, 8 - contrasena.length);
 
+  // Mismo patron que en LoginPage: la animacion de entrada no puede depender del state
+  // de navegacion, porque cualquier navigate con replace que lo limpie cancela el frame
+  // pendiente y deja los paneles en opacity-0. Ver el comentario en LoginPage.
   useEffect(() => {
-    if (locationState?.from === "login") {
-      const frame = window.requestAnimationFrame(() => setIsEntering(true));
-      return () => window.cancelAnimationFrame(frame);
-    }
-  }, [locationState?.from]);
+    const frame = window.requestAnimationFrame(() => setIsEntering(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (!betaParam) return;
