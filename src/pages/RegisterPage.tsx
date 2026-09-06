@@ -23,22 +23,6 @@ const planCodeByKey: Record<PlanKey, "FREE" | "BRONCE" | "PLATINUM" | "GOLD"> = 
   gold: "GOLD",
 };
 
-const ANNUAL_DISCOUNT_PERCENT = 20;
-
-function getAnnualOffer(priceLabel: string) {
-  const numeric = Number.parseFloat(priceLabel.replace(/[^\d.]/g, ""));
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return null;
-  }
-  const annualBase = numeric * 12;
-  const annualPrice = Math.round(annualBase * (1 - ANNUAL_DISCOUNT_PERCENT / 100) * 100) / 100;
-  const monthlyEquivalent = Math.round((annualPrice / 12) * 100) / 100;
-  return {
-    annualPriceLabel: `$${annualPrice}`,
-    monthlyEquivalentLabel: `$${monthlyEquivalent}`,
-  };
-}
-
 function extractApiErrorMessage(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "No pudimos completar el registro.";
 
@@ -65,111 +49,6 @@ function extractApiErrorMessage(payload: unknown): string {
 
   return "No pudimos completar el registro.";
 }
-
-const planOptions = [
-  {
-    key: "free",
-    label: "Free",
-    price: "$0",
-    description: "Ideal para empezar y explorar.",
-    promo: "",
-    perks: ["Búsqueda", "Guardados", "Alertas"],
-  },
-  {
-    key: "bronce",
-    label: "Bronce",
-    price: "$15000",
-    description: "Hasta 3 inmuebles. Ideal para dueños directos.",
-    promo: "Primer mes gratis",
-    perks: ["Hasta 3 inmuebles", "Panel de gestion", "Contacto directo"],
-  },
-  {
-    key: "platinum",
-    label: "Platinum",
-    price: "$30000",
-    description: "Plan superior con mayor capacidad y herramientas.",
-    promo: "Primer mes gratis",
-    perks: ["Capacidad ampliada", "Perfil profesional", "Mayor visibilidad"],
-  },
-  {
-    key: "gold",
-    label: "Gold",
-    price: "$45000",
-    description: "Mayor capacidad y soporte prioritario.",
-    promo: "Primer mes gratis",
-    perks: ["Capacidad máxima", "Soporte prioritario", "Posicionamiento"],
-  },
-];
-
-const planOverridesByAccountType: Record<
-  AccountType,
-  Record<PlanKey, { price: string; description: string; promo?: string; disabledHint?: string }>
-> = {
-  viewer: {
-    free: {
-      price: "$0",
-      description: "Explora, guarda y recibe alertas. Sin publicaciones.",
-    },
-    bronce: {
-      price: "$15000",
-      description: "No disponible para buscador.",
-      disabledHint: "Solo para dueños directos.",
-    },
-    platinum: {
-      price: "$120000",
-      description: "No disponible para buscador.",
-      disabledHint: "Solo para perfiles publicadores.",
-    },
-    gold: {
-      price: "$220000",
-      description: "No disponible para buscador.",
-      disabledHint: "Solo para perfiles publicadores.",
-    },
-  },
-  owner: {
-    free: {
-      price: "$0",
-      description: "Publica 1 inmueble gratis para probar la plataforma.",
-    },
-    bronce: {
-      price: "$15000",
-      description: "Hasta 3 inmuebles. Ideal para empezar.",
-      promo: "Primer mes gratis",
-    },
-    platinum: {
-      price: "$30000",
-      description: "Hasta 6 inmuebles. Para propietarios con varias unidades.",
-      promo: "Primer mes gratis",
-    },
-    gold: {
-      price: "$45000",
-      description: "Hasta 10 inmuebles. Para cartera personal amplia.",
-      promo: "Primer mes gratis",
-    },
-  },
-  agency: {
-    free: {
-      price: "$0",
-      description: "No disponible para inmobiliarias.",
-      disabledHint: "Las inmobiliarias empiezan en Platinum.",
-    },
-    bronce: {
-      price: "$15000",
-      description: "No disponible para inmobiliarias.",
-      disabledHint: "Las inmobiliarias usan planes de mayor capacidad.",
-    },
-    platinum: {
-      price: "$120000",
-      description: "Hasta 25 inmuebles. Para inmobiliarias chicas/medianas.",
-      promo: "Primer mes gratis",
-    },
-    gold: {
-      price: "$220000",
-      description: "Hasta 50 inmuebles. Para inmobiliarias con mayor cartera.",
-      promo: "Primer mes gratis",
-    },
-  },
-};
 
 const accountTypeOptions: Array<{
   key: AccountType;
@@ -200,6 +79,30 @@ const accountTypeOptions: Array<{
   },
 ];
 
+// Durante la etapa inicial todas las cuentas entran en Gold sin cargo: mostrar un
+// selector con precios de hasta $220.000/mes en un portal que todavia no tiene
+// inventario espanta justo a las inmobiliarias que necesitamos sumar primero.
+// Los planes siguen existiendo en la base, en el panel y en el backend; esto es
+// solo el registro, asi que reactivar el selector es revertir este bloque.
+function PlanGoldGratis({ esInmobiliaria }: { esInmobiliaria: boolean }) {
+  return (
+    <div className="rounded-2xl border border-gold-500/30 bg-gold-500/8 p-3">
+      <span className="inline-flex rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-gold-300">
+        Gold sin costo
+      </span>
+      <p className="mt-2 text-[11px] leading-relaxed text-[#D1C7BD]">
+        Durante la etapa inicial todas las cuentas acceden al plan Gold sin cargo, con hasta{" "}
+        {esInmobiliaria ? "50" : "10"} inmuebles publicados. No te pedimos tarjeta.
+      </p>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-[#9f988d]">
+        DomusBrag se reserva el derecho de incorporar planes pagos para inmobiliarias más
+        adelante. Si eso ocurre te vamos a avisar con anticipación y vas a poder decidir si
+        continuar.
+      </p>
+    </div>
+  );
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -216,7 +119,7 @@ export function RegisterPage() {
   const [betaCheckStatus, setBetaCheckStatus] = useState<"idle" | "loading" | "invalid">("idle");
 
   const [accountType, setAccountType] = useState<AccountType>("viewer");
-  const [plan, setPlan] = useState<PlanKey>("free");
+  const [plan] = useState<PlanKey>("gold");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dni, setDni] = useState("");
@@ -243,19 +146,6 @@ export function RegisterPage() {
   const emailInvalid = !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contrasenaRemaining = Math.max(0, 8 - contrasena.length);
 
-  const planChoices = useMemo(() => planOptions, []);
-  const availablePlans = useMemo<PlanKey[]>(() => {
-    if (accountType === "viewer") return ["free"];
-    if (accountType === "owner") return ["free", "bronce", "platinum", "gold"];
-    return ["platinum", "gold"];
-  }, [accountType]);
-
-  const planDisplayConfig = useMemo(() => planOverridesByAccountType[accountType], [accountType]);
-  const visiblePlanChoices = useMemo(
-    () => planChoices.filter((item) => availablePlans.includes(item.key as PlanKey)),
-    [planChoices, availablePlans]
-  );
-
   useEffect(() => {
     if (locationState?.from === "login") {
       const frame = window.requestAnimationFrame(() => setIsEntering(true));
@@ -274,7 +164,6 @@ export function RegisterPage() {
           setBetaTargetRole(data.targetRole);
           setBetaInviteLabel(data.label ?? null);
           setAccountType(data.targetRole === "AGENCY" ? "agency" : "owner");
-          setPlan(data.targetRole === "AGENCY" ? "platinum" : "gold");
           setBetaCheckStatus("idle");
         } else {
           setBetaCheckStatus("invalid");
@@ -282,12 +171,6 @@ export function RegisterPage() {
       })
       .catch(() => setBetaCheckStatus("invalid"));
   }, [betaParam]);
-
-  useEffect(() => {
-    if (!availablePlans.includes(plan)) {
-      setPlan(availablePlans[0]);
-    }
-  }, [availablePlans, plan]);
 
   useEffect(() => {
     if (status === "error" || hasFieldErrors) scrollToFirstError(formRef.current);
@@ -553,7 +436,7 @@ export function RegisterPage() {
             <div className="flex items-center justify-between">
               <p className="text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</p>
               <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-[#E7E2DD]">
-                {betaMode ? "Gold Beta" : planChoices.find((item) => item.key === plan)?.label}
+                {betaMode ? "Gold Beta" : "Gold"}
               </span>
             </div>
             {betaMode ? (
@@ -571,18 +454,6 @@ export function RegisterPage() {
                 </p>
               </div>
             ) : null}
-            {!betaMode && accountType !== "viewer" && (
-              <div className="space-y-1">
-                <p className="text-[11px] leading-tight text-[#D1C7BD]">
-                  Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en
-                  cualquier momento.
-                </p>
-                <p className="text-[11px] leading-tight text-[#D1C7BD]">
-                  No te pedimos tarjeta para crear la cuenta. En planes pagos se solicita el medio
-                  de pago al momento de publicar y ahí se activa el primer mes gratis.
-                </p>
-              </div>
-            )}
             {accountType === "viewer" ? (
               <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/8 p-3">
                 <div className="text-xs font-semibold text-white">Plan Free incluido</div>
@@ -590,52 +461,8 @@ export function RegisterPage() {
                   Como buscador accedes al plan Free sin costo: explorar, guardar y recibir alertas.
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2.5">
-                {visiblePlanChoices.map((item) => (
-                  (() => {
-                    const disabled = false;
-                    const selected = plan === item.key;
-                    const planView = planDisplayConfig[item.key as PlanKey];
-                    const annualOffer = getAnnualOffer(planView.price);
-                    return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => {
-                      if (!disabled) setPlan(item.key as PlanKey);
-                    }}
-                    disabled={disabled}
-                    className={
-                      selected
-                        ? "rounded-2xl border border-gold-500/60 bg-gradient-to-br from-[#4a433c]/60 to-[#2b2723]/80 p-2.5 text-left ring-1 ring-gold-500/25 transition-all duration-300"
-                        : "rounded-2xl border border-white/10 bg-black/20 p-2.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20"
-                    }
-                  >
-                    {planView.promo ? (
-                      <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
-                        {planView.promo}
-                      </span>
-                    ) : null}
-                    <div className="text-xs font-medium text-white">{item.label}</div>
-                    <div className="mt-0.5 text-xl font-semibold text-white">
-                      {planView.price}
-                      <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-[#D1C7BD]">
-                      {planView.description}
-                    </p>
-                    {annualOffer && (
-                      <p className="mt-1 text-[10px] leading-tight text-emerald-200/90">
-                        Anual {annualOffer.annualPriceLabel} (-{ANNUAL_DISCOUNT_PERCENT}%) · equiv.{" "}
-                        {annualOffer.monthlyEquivalentLabel}/mes
-                      </p>
-                    )}
-                  </button>
-                    );
-                  })()
-                ))}
-              </div>
+            ) : betaMode ? null : (
+              <PlanGoldGratis esInmobiliaria={accountType === "agency"} />
             )}
           </div>
         </aside>
@@ -678,7 +505,7 @@ export function RegisterPage() {
               <p className="text-sm text-[#D1C7BD]">
                 {betaMode
                   ? `Completa tus datos para activar el acceso ${betaTargetRole === "AGENCY" ? "de inmobiliaria" : "de dueño directo"}.`
-                  : "Elegi tu perfil y completa los datos."}
+                  : "Elegí tu perfil y completá los datos."}
               </p>
             </div>
 
@@ -717,7 +544,7 @@ export function RegisterPage() {
                     autoComplete="email"
                   />
                   <span className={emailInvalid ? "text-[11px] text-[#AF8C5C]" : "text-[11px] text-[#D1C7BD]"}>
-                    {emailInvalid ? "Email invalido." : "Formato valido de email."}
+                    {emailInvalid ? "Email invalido." : "Formato válido de email."}
                   </span>
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -728,13 +555,23 @@ export function RegisterPage() {
                     data-error={fieldErrors.password ? "true" : undefined}
                     value={contrasena}
                     onChange={(event) => setContrasena(event.target.value)}
-                    placeholder="Minimo 8 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     autoComplete="new-password"
                   />
-                  <span className={contrasenaRemaining > 0 ? "text-[11px] text-[#AF8C5C]" : "text-[11px] text-[#D1C7BD]"}>
-                    {contrasenaRemaining > 0
-                      ? `Te faltan ${contrasenaRemaining} caracteres.`
-                      : "Contraseña válida."}
+                  {/* Con el campo vacío esto mostraba "Te faltan 8 caracteres" antes de que el
+                      usuario escribiera nada: un error de entrada sobre algo que todavía no hizo. */}
+                  <span
+                    className={
+                      contrasena.length > 0 && contrasenaRemaining > 0
+                        ? "text-[11px] text-[#AF8C5C]"
+                        : "text-[11px] text-[#D1C7BD]"
+                    }
+                  >
+                    {contrasena.length === 0
+                      ? "Mínimo 8 caracteres."
+                      : contrasenaRemaining > 0
+                        ? `Te faltan ${contrasenaRemaining} caracteres.`
+                        : "Contraseña válida."}
                   </span>
                 </label>
               </div>
@@ -757,7 +594,7 @@ export function RegisterPage() {
                     <input className={fieldClass(!!fieldErrors.dni)} data-error={fieldErrors.dni ? "true" : undefined} value={dni} onChange={(event) => setDni(event.target.value)} />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
-                    Telefono
+                    Teléfono
                     <input className={fieldClass(!!fieldErrors.phone)} data-error={fieldErrors.phone ? "true" : undefined} value={phone} onChange={(event) => setPhone(event.target.value)} />
                   </label>
                 </div>
@@ -799,7 +636,7 @@ export function RegisterPage() {
                     <input className={fieldClass(!!fieldErrors.agencyName)} data-error={fieldErrors.agencyName ? "true" : undefined} value={agencyName} onChange={(event) => setAgencyName(event.target.value)} />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
-                    Razon social
+                    Razón social
                     <input className={fieldClass(!!fieldErrors.agencyLegalName)} data-error={fieldErrors.agencyLegalName ? "true" : undefined} value={agencyLegalName} onChange={(event) => setAgencyLegalName(event.target.value)} />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -807,7 +644,7 @@ export function RegisterPage() {
                     <input className={fieldClass(!!fieldErrors.agencyCuit)} data-error={fieldErrors.agencyCuit ? "true" : undefined} value={agencyCuit} onChange={(event) => setAgencyCuit(event.target.value)} />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
-                    Matricula
+                    Matrícula
                     <input className={fieldClass(!!fieldErrors.agencyLicense)} data-error={fieldErrors.agencyLicense ? "true" : undefined} value={agencyLicense} onChange={(event) => setAgencyLicense(event.target.value)} />
                   </label>
                 </div>
@@ -816,18 +653,6 @@ export function RegisterPage() {
 
             <section className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 lg:hidden">
               <div className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</div>
-              {accountType !== "viewer" && (
-                <div className="space-y-1">
-                  <p className="text-[11px] leading-tight text-[#D1C7BD]">
-                    Podés mejorar el plan, volver a uno anterior o cancelar la suscripción en
-                    cualquier momento.
-                  </p>
-                  <p className="text-[11px] leading-tight text-[#D1C7BD]">
-                    No te pedimos tarjeta para crear la cuenta. En planes pagos se solicita el
-                    medio de pago al momento de publicar y ahí se activa el primer mes gratis.
-                  </p>
-                </div>
-              )}
               {accountType === "viewer" ? (
                 <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/8 p-3">
                   <div className="text-sm font-semibold text-white">Plan Free incluido</div>
@@ -836,49 +661,7 @@ export function RegisterPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
-                {visiblePlanChoices.map((item) => (
-                  (() => {
-                    const disabled = false;
-                    const selected = plan === item.key;
-                    const planView = planDisplayConfig[item.key as PlanKey];
-                    const annualOffer = getAnnualOffer(planView.price);
-                    return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => {
-                        if (!disabled) setPlan(item.key as PlanKey);
-                      }}
-                      disabled={disabled}
-                      className={
-                        selected
-                          ? "rounded-2xl border border-gold-500/60 bg-emerald-500/10 p-3 text-left shadow-[0_0_0_1px_rgba(16,185,129,0.35)] transition-all duration-300"
-                          : "rounded-2xl border border-white/10 bg-night-900/24 p-3 text-left transition-all duration-300"
-                      }
-                    >
-                      {planView.promo ? (
-                        <span className="mb-1 inline-flex rounded-full border border-emerald-300/45 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
-                          {planView.promo}
-                        </span>
-                      ) : null}
-                      <div className="text-sm text-white">{item.label}</div>
-                      <div className="mt-1 text-xl font-semibold text-white">
-                        {planView.price}
-                        <span className="text-[11px] font-normal text-[#D1C7BD]"> /mes</span>
-                      </div>
-                      <p className="mt-1 text-[11px] text-[#D1C7BD]">{planView.description}</p>
-                      {annualOffer && (
-                        <p className="mt-1 text-[10px] text-emerald-200/90">
-                          Anual {annualOffer.annualPriceLabel} (-{ANNUAL_DISCOUNT_PERCENT}%) · equiv.{" "}
-                          {annualOffer.monthlyEquivalentLabel}/mes
-                        </p>
-                      )}
-                    </button>
-                      );
-                    })()
-                  ))}
-                </div>
+                <PlanGoldGratis esInmobiliaria={accountType === "agency"} />
               )}
             </section>
 
