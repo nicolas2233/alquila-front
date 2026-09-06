@@ -145,15 +145,16 @@ export function HomePage() {
             Propiedades en venta, alquiler y temporario. Sin intermediarios innecesarios, sin duplicados, con contacto directo al dueño o inmobiliaria.
           </p>
 
-          {/* Quick search bar */}
-          <div className="mt-8 flex w-full max-w-lg overflow-hidden rounded-2xl border border-white/20 bg-black/40 backdrop-blur-md">
-            <div className="flex divide-x divide-white/15">
+          {/* Quick search bar. En una sola fila el contenido no entra abajo de ~410px y
+              el `overflow-hidden` recortaba el botón "Buscar": apilamos hasta `sm`. */}
+          <div className="mt-8 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/20 bg-black/40 backdrop-blur-md sm:flex-row">
+            <div className="flex flex-1 divide-x divide-white/15">
               {OPERATION_LABELS.map(({ value, label }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setHeroOperation(value)}
-                  className={`px-4 py-3 text-sm font-medium transition ${heroOperation === value ? "bg-gold-500/25 text-gold-200" : "text-white/70 hover:text-white"}`}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition sm:flex-none ${heroOperation === value ? "bg-gold-500/25 text-gold-200" : "text-white/70 hover:text-white"}`}
                 >
                   {label}
                 </button>
@@ -162,7 +163,7 @@ export function HomePage() {
             <button
               type="button"
               onClick={() => navigate(`/buscar?operationType=${heroOperation}`)}
-              className="ml-auto flex items-center gap-2 rounded-r-2xl bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-3 text-sm font-semibold text-night-900"
+              className="flex items-center justify-center gap-2 border-t border-white/15 bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-3 text-sm font-semibold text-night-900 sm:ml-auto sm:justify-start sm:rounded-r-2xl sm:border-l sm:border-t-0"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-4 w-4">
                 <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
