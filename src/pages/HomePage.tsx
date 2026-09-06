@@ -4,15 +4,6 @@ import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { useSeo } from "../shared/seo/useSeo";
 
-type Plan = {
-  id: string;
-  code: string;
-  name: string;
-  maxProperties: number;
-  priceAmount: string | number;
-  priceCurrency: string;
-};
-
 type HomeAd = {
   id: string;
   title: string;
@@ -22,16 +13,6 @@ type HomeAd = {
   ctaText?: string | null;
   priority: number;
 };
-
-function formatPlanPrice(amount: string | number, currency: string): string {
-  const num = Number(amount);
-  if (!Number.isFinite(num) || num === 0) return "Sin costo";
-  try {
-    return new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 0 }).format(num) + "/mes";
-  } catch {
-    return `${currency} ${num}/mes`;
-  }
-}
 
 type RevealProps = {
   children: React.ReactNode;
@@ -77,20 +58,12 @@ export function HomePage() {
   const [token] = useState(() => getToken());
   const [alertCount, setAlertCount] = useState(0);
   const [heroOperation, setHeroOperation] = useState("RENT");
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [homeAds, setHomeAds] = useState<HomeAd[]>([]);
 
   useEffect(() => {
     fetch(`${env.apiUrl}/ads?limit=3`)
       .then((r) => r.json())
       .then((data: { items?: HomeAd[] }) => { if (data.items) setHomeAds(data.items); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch(`${env.apiUrl}/plans`)
-      .then((r) => r.json())
-      .then((data: { items?: Plan[] }) => { if (data.items) setPlans(data.items); })
       .catch(() => {});
   }, []);
 
@@ -400,78 +373,34 @@ export function HomePage() {
           </Reveal>
         )}
 
-        {/* Plans — dynamic from DB */}
+        {/* Publicar es gratis. La tabla de precios sale de la home a proposito: mostrar
+            planes de $220.000/mes en un portal que recien arranca comunica caro y vacio.
+            Los planes siguen existiendo en la DB y en el panel; esto es solo la vidriera. */}
         <Reveal>
-          <div className="mb-8 text-center">
-            <span className="gold-pill">Sin sorpresas</span>
-            <h2 className="mt-3 font-display text-2xl text-white md:text-3xl">Planes claros, sin letra chica</h2>
-            <p className="mt-2 text-sm text-[#D1C7BD]">Empezá gratis. Escalá cuando necesites. Cancelá cuando quieras.</p>
-          </div>
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Owner plans */}
-            <div className="rounded-3xl border border-white/12 bg-night-900/50 p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gold-300">Dueño directo</p>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-[#D1C7BD]">Mensual o anual −20%</span>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {plans.filter((p) => p.code.startsWith("OWNER_")).map((plan) => {
-                  const isTopPlan = plan.maxProperties >= 10;
-                  return (
-                    <div key={plan.code} className={`rounded-2xl border p-4 ${isTopPlan ? "border-gold-500/40 bg-gold-500/8" : "border-white/10 bg-black/15"}`}>
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-white">{plan.name.replace("Dueño ", "")}</p>
-                        {isTopPlan && <span className="rounded-full border border-gold-400/50 bg-gold-400/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold-300">Popular</span>}
-                      </div>
-                      <p className="mt-1 text-xs text-[#D1C7BD]">{plan.maxProperties === 1 ? "1 inmueble" : `Hasta ${plan.maxProperties} inmuebles`}</p>
-                      <p className="mt-2 text-[11px] font-semibold text-gold-400">{formatPlanPrice(plan.priceAmount, plan.priceCurrency)}</p>
-                    </div>
-                  );
-                })}
-                {plans.filter((p) => p.code.startsWith("OWNER_")).length === 0 && (
-                  [{ name: "Free", max: 1, price: "Sin costo" }, { name: "Bronce", max: 3, price: "" }, { name: "Platinum", max: 6, price: "" }, { name: "Gold", max: 10, price: "" }]
-                    .map((p) => (
-                      <div key={p.name} className="animate-pulse rounded-2xl border border-white/10 bg-black/15 p-4">
-                        <div className="h-4 w-16 rounded bg-white/10" /><div className="mt-2 h-3 w-24 rounded bg-white/6" />
-                      </div>
-                    ))
-                )}
-              </div>
-              <p className="mt-4 text-[11px] text-[#D1C7BD]">
-                Sin tarjeta al registrarte. En planes pagos, el primer mes es gratis al activar el medio de pago.
-              </p>
+          <div className="glass-card p-6 text-center md:p-10">
+            <span className="gold-pill">Sin costo</span>
+            <h2 className="mt-3 font-display text-2xl text-white md:text-3xl">
+              Publicar es gratis
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#D1C7BD]">
+              Subí tu propiedad sin pagar nada y sin tarjeta. Dueños directos e inmobiliarias,
+              con contacto directo por WhatsApp y tu aviso visible en búsqueda y mapa.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {["Sin comisiones", "Sin tarjeta", "Publicación en minutos", "Cancelás cuando quieras"].map((b) => (
+                <span key={b} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-[11px] text-[#E7E2DD]">
+                  {b}
+                </span>
+              ))}
             </div>
-            {/* Agency plans */}
-            <div className="rounded-3xl border border-white/12 bg-night-900/50 p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gold-300">Inmobiliaria</p>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-[#D1C7BD]">Mensual o anual −20%</span>
-              </div>
-              <div className="mt-4 space-y-3">
-                {plans.filter((p) => p.code.startsWith("AGENCY_")).map((plan) => (
-                  <div key={plan.code} className="rounded-2xl border border-white/10 bg-black/15 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-white">{plan.name.replace("Inmobiliaria ", "")} — Hasta {plan.maxProperties} inmuebles</p>
-                        <p className="mt-1 text-xs text-[#D1C7BD]">
-                          {plan.maxProperties <= 25 ? "Ideal para cartera chica y mediana" : "Para equipos grandes y cartera extensa"}
-                        </p>
-                      </div>
-                      <p className="shrink-0 text-[11px] font-semibold text-gold-400">{formatPlanPrice(plan.priceAmount, plan.priceCurrency)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-2xl border border-white/8 bg-white/4 p-4">
-                <p className="text-sm font-semibold text-white">¿Necesitás más slots?</p>
-                <p className="mt-1 text-xs text-[#D1C7BD]">Contactanos — el primer mes puede ser gratuito para inmobiliarias que se están sumando.</p>
-              </div>
+            <div className="mt-7">
+              <Link
+                to="/publicar"
+                className="inline-flex rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-7 py-3 text-sm font-semibold text-night-900 shadow-lg"
+              >
+                Publicar gratis →
+              </Link>
             </div>
-          </div>
-          <div className="mt-4 text-center">
-            <Link to="/registro" className="inline-flex rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-7 py-3 text-sm font-semibold text-night-900 shadow-lg">
-              Empezar gratis →
-            </Link>
           </div>
         </Reveal>
 

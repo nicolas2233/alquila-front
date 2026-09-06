@@ -721,7 +721,7 @@ export function RegisterPage() {
                   </span>
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Contrasena
+                  Contraseña
                   <input
                     type="password"
                     className={fieldClass(!!fieldErrors.password)}
@@ -734,7 +734,7 @@ export function RegisterPage() {
                   <span className={contrasenaRemaining > 0 ? "text-[11px] text-[#AF8C5C]" : "text-[11px] text-[#D1C7BD]"}>
                     {contrasenaRemaining > 0
                       ? `Te faltan ${contrasenaRemaining} caracteres.`
-                      : "Contrasena valida."}
+                      : "Contraseña válida."}
                   </span>
                 </label>
               </div>
