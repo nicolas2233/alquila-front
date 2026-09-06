@@ -4,12 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "seo:sitemap": "node ./scripts/generate-sitemap.mjs",
     "seo:sitemap:strict": "node ./scripts/generate-sitemap.mjs --strict",
-    "prebuild": "npm run seo:sitemap:strict",
     "build": "tsc && vite build",
+    "start": "node server/index.js",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -32,6 +35,8 @@
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.7",
+    "compression": "^1.8.1",
+    "express": "^5.2.1",
     "leaflet": "^1.9.4",
     "posthog-js": "^1.342.1",
     "react": "^19.2.3",
