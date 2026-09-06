@@ -6,6 +6,7 @@ import {
   mapPropertyToSearchListing,
   type PropertyApiListItem,
 } from "./propertyMappers";
+import { buildPropertyPath } from "./slug";
 
 describe("propertyMappers helpers", () => {
   it("operationLabel traduce los tipos de operación", () => {
@@ -56,6 +57,28 @@ describe("mapPropertyToSearchListing", () => {
     expect(listing.address).toContain("Bragado");
     expect(listing.image).toContain("res.cloudinary.com");
     expect(listing.image).toContain("w_800");
+  });
+
+  it("expone los valores crudos que necesita el slug canonico de la ficha", () => {
+    const listing = mapPropertyToSearchListing(apiItem);
+    expect(listing.operationTypeRaw).toBe("SALE");
+    expect(listing.propertyTypeRaw).toBe("HOUSE");
+    expect(listing.localityName).toBe("Bragado");
+    // Con estos tres campos la tarjeta arma el href sin pasar por /publicacion/<id>.
+    expect(buildPropertyPath({
+      id: listing.id,
+      operationType: listing.operationTypeRaw,
+      propertyType: listing.propertyTypeRaw,
+      locality: listing.localityName,
+    })).toBe("/publicacion/casa-en-venta-bragado-p1");
+  });
+
+  it("deja localityName en null cuando el item no trae localidad", () => {
+    const sinLocalidad = {
+      ...apiItem,
+      location: { addressLine: "Calle 1 123", localityId: "loc-1" },
+    };
+    expect(mapPropertyToSearchListing(sinLocalidad).localityName).toBeNull();
   });
 
   it("usa imagen de fallback cuando no hay fotos", () => {
