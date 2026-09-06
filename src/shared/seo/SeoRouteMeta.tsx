@@ -1,8 +1,22 @@
 import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import type { SeoConfig } from "./seo";
 import { useSeo } from "./useSeo";
 
-function getRouteSeo(pathname: string) {
+/**
+ * Rutas cuyo SEO lo escribe la propia página, porque depende de datos que se cargan
+ * (título real, foto, precio, JSON-LD). Acá devolvemos `null` para no pisarlas: las dos
+ * fuentes llaman a `applySeo` sobre el mismo <head>, y la normalización de slug de la
+ * ficha (`navigate(canonicalPath, { replace: true })`) cambia el pathname DESPUÉS de que
+ * cargó la propiedad, así que el SEO por ruta corría último y dejaba el título genérico
+ * y el <script type="application/ld+json"> vacío.
+ */
+const PAGE_OWNED_SEO_PREFIXES = ["/publicacion/", "/publicación/", "/agencia/"];
+
+function getRouteSeo(pathname: string): SeoConfig | null {
+  if (PAGE_OWNED_SEO_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
   if (pathname === "/") {
     return {
       title: "DomusBrag | Propiedades en Bragado",
@@ -28,23 +42,6 @@ function getRouteSeo(pathname: string) {
         "Encuentra propiedades en Bragado en un mapa interactivo con filtros por operación, tipo, publicador y puntos de interés.",
       canonicalPath: "/mapa",
       noindex: false,
-    };
-  }
-  if (pathname.startsWith("/agencia/")) {
-    return {
-      title: "Perfil de inmobiliaria",
-      description: "Perfil público de inmobiliaria en Bragado con cartera de inmuebles y contacto.",
-      canonicalPath: pathname,
-      noindex: false,
-    };
-  }
-  if (pathname.startsWith("/publicacion/") || pathname.startsWith("/publicación/")) {
-    return {
-      title: "Ficha de inmueble",
-      description: "Detalle de inmueble en DomusBrag con fotos, datos y contacto.",
-      canonicalPath: pathname.replace("/publicación/", "/publicacion/"),
-      noindex: false,
-      type: "article" as const,
     };
   }
   if (

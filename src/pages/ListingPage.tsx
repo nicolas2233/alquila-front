@@ -16,6 +16,14 @@ import { useSeo } from "../shared/seo/useSeo";
 import { buildBreadcrumbList } from "../shared/seo/seo";
 import { buildPropertyPath, extractPropertyId } from "../shared/properties/slug";
 
+// Operación en forma preposicional para el título ("Casa en venta en Bragado").
+// Debe coincidir con OPERATION_TYPE_LABELS de alquila-back/src/routes/seo.ts.
+const SEO_OPERATION_LABELS: Record<string, string> = {
+  SALE: "en venta",
+  RENT: "en alquiler",
+  TEMPORARY: "alquiler temporal",
+};
+
 const PropertyDetailModal = lazy(() =>
   import("../shared/properties/PropertyDetailModal").then((m) => ({
     default: m.PropertyDetailModal,
@@ -192,8 +200,17 @@ export function ListingPage() {
       navigate(canonicalPath + location.search, { replace: true, state: location.state });
     }
   }, [property, id, canonicalPath, location.pathname, location.search, location.state, navigate]);
+  // Mismo formato que el endpoint de share del backend (`/api/share/publicacion/:id`),
+  // para que el título del buscador coincida con el de la preview de WhatsApp.
+  const seoTitle = useMemo(() => {
+    if (!property || !listing) return "Ficha de inmueble";
+    const operation = SEO_OPERATION_LABELS[property.operationType] ?? listing.operation.toLowerCase();
+    const locality = property.location?.locality?.name ?? "Bragado";
+    const price = listing.price?.trim();
+    return `${listing.propertyType} ${operation} en ${locality}${price ? ` · ${price}` : ""}`;
+  }, [property, listing]);
   useSeo({
-    title: listing ? `${listing.operation} ${listing.propertyType} en Bragado` : "Ficha de inmueble",
+    title: seoTitle,
     description: property
       ? `${property.title}. ${property.description || "Propiedad en Bragado"}`
           .replace(/\s+/g, " ")
