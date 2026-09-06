@@ -1722,6 +1722,9 @@ export function AdminPage() {
           {reportsStatus === "error" && (
             <div className="text-xs text-[#AF8C5C]">{reportsError}</div>
           )}
+          {reportsStatus === "idle" && reports.length === 0 && (
+            <div className="text-xs text-[#9f988d]">No hay reportes abiertos.</div>
+          )}
           {reports.map((report) => (
             <div
               key={report.id}

@@ -43,7 +43,7 @@ export function ResetPasswordPage() {
 
       setStatus("success");
       setMessage("Contraseña actualizada. Inicia sesión.");
-      addToast("Contrasena actualizada.", "success");
+      addToast("Contraseña actualizada.", "success");
       setTimeout(() => navigate("/login"), 500);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "No pudimos actualizar la contraseña.";

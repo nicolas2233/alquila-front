@@ -281,7 +281,7 @@ export function LoginPage() {
               </label>
 
               <label className="space-y-2 text-xs text-[#D1C7BD]">
-                Contrasena
+                Contraseña
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}

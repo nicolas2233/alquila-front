@@ -39,7 +39,7 @@ export function ChangePasswordPage() {
 
       setStatus("success");
       setMessage("Contraseña actualizada. Inicia sesión nuevamente.");
-      addToast("Contrasena actualizada.", "success");
+      addToast("Contraseña actualizada.", "success");
       clearSession();
       setTimeout(() => navigate("/login"), 500);
     } catch (error) {
