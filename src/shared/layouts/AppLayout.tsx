@@ -119,7 +119,7 @@ function MobileDockTab({ to, label, icon, showDot = false, onClick }: MobileDock
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-transparent text-current transition group-hover:bg-white/8 group-hover:text-white">
             {icon}
           </span>
-          <span className="max-w-[54px] truncate text-[9px] font-semibold leading-none">{label}</span>
+          <span className="max-w-[54px] truncate text-[11px] font-semibold leading-none">{label}</span>
           {showDot && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gold-500" />}
         </span>
       </button>
@@ -142,7 +142,7 @@ function MobileDockTab({ to, label, icon, showDot = false, onClick }: MobileDock
           >
             {icon}
           </span>
-          <span className="max-w-[54px] truncate text-[9px] font-semibold leading-none">{label}</span>
+          <span className="max-w-[54px] truncate text-[11px] font-semibold leading-none">{label}</span>
           {showDot && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gold-500" />}
         </span>
       )}
@@ -388,7 +388,7 @@ export function AppLayout() {
                         className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
-                      <span className="text-[10px]">
+                      <span className="text-[11px]">
                         {(user.name ?? user.email ?? "U")
                           .split(" ")
                           .map((part) => part.charAt(0))
@@ -407,7 +407,7 @@ export function AppLayout() {
                 >
                   <span aria-hidden="true">🔔</span>
                   {notificationCount > 0 && (
-                    <span className="rounded-full bg-gold-500/30 px-2 py-0.5 text-[10px] text-gold-300">
+                    <span className="rounded-full bg-gold-500/30 px-2 py-0.5 text-[11px] text-gold-300">
                       {notificationCount}
                     </span>
                   )}

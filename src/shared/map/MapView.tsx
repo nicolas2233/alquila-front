@@ -418,7 +418,7 @@ export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeig
                       )}
                       {point.clusterItems?.length ? (
                         <div className="rounded-lg border border-black/10 bg-black/[0.03] p-2">
-                          <div className="mb-1 text-[10px] uppercase tracking-wide text-[#666]">
+                          <div className="mb-1 text-[11px] uppercase tracking-wide text-[#666]">
                             Unidades agrupadas
                           </div>
                           <div className="space-y-1">
@@ -440,7 +440,7 @@ export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeig
                                   ) : null}
                                 </div>
                                 {item.badge ? (
-                                  <span className="shrink-0 rounded-full bg-black/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[#333]">
+                                  <span className="shrink-0 rounded-full bg-black/10 px-1.5 py-0.5 text-[11px] uppercase tracking-wide text-[#333]">
                                     {item.badge}
                                   </span>
                                 ) : null}
@@ -453,7 +453,7 @@ export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeig
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className="rounded-full border border-black/15 bg-white/70 px-2.5 py-1 text-[10px] font-medium text-[#222] transition hover:bg-white"
+                            className="rounded-full border border-black/15 bg-white/70 px-2.5 py-1 text-[11px] font-medium text-[#222] transition hover:bg-white"
                             onClick={(event) => {
                               event.stopPropagation();
                               setSpiderfiedClusterId((prev) => (prev === point.id ? null : point.id));
@@ -463,7 +463,7 @@ export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeig
                           </button>
                         </div>
                       ) : null}
-                      <div className="text-[10px] text-[#5f5f5f]">
+                      <div className="text-[11px] text-[#5f5f5f]">
                         Usa "Desplegar pines" para separar las unidades y seleccionar una.
                       </div>
                     </>
@@ -488,7 +488,7 @@ export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeig
                           </button>
                           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                           {point.badge && (
-                            <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-wide text-white">
+                            <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] uppercase tracking-wide text-white">
                               {point.badge}
                             </span>
                           )}

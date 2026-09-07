@@ -101,7 +101,7 @@ export function HomePage() {
 
         <div className="relative mx-auto flex h-full min-h-[92svh] max-w-4xl flex-col items-center justify-center px-6 py-20 text-center lg:min-h-[calc(88svh-92px)]">
           {/* Eyebrow */}
-          <span className="mb-4 rounded-full border border-gold-300/30 bg-gold-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">
+          <span className="mb-4 rounded-full border border-gold-300/30 bg-gold-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
             La plataforma inmobiliaria digital
           </span>
 
@@ -148,7 +148,7 @@ export function HomePage() {
           {/* Trust badges */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             {["Búsqueda gratuita", "Sin comisiones ocultas", "Contacto directo", "Publicación en minutos"].map((badge) => (
-              <span key={badge} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-[11px] text-[#E7E2DD]">
+              <span key={badge} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-xs text-[#E7E2DD]">
                 {badge}
               </span>
             ))}
@@ -229,7 +229,7 @@ export function HomePage() {
               </div>
               <div>
                 <div className="text-sm font-semibold text-white">{stat.label}</div>
-                <div className="text-[11px] text-[#D1C7BD]">{stat.sub}</div>
+                <div className="text-xs text-[#D1C7BD]">{stat.sub}</div>
               </div>
             </Reveal>
           ))}
@@ -277,7 +277,7 @@ export function HomePage() {
             ].map((item, i) => (
               <Reveal key={item.label} delayMs={80 + i * 70} className={`glass-card overflow-hidden rounded-3xl border ${item.border}`}>
                 <div className={`bg-gradient-to-br ${item.accent} p-6`}>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${item.pill}`}>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${item.pill}`}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3">
                       <path d={item.icon} />
                     </svg>
@@ -326,7 +326,7 @@ export function HomePage() {
         {homeAds.length > 0 && (
           <Reveal>
             <div className="mb-3 flex items-center gap-2">
-              <span className="rounded-full border border-white/10 bg-white/4 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[#9f988d]">
+              <span className="rounded-full border border-white/10 bg-white/4 px-2.5 py-0.5 text-xs uppercase tracking-[0.16em] text-[#9f988d]">
                 Patrocinado
               </span>
             </div>
@@ -349,7 +349,7 @@ export function HomePage() {
                       <p className="font-semibold text-white">{ad.title}</p>
                       {ad.body && <p className="mt-0.5 text-xs leading-relaxed text-[#D1C7BD]">{ad.body}</p>}
                       {ad.ctaText && (
-                        <span className="mt-2 inline-block rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1 text-[11px] text-gold-300 transition group-hover:bg-gold-500/18">
+                        <span className="mt-2 inline-block rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1 text-xs text-gold-300 transition group-hover:bg-gold-500/18">
                           {ad.ctaText} →
                         </span>
                       )}
@@ -388,7 +388,7 @@ export function HomePage() {
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               {["Sin comisiones", "Sin tarjeta", "Publicación en minutos", "Cancelás cuando quieras"].map((b) => (
-                <span key={b} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-[11px] text-[#E7E2DD]">
+                <span key={b} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-xs text-[#E7E2DD]">
                   {b}
                 </span>
               ))}

@@ -25,6 +25,19 @@ module.exports = {
         display: ["Playfair Display", "serif"],
         sans: ["Manrope", "system-ui", "sans-serif"],
       },
+      // Escala tipografica subida un escalon respecto de la de Tailwind.
+      //
+      // Medido sobre la home: el 56% de los bloques de texto estaba en 12px o menos, y
+      // text-xs (12px) es el tamaño de cuerpo dominante en toda la app, con 774 usos.
+      // Quien compra una casa en Bragado suele tener entre 35 y 65 años: a los 50 leer
+      // 12px en un celular ya incomoda. Subir la escala desde la config levanta esos usos
+      // de una vez, en vez de tocar cientos de clases y arriesgar inconsistencias.
+      //
+      // El interlineado va explicito porque al cambiar el tamaño Tailwind pierde el suyo.
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.15rem" }], // 13px (era 12)
+        sm: ["0.9375rem", { lineHeight: "1.35rem" }], // 15px (era 14)
+      },
       boxShadow: {
         card: "0 20px 50px rgba(0, 0, 0, 0.45)",
         soft: "0 10px 30px rgba(0, 0, 0, 0.35)",

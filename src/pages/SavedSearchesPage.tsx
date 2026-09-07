@@ -215,7 +215,7 @@ export function SavedSearchesPage() {
                         {item.name ?? "Búsqueda guardada"}
                       </h3>
                       {alertCount > 0 && (
-                        <span className="rounded-full bg-gold-500/20 px-2 py-0.5 text-[10px] text-gold-300">
+                        <span className="rounded-full bg-gold-500/20 px-2 py-0.5 text-[11px] text-gold-300">
                           {alertCount} nuevas
                         </span>
                       )}

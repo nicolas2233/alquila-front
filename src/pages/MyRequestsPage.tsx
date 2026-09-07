@@ -78,7 +78,7 @@ function RatingWidget({ requestId, token, onRated }: { requestId: string; token:
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] text-[#D1C7BD] mr-1">Calificar:</span>
+      <span className="text-[11px] text-[#D1C7BD] mr-1">Calificar:</span>
       {Array.from({ length: 5 }, (_, i) => i + 1).map((star) => (
         <button
           key={star}

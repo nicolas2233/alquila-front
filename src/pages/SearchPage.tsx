@@ -224,7 +224,7 @@ function LocalityAutocomplete({
                 onMouseDown={() => { onSelect(l.id); setQuery(""); setOpen(false); }}
               >
                 <span>{l.name}</span>
-                <span className="text-[10px] text-[#D1C7BD]">{l.count}</span>
+                <span className="text-[11px] text-[#D1C7BD]">{l.count}</span>
               </button>
             ))}
           </div>
@@ -990,7 +990,7 @@ export function SearchPage() {
           <span className="flex items-center justify-between">
             <span>Moneda</span>
             {usdToArs && (
-              <span className="text-[10px] text-gold-300">
+              <span className="text-[11px] text-gold-300">
                 USD 1 ≈ ARS {new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(usdToArs)}
               </span>
             )}
@@ -1073,7 +1073,7 @@ export function SearchPage() {
             </svg>
             Filtros
             {activeFilters.length > 0 && (
-              <span className="rounded-full bg-gold-500/40 px-2 py-0.5 text-[10px] text-[#1A1613]">
+              <span className="rounded-full bg-gold-500/40 px-2 py-0.5 text-[11px] text-[#1A1613]">
                 {activeFilters.length}
               </span>
             )}
@@ -1221,12 +1221,29 @@ export function SearchPage() {
         )}
         {listStatus === "idle" && listings.length === 0 && (
           <div className="overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-night-900/90 via-night-800/80 to-night-700/70 p-6 text-xs text-[#D1C7BD] shadow-soft">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]/90">Sin coincidencias</p>
-            <h4 className="mt-2 text-xl text-white">No encontramos inmuebles con este filtro</h4>
-            <p className="mt-2 max-w-xl text-sm text-[#D1C7BD]">
-              Ajusta operación, zona o precio para ampliar resultados. También puedes publicar tu
-              inmueble y aparecer primero en Bragado.
-            </p>
+            {/* Dos situaciones distintas que antes compartian el mismo texto. Sin filtros
+                puestos, pedirle a alguien que "ajuste operación, zona o precio" lo manda a
+                tocar algo que no toco: lo que pasa es que todavia no hay inventario, y
+                conviene decirlo y convertir en vez de disimularlo. */}
+            {activeFilters.length > 0 ? (
+              <>
+                <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]/90">Sin coincidencias</p>
+                <h4 className="mt-2 text-xl text-white">Ninguna propiedad coincide con tu búsqueda</h4>
+                <p className="mt-2 max-w-xl text-sm text-[#D1C7BD]">
+                  Probá ampliar el rango de precio o quitar algún filtro. Si no encontrás lo que
+                  buscás, guardá la búsqueda y te avisamos cuando aparezca.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]/90">Recién arrancamos</p>
+                <h4 className="mt-2 text-xl text-white">Todavía no hay propiedades publicadas</h4>
+                <p className="mt-2 max-w-xl text-sm text-[#D1C7BD]">
+                  Estamos sumando las primeras propiedades de Bragado. Si tenés una para vender o
+                  alquilar, publicarla es gratis y vas a ser de los primeros en aparecer.
+                </p>
+              </>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
               {activeFilters.length > 0 ? (
                 <button
@@ -1440,7 +1457,7 @@ export function SearchPage() {
                           {item.operation}
                         </span>
                         {item.featured && (
-                          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold-300/70 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-300 backdrop-blur-sm">
+                          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold-300/70 bg-black/60 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gold-300 backdrop-blur-sm">
                             <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                             Destacado
                           </span>
@@ -1539,7 +1556,7 @@ export function SearchPage() {
                       <aside className="flex h-full flex-col gap-2 p-3 md:pl-1 md:pr-3">
                         <div className="w-full rounded-xl border border-white/15 bg-night-900/55 px-2 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.2)]">
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.1em] text-[#D1C7BD]">Precio</div>
+                            <div className="text-[11px] uppercase tracking-[0.1em] text-[#D1C7BD]">Precio</div>
                             <div className="mt-0.5 text-[1.45rem] font-semibold leading-none text-white">{item.price}</div>
                           </div>
                           <div className="my-1 h-px w-full bg-white/12" />
@@ -1554,13 +1571,13 @@ export function SearchPage() {
                                   decoding="async"
                                 />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-[#E7E2DD]">
+                                <div className="flex h-full w-full items-center justify-center text-[11px] font-semibold text-[#E7E2DD]">
                                   {publisherInitials || "BR"}
                                 </div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[10px] font-semibold tracking-[0.02em] text-sky-200">
+                              <div className="text-[11px] font-semibold tracking-[0.02em] text-sky-200">
                                 {isAgencyPublisher ? "Inmobiliaria" : "Dueño directo"}
                               </div>
                               <div
@@ -1632,7 +1649,7 @@ export function SearchPage() {
                         {item.operation}
                       </span>
                       {item.featured && (
-                        <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold-300/70 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-300 backdrop-blur-sm">
+                        <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold-300/70 bg-black/60 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gold-300 backdrop-blur-sm">
                           <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                           Destacado
                         </span>
@@ -1687,13 +1704,13 @@ export function SearchPage() {
                               decoding="async"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-[#E7E2DD]">
+                            <div className="flex h-full w-full items-center justify-center text-[11px] font-semibold text-[#E7E2DD]">
                               {publisherInitials || "BR"}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-200">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-200">
                             {isAgencyPublisher ? "Inmobiliaria" : "Dueño directo"}
                           </div>
                           <div className="line-clamp-1 text-base font-semibold leading-tight text-white" title={publisherName}>

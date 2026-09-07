@@ -300,7 +300,7 @@ export function LoginPage() {
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-[#D1C7BD]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#D1C7BD]"
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
                     {showPassword ? "Ocultar" : "Ver"}
