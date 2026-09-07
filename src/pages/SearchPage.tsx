@@ -1158,7 +1158,7 @@ export function SearchPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg text-white">Resultados</h3>
-              <p className="text-xs text-[#D1C7BD]">{total > 0 ? `${total} inmuebles encontrados` : "Explorá las publicaciones"}</p>
+              <p className="text-xs text-[#D1C7BD]">{total > 0 ? `${total} ${total === 1 ? "inmueble encontrado" : "inmuebles encontrados"}` : "Explorá las publicaciones"}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <select
@@ -1389,16 +1389,20 @@ export function SearchPage() {
                   .join("")
                   .toUpperCase();
                 const gridFeatureChips = [
-                  {
-                    key: "rooms",
-                    icon: "rooms" as FeatureIconName,
-                    label: item.rooms > 0 ? `${item.rooms} ambientes` : "Sin ambientes",
-                  },
-                  {
-                    key: "area",
-                    icon: "area" as FeatureIconName,
-                    label: `${item.areaM2} m2`,
-                  },
+                  item.rooms > 0
+                    ? {
+                        key: "rooms",
+                        icon: "rooms" as FeatureIconName,
+                        label: `${item.rooms} ${item.rooms === 1 ? "ambiente" : "ambientes"}`,
+                      }
+                    : null,
+                  item.areaM2 > 0
+                    ? {
+                        key: "area",
+                        icon: "area" as FeatureIconName,
+                        label: `${item.areaM2} m2`,
+                      }
+                    : null,
                   {
                     key: "garage",
                     icon: "garage" as FeatureIconName,
@@ -1480,34 +1484,38 @@ export function SearchPage() {
                             {item.description?.trim() ? item.description : "Sin descripción."}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#D1C7BD]">
-                            <span className="inline-flex items-center gap-2">
-                              <svg
-                                aria-hidden="true"
-                                className="h-4 w-4"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                              >
-                                <path d="M4 9h16M4 9l2-3h12l2 3M4 9v9h16V9" />
-                                <path d="M9 13h6" />
-                              </svg>
-                              {item.rooms > 0 ? `${item.rooms} ambientes` : "Sin ambientes"}
-                            </span>
-                            <span className="inline-flex items-center gap-2">
-                              <svg
-                                aria-hidden="true"
-                                className="h-4 w-4"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                              >
-                                <path d="M4 4h16v16H4z" />
-                                <path d="M4 9h16M9 4v16" />
-                              </svg>
-                              {item.areaM2} m2
-                            </span>
+                            {item.rooms > 0 && (
+                              <span className="inline-flex items-center gap-2">
+                                <svg
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                >
+                                  <path d="M4 9h16M4 9l2-3h12l2 3M4 9v9h16V9" />
+                                  <path d="M9 13h6" />
+                                </svg>
+                                {`${item.rooms} ${item.rooms === 1 ? "ambiente" : "ambientes"}`}
+                              </span>
+                            )}
+                            {item.areaM2 > 0 && (
+                              <span className="inline-flex items-center gap-2">
+                                <svg
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                >
+                                  <path d="M4 4h16v16H4z" />
+                                  <path d="M4 9h16M9 4v16" />
+                                </svg>
+                                {item.areaM2} m2
+                              </span>
+                            )}
                             <span className="inline-flex items-center gap-2">
                               <svg
                                 aria-hidden="true"
