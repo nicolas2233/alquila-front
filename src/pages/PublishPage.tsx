@@ -3106,7 +3106,7 @@ export function PublishPage() {
                         )}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-2">
-                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/10 bg-night-800 px-1 text-[10px] text-[#D1C7BD]">
+                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/10 bg-night-800 px-1 text-[11px] text-[#D1C7BD]">
                               {index + 1}
                             </span>
                             <div className="min-w-0">
@@ -3123,7 +3123,7 @@ export function PublishPage() {
                               type="button"
                               onClick={() => moveSummaryHighlight(metric.key, "up")}
                               disabled={index === 0}
-                              className="rounded-md border border-white/10 px-1.5 py-1 text-[10px] text-[#D1C7BD] disabled:opacity-30"
+                              className="rounded-md border border-white/10 px-1.5 py-1 text-[11px] text-[#D1C7BD] disabled:opacity-30"
                               aria-label="Subir"
                             >
                               ↑
@@ -3132,7 +3132,7 @@ export function PublishPage() {
                               type="button"
                               onClick={() => moveSummaryHighlight(metric.key, "down")}
                               disabled={index === selectedSummaryPreviewMetrics.length - 1}
-                              className="rounded-md border border-white/10 px-1.5 py-1 text-[10px] text-[#D1C7BD] disabled:opacity-30"
+                              className="rounded-md border border-white/10 px-1.5 py-1 text-[11px] text-[#D1C7BD] disabled:opacity-30"
                               aria-label="Bajar"
                             >
                               ↓
@@ -3140,7 +3140,7 @@ export function PublishPage() {
                             <button
                               type="button"
                               onClick={() => toggleSummaryHighlight(metric.key)}
-                              className="rounded-md border border-red-400/25 bg-red-500/10 px-1.5 py-1 text-[10px] text-red-200"
+                              className="rounded-md border border-red-400/25 bg-red-500/10 px-1.5 py-1 text-[11px] text-red-200"
                               aria-label="Quitar"
                             >
                               ×
@@ -3861,13 +3861,13 @@ export function PublishPage() {
                         className={`relative cursor-grab overflow-hidden rounded-xl border bg-night-900/48 transition ${dragOverExistingPhotoIndex === index && draggingExistingPhotoIndex !== index ? "border-gold-400/60 opacity-75" : draggingExistingPhotoIndex === index ? "border-white/30 opacity-50" : "border-white/10"}`}
                       >
                         {index === 0 && (
-                          <span className="absolute left-2 top-2 z-10 rounded-full border border-gold-400/60 bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-gold-300">
+                          <span className="absolute left-2 top-2 z-10 rounded-full border border-gold-400/60 bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-gold-300">
                             Principal
                           </span>
                         )}
                         <button
                           type="button"
-                          className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
+                          className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[11px] text-white"
                           onClick={() => void removeExistingPhoto(photo.id)}
                         >
                           Quitar
@@ -3980,13 +3980,13 @@ export function PublishPage() {
                         className={`relative cursor-grab overflow-hidden rounded-xl border bg-night-900/48 transition ${dragOverPhotoIndex === index && draggingPhotoIndex !== index ? "border-gold-400/60 opacity-75" : draggingPhotoIndex === index ? "border-white/30 opacity-50" : "border-white/10"}`}
                       >
                         {index === 0 && (
-                          <span className="absolute left-2 top-2 z-10 rounded-full border border-gold-400/60 bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-gold-300">
+                          <span className="absolute left-2 top-2 z-10 rounded-full border border-gold-400/60 bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-gold-300">
                             Principal
                           </span>
                         )}
                         <button
                           type="button"
-                          className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white"
+                          className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[11px] text-white"
                           onClick={() =>
                             setPhotos((prev) => prev.filter((file) => file !== item.file))
                           }

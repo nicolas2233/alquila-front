@@ -411,7 +411,7 @@ export function MapSearchPage() {
                 <img src={item.imageUrl} alt="" className="h-14 w-14 flex-shrink-0 rounded-lg object-cover" loading="lazy" />
               ) : (
                 <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: getMarkerColor(item.propertyType, item.operationType) + "28" }}>
-                  <span className="text-[9px] font-semibold uppercase text-white/60">{typeLabels[item.propertyType].slice(0, 4)}</span>
+                  <span className="text-[11px] font-semibold uppercase text-white/60">{typeLabels[item.propertyType].slice(0, 4)}</span>
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -419,10 +419,10 @@ export function MapSearchPage() {
                 <div className="mt-0.5 text-[11px] font-semibold" style={{ color: operationColors[item.operationType] }}>
                   {item.priceCurrency} {item.priceAmount.toLocaleString("es-AR")}
                 </div>
-                <div className="mt-0.5 text-[10px] text-[#D1C7BD]">
+                <div className="mt-0.5 text-[11px] text-[#D1C7BD]">
                   {operationLabels[item.operationType]} · {typeLabels[item.propertyType]}{item.rooms ? ` · ${item.rooms} amb` : ""}
                 </div>
-                <div className="mt-0.5 truncate text-[10px] text-white/40">{item.address}</div>
+                <div className="mt-0.5 truncate text-[11px] text-white/40">{item.address}</div>
               </div>
             </button>
           ))}
@@ -477,7 +477,7 @@ export function MapSearchPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                   <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                 </svg>
-                <span className="text-[10px]">{listStatus === "loading" ? "…" : filtered.length}</span>
+                <span className="text-[11px]">{listStatus === "loading" ? "…" : filtered.length}</span>
               </button>
 
               <span className="h-5 w-px bg-white/15 mx-0.5 shrink-0" />
@@ -568,7 +568,7 @@ export function MapSearchPage() {
                 <button
                   type="button"
                   onClick={() => setListPanelOpen((v) => !v)}
-                  className="flex items-center gap-1 shrink-0 text-[10px] transition-colors"
+                  className="flex items-center gap-1 shrink-0 text-[11px] transition-colors"
                   style={{ color: listPanelOpen ? "#AF8C5C" : "#D1C7BD" }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
@@ -691,7 +691,7 @@ export function MapSearchPage() {
                 <div className="relative">
                   <img src={selected.imageUrl} alt={selected.title} className="h-36 w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#18150f] via-[#18150f]/30 to-transparent" />
-                  <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold shadow-md" style={{ backgroundColor: operationColors[selected.operationType], color: "#1a1410" }}>
+                  <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-md" style={{ backgroundColor: operationColors[selected.operationType], color: "#1a1410" }}>
                     {operationLabels[selected.operationType]}
                   </span>
                   {/* Botón cerrar sobre la imagen */}
@@ -710,7 +710,7 @@ export function MapSearchPage() {
               <div className={selected.imageUrl ? "px-4 pb-4 pt-3" : "p-4"}>
                 {!selected.imageUrl && (
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ backgroundColor: operationColors[selected.operationType], color: "#1a1410" }}>
+                    <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: operationColors[selected.operationType], color: "#1a1410" }}>
                       {operationLabels[selected.operationType]}
                     </span>
                     <button
@@ -765,7 +765,7 @@ export function MapSearchPage() {
                     className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 text-left transition hover:bg-white/8">
                     <div className="min-w-0">
                       <div className="truncate text-xs font-medium text-white">{item.title}</div>
-                      <div className="text-[10px] text-[#D1C7BD]">{operationLabels[item.operationType]} · {typeLabels[item.propertyType]}</div>
+                      <div className="text-[11px] text-[#D1C7BD]">{operationLabels[item.operationType]} · {typeLabels[item.propertyType]}</div>
                     </div>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 shrink-0 text-white/40">
                       <path d="M9 18l6-6-6-6" />

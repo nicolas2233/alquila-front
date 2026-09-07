@@ -2709,7 +2709,7 @@ export function DashboardPage() {
             <div className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Panel</div>
             <button
               type="button"
-              className="rounded-full border border-white/20 px-2 py-1 text-[10px] text-[#E7E2DD] lg:hidden"
+              className="rounded-full border border-white/20 px-2 py-1 text-[11px] text-[#E7E2DD] lg:hidden"
               onClick={() => setSidebarOpen(false)}
             >
               Cerrar
@@ -2761,7 +2761,7 @@ export function DashboardPage() {
               className={`${sidebarButtonClass("beta-feedback")} flex items-center justify-between gap-2`}
             >
               <span>Observaciones beta</span>
-              <span className="shrink-0 rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-gold-300">Beta</span>
+              <span className="shrink-0 rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-gold-300">Beta</span>
             </button>
           )}
       </aside>
@@ -4003,9 +4003,9 @@ export function DashboardPage() {
                 },
               ].map((metric) => (
                 <div key={metric.label} className="flex flex-col items-center gap-1 text-center">
-                  <div className="flex items-center gap-1">{metric.icon}<span className="text-[10px] uppercase tracking-wider text-[#D1C7BD]">{metric.label}</span></div>
+                  <div className="flex items-center gap-1">{metric.icon}<span className="text-[11px] uppercase tracking-wider text-[#D1C7BD]">{metric.label}</span></div>
                   <div className="text-xl font-bold text-white">{metric.value}</div>
-                  <div className="text-[10px] text-[#D1C7BD]">{metric.sub}</div>
+                  <div className="text-[11px] text-[#D1C7BD]">{metric.sub}</div>
                 </div>
               ))}
             </div>
@@ -4087,20 +4087,20 @@ export function DashboardPage() {
                       {propertyStats[item.id] ? (
                         <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-night-900/50 p-2.5">
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-[#D1C7BD]">
+                            <div className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wider text-[#D1C7BD]">
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                               Vistas
                             </div>
                             <div className="mt-0.5 text-base font-bold text-white">{propertyStats[item.id].totalViews}</div>
-                            <div className="text-[10px] text-[#D1C7BD]">+{propertyStats[item.id].last7dViews} esta semana</div>
+                            <div className="text-[11px] text-[#D1C7BD]">+{propertyStats[item.id].last7dViews} esta semana</div>
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-[#D1C7BD]">
+                            <div className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wider text-[#D1C7BD]">
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                               Contactos
                             </div>
                             <div className="mt-0.5 text-base font-bold text-white">{propertyStats[item.id].totalContacts}</div>
-                            <div className="text-[10px] text-[#D1C7BD]">+{propertyStats[item.id].last7dContacts} esta semana</div>
+                            <div className="text-[11px] text-[#D1C7BD]">+{propertyStats[item.id].last7dContacts} esta semana</div>
                           </div>
                         </div>
                       ) : null}
@@ -4296,7 +4296,7 @@ export function DashboardPage() {
 
                       {request.message && (
                         <div className="rounded-2xl border border-white/10 bg-night-950/35 p-3">
-                          <div className="text-[10px] uppercase tracking-[0.2em] text-[#D1C7BD]">
+                          <div className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">
                             Mensaje
                           </div>
                           <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-[#E7E2DD]">
@@ -4450,7 +4450,7 @@ export function DashboardPage() {
         <div className="glass-card space-y-6 p-6">
           <div className="rounded-2xl border border-gold-500/30 bg-gold-500/8 p-4">
             <div className="flex items-center gap-2">
-              <span className="rounded-full border border-gold-400/40 bg-gold-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">
+              <span className="rounded-full border border-gold-400/40 bg-gold-500/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-gold-300">
                 ✦ Usuario Beta
               </span>
             </div>
@@ -4537,7 +4537,7 @@ export function DashboardPage() {
                           <span>{new Date(item.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
                         </div>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusInfo.cls}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusInfo.cls}`}>
                         {statusInfo.label}
                       </span>
                     </div>
@@ -4606,7 +4606,7 @@ export function DashboardPage() {
               ) : (
                 <div className="space-y-4 rounded-2xl border border-white/10 bg-night-900/35 p-3 sm:space-y-5 sm:p-5">
                   <div className="relative mx-auto w-full max-w-lg rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_18%_22%,rgba(97,126,255,0.28),transparent_42%),radial-gradient(circle_at_78%_18%,rgba(175,140,92,0.24),transparent_45%),linear-gradient(135deg,#111827_0%,#151225_45%,#1a1410_100%)] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.38)] sm:p-5">
-                    <div className="absolute right-4 top-4 z-10 flex items-center gap-1 rounded-full border border-white/10 bg-black/25 px-2 py-1 text-[10px] text-white/80">
+                    <div className="absolute right-4 top-4 z-10 flex items-center gap-1 rounded-full border border-white/10 bg-black/25 px-2 py-1 text-[11px] text-white/80">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
                       Mercado Pago
                     </div>
@@ -4619,7 +4619,7 @@ export function DashboardPage() {
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       <div>
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-white/60">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-white/60">
                           Titular
                         </div>
                         <div className="mt-1 truncate text-sm text-white">
@@ -4627,7 +4627,7 @@ export function DashboardPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-white/60">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-white/60">
                           {currentBillingCycle === "ANNUAL" ? "Plan anual" : "Plan mensual"}
                         </div>
                         <div className="mt-1 text-sm text-white">
@@ -4646,7 +4646,7 @@ export function DashboardPage() {
                         {["VISA", "MC", "AMEX", "NARANJA", "CABAL"].map((brand) => (
                           <span
                             key={brand}
-                            className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600"
+                            className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600"
                           >
                             {brand}
                           </span>
@@ -4920,7 +4920,7 @@ export function DashboardPage() {
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-semibold text-white">{option.code}</span>
                               {isCurrent && (
-                                <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-100">
+                                <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-100">
                                   Plan actual
                                 </span>
                               )}
@@ -4934,7 +4934,7 @@ export function DashboardPage() {
                                 ? option.annualMonthlyEquivalentAmount ?? option.priceAmount
                                 : option.priceAmount}
                             </p>
-                            <p className="text-[10px] text-[#D1C7BD]">
+                            <p className="text-[11px] text-[#D1C7BD]">
                               / {currentBillingCycle === "ANNUAL" ? "mes (equiv.)" : "mes"}
                             </p>
                           </div>
@@ -5323,12 +5323,12 @@ export function DashboardPage() {
             <div className="max-h-[calc(90vh-90px)] overflow-y-auto px-6 py-5 text-sm text-[#E7E2DD]">
               <div className="mx-auto max-w-xl space-y-4">
                   <div className="rounded-2xl border border-white/10 bg-[#24201c] p-4">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-[#D1C7BD]">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">
                       Datos de contacto
                     </div>
                     <div className="mt-3 space-y-3">
                       <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#BFB8AD]">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-[#BFB8AD]">
                           Nombre
                         </div>
                         <div className="mt-1 text-sm text-white">
@@ -5338,7 +5338,7 @@ export function DashboardPage() {
                         </div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#BFB8AD]">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-[#BFB8AD]">
                           Email
                         </div>
                         <div className="mt-1 break-all text-sm text-white">
@@ -5348,7 +5348,7 @@ export function DashboardPage() {
                         </div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#BFB8AD]">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-[#BFB8AD]">
                           Teléfono
                         </div>
                         <div className="mt-1 text-sm text-white">
@@ -5361,7 +5361,7 @@ export function DashboardPage() {
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-[#24201c] p-4">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-[#D1C7BD]">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">
                       Acciones
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">

@@ -60,7 +60,7 @@ const Avatar = ({
   avatarUrl?: string | null;
   title?: string;
 }) => {
-  const sizeClass = size === "md" ? "h-8 w-8 text-xs" : "h-6 w-6 text-[10px]";
+  const sizeClass = size === "md" ? "h-8 w-8 text-xs" : "h-6 w-6 text-[11px]";
   if (avatarUrl?.startsWith("emoji:")) {
     const value = avatarUrl.replace("emoji:", "");
     return (
@@ -286,7 +286,7 @@ export function FloatingChat({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="rounded-full border border-white/20 px-2 py-0.5 text-[10px]"
+                    className="rounded-full border border-white/20 px-2 py-0.5 text-[11px]"
                     onClick={() => void loadChats()}
                   >
                     Actualizar
@@ -332,7 +332,7 @@ export function FloatingChat({
                           <div className="truncate text-xs text-white">
                             {chat.property.title}
                           </div>
-                          <div className="truncate text-[10px] text-[#D1C7BD]">
+                          <div className="truncate text-[11px] text-[#D1C7BD]">
                             {requestTypeLabels[chat.type] ?? chat.type}
                           </div>
                         </div>
@@ -396,7 +396,7 @@ export function FloatingChat({
                                     : "border border-white/10 bg-night-950/70 text-white"
                                 }`}
                               >
-                                <div className="text-[10px] opacity-70">
+                                <div className="text-[11px] opacity-70">
                                   {isMine ? "Vos" : senderName} ·{" "}
                                   {new Date(message.createdAt).toLocaleString("es-AR")}
                                 </div>

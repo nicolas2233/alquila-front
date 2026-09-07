@@ -1439,13 +1439,13 @@ export function AdminPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-white">{user.name ?? "Sin nombre"}</span>
-                  <span className="rounded-full border border-white/10 bg-night-900/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[#9f988d]">{user.role}</span>
+                  <span className="rounded-full border border-white/10 bg-night-900/40 px-2 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[#9f988d]">{user.role}</span>
                 </div>
                 <div className="text-[#D1C7BD]">{user.email}</div>
                 {user.subscription && (
                   <div className="mt-2 rounded-xl border border-white/10 bg-night-900/36 px-2.5 py-2 text-[11px] text-[#ddd5c9]">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-gold-400/30 bg-gold-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-gold-300">
+                      <span className="rounded-full border border-gold-400/30 bg-gold-500/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.14em] text-gold-300">
                         {user.subscription.planCode}
                       </span>
                       <span>{user.subscription.planName}</span>
@@ -1478,7 +1478,7 @@ export function AdminPage() {
                     return (
                       <>
                         <div className="inline-flex items-center gap-2">
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
                             TyC
                           </span>
                           <span>{terms ? `v${terms.version}` : "Sin registro"}</span>
@@ -1487,7 +1487,7 @@ export function AdminPage() {
                           ) : null}
                         </div>
                         <div className="inline-flex items-center gap-2">
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
                             Priv
                           </span>
                           <span>{privacy ? `v${privacy.version}` : "Sin registro"}</span>
@@ -1611,7 +1611,7 @@ export function AdminPage() {
                           className="rounded-xl border border-white/10 bg-night-900/45 px-3 py-2"
                         >
                           <div className="text-xs text-white">{property.title}</div>
-                          <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[#D1C7BD]">
+                          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[#D1C7BD]">
                             <span>{property.status}</span>
                             <span>{property.operationType}</span>
                             <span>{formatShortDateTime(property.updatedAt)}</span>
@@ -1670,7 +1670,7 @@ export function AdminPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   {item.featured && (
-                    <span className="flex items-center gap-1 rounded-full border border-gold-400/50 bg-gold-400/10 px-2 py-0.5 text-[10px] font-semibold text-gold-300">
+                    <span className="flex items-center gap-1 rounded-full border border-gold-400/50 bg-gold-400/10 px-2 py-0.5 text-[11px] font-semibold text-gold-300">
                       <svg viewBox="0 0 24 24" fill="currentColor" className="h-2.5 w-2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                       Destacado{item.featuredUntil ? ` hasta ${new Date(item.featuredUntil).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}` : ""}
                     </span>
@@ -1804,8 +1804,8 @@ export function AdminPage() {
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#D1C7BD]">
                     <span>{item.user.email}</span>
-                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em]">{item.type}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${item.status === "APPROVED" ? "bg-emerald-500/15 text-emerald-300" : item.status === "REJECTED" ? "bg-rose-500/15 text-rose-300" : "bg-gold-500/15 text-gold-300"}`}>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.1em]">{item.type}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] ${item.status === "APPROVED" ? "bg-emerald-500/15 text-emerald-300" : item.status === "REJECTED" ? "bg-rose-500/15 text-rose-300" : "bg-gold-500/15 text-gold-300"}`}>
                       {item.status === "PENDING" ? "Pendiente" : item.status === "APPROVED" ? "Aprobado" : "Rechazado"}
                     </span>
                     <span className="text-[#9f988d]">{formatShortDateTime(item.createdAt)}</span>
@@ -2179,10 +2179,10 @@ export function AdminPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-white">{ad.title}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ad.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ad.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
                           {ad.isActive ? "Activo" : "Inactivo"}
                         </span>
-                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-[#9f988d]">
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#9f988d]">
                           Prioridad {ad.priority}
                         </span>
                       </div>
@@ -2191,7 +2191,7 @@ export function AdminPage() {
                         <p className="mt-0.5 truncate text-[11px] text-[#9f988d]">{ad.linkUrl}</p>
                       )}
                       {ad.ctaText && (
-                        <span className="mt-1 inline-block rounded-full border border-gold-500/25 bg-gold-500/8 px-2 py-0.5 text-[10px] text-gold-300">
+                        <span className="mt-1 inline-block rounded-full border border-gold-500/25 bg-gold-500/8 px-2 py-0.5 text-[11px] text-gold-300">
                           {ad.ctaText}
                         </span>
                       )}
@@ -2286,10 +2286,10 @@ export function AdminPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${invite.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${invite.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
                             {invite.isActive ? "Activa" : "Inactiva"}
                           </span>
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-[#9f988d]">
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#9f988d]">
                             {invite.targetRole === "OWNER" ? "Dueño directo" : "Inmobiliaria"}
                           </span>
                           <span className="text-[#D1C7BD]">
@@ -2303,12 +2303,12 @@ export function AdminPage() {
                           <button
                             type="button"
                             onClick={() => { void navigator.clipboard.writeText(url); addToast("Link copiado.", "success"); }}
-                            className="shrink-0 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-[#E7E2DD] hover:border-white/40"
+                            className="shrink-0 rounded-full border border-white/20 px-2 py-0.5 text-[11px] text-[#E7E2DD] hover:border-white/40"
                           >
                             Copiar
                           </button>
                         </div>
-                        <p className="mt-0.5 text-[10px] text-[#9f988d]">
+                        <p className="mt-0.5 text-[11px] text-[#9f988d]">
                           Creada {formatShortDateTime(invite.createdAt)}
                         </p>
                       </div>
@@ -2370,15 +2370,15 @@ export function AdminPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-white">{item.title}</span>
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-[#9f988d]">{catLabels[item.category] ?? item.category}</span>
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#9f988d]">{catLabels[item.category] ?? item.category}</span>
                           {item.status === "UNREAD" && (
-                            <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">Nueva</span>
+                            <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[11px] font-semibold text-gold-300">Nueva</span>
                           )}
                           {item.status === "READ" && (
-                            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-300">Vista</span>
+                            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-300">Vista</span>
                           )}
                           {item.status === "ADDRESSED" && (
-                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300">Atendida</span>
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-300">Atendida</span>
                           )}
                         </div>
                         <div className="mt-0.5 text-[#9f988d]">

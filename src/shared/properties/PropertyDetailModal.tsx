@@ -712,7 +712,7 @@ export function PropertyDetailModal({
           </div>
           <div className="flex items-center justify-between gap-2 rounded-full border border-white/10 bg-night-950/85 px-3 py-1.5 md:min-w-[280px] md:justify-end md:gap-4 md:rounded-2xl md:px-4 md:py-2">
             <div className="text-left md:text-right">
-              <div className="hidden text-[10px] uppercase tracking-[0.16em] text-[#D1C7BD] md:block">
+              <div className="hidden text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD] md:block">
                 Precio
               </div>
               <div className="text-base font-semibold text-white md:text-xl">{listing.price}</div>
@@ -729,7 +729,7 @@ export function PropertyDetailModal({
                     decoding="async"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-[#E7E2DD]">
+                  <div className="flex h-full w-full items-center justify-center text-[11px] font-semibold text-[#E7E2DD]">
                     {publisherInitials || "BR"}
                   </div>
                 )}
@@ -738,8 +738,8 @@ export function PropertyDetailModal({
                 <div
                   className={
                     isAgencyPublisher
-                      ? "text-[10px] font-semibold text-sky-200 md:text-[11px]"
-                      : "text-[10px] font-semibold text-gold-300 md:text-[11px]"
+                      ? "text-[11px] font-semibold text-sky-200 md:text-[11px]"
+                      : "text-[11px] font-semibold text-gold-300 md:text-[11px]"
                   }
                 >
                   {publisherRole}
@@ -983,7 +983,7 @@ export function PropertyDetailModal({
                   <button
                     type="button"
                     onClick={() => setDetailsExpanded((prev) => !prev)}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[11px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
                   >
                     {detailsExpanded
                       ? "Ver menos"
@@ -1097,7 +1097,7 @@ export function PropertyDetailModal({
                         <button
                           type="button"
                           onClick={() => setAmenitiesExpanded((prev) => !prev)}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
+                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[11px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
                         >
                           {amenitiesExpanded
                             ? "Ver menos"
@@ -1165,7 +1165,7 @@ export function PropertyDetailModal({
                         <button
                           type="button"
                           onClick={() => setServicesExpanded((prev) => !prev)}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[10px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
+                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-night-900/72 px-2.5 py-1 text-[11px] font-semibold text-[#E7E2DD] transition hover:border-white/25"
                         >
                           {servicesExpanded
                             ? "Ver menos"
@@ -1253,7 +1253,7 @@ export function PropertyDetailModal({
                   </div>
                   <button
                     type="button"
-                    className="rounded-full border border-white/20 bg-night-900/70 px-3 py-1 text-[10px] text-[#E7E2DD]"
+                    className="rounded-full border border-white/20 bg-night-900/70 px-3 py-1 text-[11px] text-[#E7E2DD]"
                     onClick={() => setShowMapZoom(true)}
                   >
                     Ampliar mapa

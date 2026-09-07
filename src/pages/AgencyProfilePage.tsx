@@ -662,7 +662,7 @@ export function AgencyProfilePage() {
                   backgroundColor: `rgba(${cardR}, ${cardG}, ${cardB}, ${contactCardOpacity / 100})`,
                 }}
               >
-                <p className="text-[10px] uppercase tracking-[0.12em] text-[#aac0ff]">Contacto</p>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#aac0ff]">Contacto</p>
                 <p className="mt-1">{agency?.phone || agency?.whatsapp || "-"}</p>
               </div>
               <div
@@ -672,7 +672,7 @@ export function AgencyProfilePage() {
                   backgroundColor: `rgba(${cardR}, ${cardG}, ${cardB}, ${contactCardOpacity / 100})`,
                 }}
               >
-                <p className="text-[10px] uppercase tracking-[0.12em] text-[#aac0ff]">Ubicación</p>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#aac0ff]">Ubicación</p>
                 <p className="mt-1 line-clamp-1">{agency?.address || "-"}</p>
               </div>
               <div
@@ -682,7 +682,7 @@ export function AgencyProfilePage() {
                   backgroundColor: `rgba(${cardR}, ${cardG}, ${cardB}, ${contactCardOpacity / 100})`,
                 }}
               >
-                <p className="text-[10px] uppercase tracking-[0.12em] text-[#aac0ff]">Canales</p>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[#aac0ff]">Canales</p>
                 <p className="mt-1 line-clamp-1">
                   {agency?.email || agency?.website || agency?.instagram || "-"}
                 </p>
@@ -690,7 +690,7 @@ export function AgencyProfilePage() {
             </div>
             {typeof agency?.lat === "number" && typeof agency?.lng === "number" && (
               <div className="rounded-2xl border border-white/15 bg-night-900/45 p-3">
-                <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-[#aac0ff]">
+                <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-[#aac0ff]">
                   Ubicacion exacta
                 </p>
                 <div className="overflow-hidden rounded-xl border border-white/10">
@@ -878,7 +878,7 @@ export function AgencyProfilePage() {
                   </div>
                   <aside className="flex h-full flex-col gap-2 p-3 md:pl-1 md:pr-3">
                     <div className="w-full rounded-xl border border-white/15 bg-night-900/55 px-2 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.2)]">
-                      <div className="text-[8px] uppercase tracking-[0.1em] text-[#D1C7BD]">
+                      <div className="text-[11px] uppercase tracking-[0.1em] text-[#D1C7BD]">
                         Precio
                       </div>
                       <div className="mt-0.5 text-[1.45rem] font-semibold leading-none text-white">

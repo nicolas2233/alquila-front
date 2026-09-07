@@ -59,14 +59,14 @@ const accountTypeOptions: Array<{
   {
     key: "viewer",
     title: "Buscador",
-    text: "Explora y consulta propiedades.",
+    text: "Explorá y consultá propiedades.",
     image:
       "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=480&q=70",
   },
   {
     key: "owner",
     title: "Dueño directo",
-    text: "Publica inmuebles propios.",
+    text: "Publicá inmuebles propios.",
     image:
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=480&q=70",
   },
@@ -87,14 +87,14 @@ const accountTypeOptions: Array<{
 function PlanGoldGratis({ esInmobiliaria }: { esInmobiliaria: boolean }) {
   return (
     <div className="rounded-2xl border border-gold-500/30 bg-gold-500/8 p-3">
-      <span className="inline-flex rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-gold-300">
+      <span className="inline-flex rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-[0.12em] text-gold-300">
         Gold sin costo
       </span>
-      <p className="mt-2 text-[11px] leading-relaxed text-[#D1C7BD]">
+      <p className="mt-2 text-xs leading-relaxed text-[#D1C7BD]">
         Durante la etapa inicial todas las cuentas acceden al plan Gold sin cargo, con hasta{" "}
         {esInmobiliaria ? "50" : "10"} inmuebles publicados. No te pedimos tarjeta.
       </p>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-[#9f988d]">
+      <p className="mt-1.5 text-xs leading-relaxed text-[#9f988d]">
         DomusBrag se reserva el derecho de incorporar planes pagos para inmobiliarias más
         adelante. Si eso ocurre te vamos a avisar con anticipación y vas a poder decidir si
         continuar.
@@ -368,7 +368,7 @@ export function RegisterPage() {
 
           {betaMode ? (
             <div className="rounded-2xl border border-gold-500/40 bg-gold-500/8 p-4 shadow-soft">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/50 bg-gold-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/50 bg-gold-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-gold-300">
                 ✦ Acceso Beta
               </span>
               <h2 className="mt-2 font-display text-[1.6rem] leading-tight text-white">
@@ -381,12 +381,12 @@ export function RegisterPage() {
                 La plataforma muestra propiedades según la ubicación del usuario, pero también permite buscar y publicar en otras localidades, ampliando el alcance para quienes quieren vender, alquilar o encontrar una propiedad en distintos lugares.
               </p>
               {betaInviteLabel && (
-                <p className="mt-3 text-[11px] text-[#9f988d]">Grupo: {betaInviteLabel}</p>
+                <p className="mt-3 text-xs text-[#9f988d]">Grupo: {betaInviteLabel}</p>
               )}
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-soft">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-[#D1C7BD]">Crear cuenta</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Crear cuenta</p>
               <h2 className="mt-2 font-display text-[2rem] leading-tight text-white">
                 Empeza en DomusBrag con el perfil correcto
               </h2>
@@ -398,8 +398,8 @@ export function RegisterPage() {
 
           <div className="space-y-2 rounded-2xl border border-white/10 bg-black/15 p-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">Tipo de cuenta</p>
-              <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-[#E7E2DD]">
+              <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Tipo de cuenta</p>
+              <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs text-[#E7E2DD]">
                 {accountTypeOptions.find((item) => item.key === accountType)?.title}
               </span>
             </div>
@@ -425,7 +425,7 @@ export function RegisterPage() {
                     loading="lazy"
                   />
                   <p className="mt-1.5 text-xs font-medium text-white">{item.title}</p>
-                  <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-[#D1C7BD]">
+                  <p className="mt-1 line-clamp-2 text-xs leading-tight text-[#D1C7BD]">
                     {item.text}
                   </p>
                 </button>
@@ -435,22 +435,22 @@ export function RegisterPage() {
 
           <div className="space-y-2 rounded-2xl border border-white/10 bg-black/15 p-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</p>
-              <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-[#E7E2DD]">
+              <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]">Plan</p>
+              <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs text-[#E7E2DD]">
                 {betaMode ? "Gold Beta" : "Gold"}
               </span>
             </div>
             {betaMode ? (
               <div className="rounded-2xl border border-gold-500/30 bg-gold-500/8 p-3">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-gold-300">
+                  <span className="rounded-full border border-gold-400/40 bg-gold-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-[0.12em] text-gold-300">
                     Gold · 30 días gratis
                   </span>
                 </div>
-                <p className="mt-2 text-[11px] leading-relaxed text-[#D1C7BD]">
+                <p className="mt-2 text-xs leading-relaxed text-[#D1C7BD]">
                   Como usuario beta obtenés acceso Gold sin costo por 30 días desde la creación de tu cuenta. A cambio, nos comprometemos a escuchar tu feedback.
                 </p>
-                <p className="mt-1.5 text-[11px] text-[#9f988d]">
+                <p className="mt-1.5 text-xs text-[#9f988d]">
                   Sin tarjeta requerida. El acceso vence automáticamente al mes 30.
                 </p>
               </div>
@@ -458,7 +458,7 @@ export function RegisterPage() {
             {accountType === "viewer" ? (
               <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/8 p-3">
                 <div className="text-xs font-semibold text-white">Plan Free incluido</div>
-                <p className="mt-1 text-[11px] leading-tight text-[#D1C7BD]">
+                <p className="mt-1 text-xs leading-tight text-[#D1C7BD]">
                   Como buscador accedes al plan Free sin costo: explorar, guardar y recibir alertas.
                 </p>
               </div>
@@ -487,11 +487,11 @@ export function RegisterPage() {
             {betaMode && (
               <div className="rounded-2xl border border-gold-500/40 bg-gold-500/8 p-4">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-gold-400/50 bg-gold-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">
+                  <span className="rounded-full border border-gold-400/50 bg-gold-500/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-gold-300">
                     ✦ Invitación Beta · Acceso Gold 30 días
                   </span>
                   {betaInviteLabel && (
-                    <span className="text-[11px] text-[#9f988d]">{betaInviteLabel}</span>
+                    <span className="text-xs text-[#9f988d]">{betaInviteLabel}</span>
                   )}
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-[#D1C7BD]">
@@ -525,7 +525,7 @@ export function RegisterPage() {
                     }
                   >
                     <h4 className="text-sm text-white">{item.title}</h4>
-                    <p className="mt-1 text-[11px] text-[#D1C7BD]">{item.text}</p>
+                    <p className="mt-1 text-xs text-[#D1C7BD]">{item.text}</p>
                   </button>
                 ))}
               </div>
@@ -544,7 +544,7 @@ export function RegisterPage() {
                     placeholder="tuemail@ejemplo.com"
                     autoComplete="email"
                   />
-                  <span className={emailInvalid ? "text-[11px] text-[#AF8C5C]" : "text-[11px] text-[#D1C7BD]"}>
+                  <span className={emailInvalid ? "text-xs text-[#AF8C5C]" : "text-xs text-[#D1C7BD]"}>
                     {emailInvalid ? "Email invalido." : "Formato válido de email."}
                   </span>
                 </label>
@@ -564,8 +564,8 @@ export function RegisterPage() {
                   <span
                     className={
                       contrasena.length > 0 && contrasenaRemaining > 0
-                        ? "text-[11px] text-[#AF8C5C]"
-                        : "text-[11px] text-[#D1C7BD]"
+                        ? "text-xs text-[#AF8C5C]"
+                        : "text-xs text-[#D1C7BD]"
                     }
                   >
                     {contrasena.length === 0
@@ -657,7 +657,7 @@ export function RegisterPage() {
               {accountType === "viewer" ? (
                 <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/8 p-3">
                   <div className="text-sm font-semibold text-white">Plan Free incluido</div>
-                  <p className="mt-1 text-[11px] text-[#D1C7BD]">
+                  <p className="mt-1 text-xs text-[#D1C7BD]">
                     Como buscador accedes sin costo para explorar, guardar y recibir alertas.
                   </p>
                 </div>
@@ -693,7 +693,7 @@ export function RegisterPage() {
                 </span>
               </label>
               {fieldErrors.termsAccepted && (
-                <p className="text-[11px] text-[#AF8C5C]">
+                <p className="text-xs text-[#AF8C5C]">
                   Debes aceptar términos y privacidad para continuar.
                 </p>
               )}
@@ -701,7 +701,7 @@ export function RegisterPage() {
               {betaMode && (
                 <>
                   <div className="border-t border-white/10 pt-3">
-                    <div className="mb-2 rounded-xl border border-gold-500/20 bg-gold-500/6 p-3 text-[11px] leading-relaxed text-[#D1C7BD]">
+                    <div className="mb-2 rounded-xl border border-gold-500/20 bg-gold-500/6 p-3 text-xs leading-relaxed text-[#D1C7BD]">
                       <strong className="text-gold-300">Compromiso del usuario beta:</strong> como parte de este programa, me comprometo a utilizar la plataforma y compartir mis observaciones, sugerencias y experiencia de uso desde la sección "Observaciones Beta" del panel. A cambio, DomusBrag me otorga 30 días de acceso Gold sin costo.
                     </div>
                     <label className="flex items-start gap-3 text-xs text-[#D1C7BD]">
@@ -720,7 +720,7 @@ export function RegisterPage() {
                     </label>
                   </div>
                   {fieldErrors.betaAccepted && (
-                    <p className="text-[11px] text-[#AF8C5C]">
+                    <p className="text-xs text-[#AF8C5C]">
                       Debes aceptar el compromiso beta para continuar.
                     </p>
                   )}
