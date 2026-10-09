@@ -11,6 +11,8 @@ export type MapPoint = {
   imageUrl?: string;
   badge?: string;
   color?: string;
+  /** Precio corto ("US$ 85k"). Si está, el pin se dibuja como etiqueta de precio. */
+  priceLabel?: string;
   count?: number;
   clusterItems?: Array<{
     id: string;
@@ -54,6 +56,21 @@ const TILE_LAYERS = {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
 } as const;
+
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch);
+
+const createPriceMarkerIcon = (color: string, isSelected: boolean, label: string) =>
+  L.divIcon({
+    className: "domusbrag-marker",
+    html: `<div style="display:flex;flex-direction:column;align-items:center;width:100%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))">
+      <div style="background:${isSelected ? "#ffffff" : color};color:${isSelected ? "#0b0b0f" : "#0b0b0f"};border:2px solid ${isSelected ? color : "rgba(255,255,255,.85)"};border-radius:999px;padding:3px 9px;font:700 12px/1.2 Manrope,Arial,sans-serif;white-space:nowrap;${isSelected ? "transform:scale(1.12);" : ""}">${escapeHtml(label)}</div>
+      <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid ${isSelected ? color : "rgba(255,255,255,.85)"};margin-top:-1px"></div>
+    </div>`,
+    iconSize: [96, 32],
+    iconAnchor: [48, 32],
+    popupAnchor: [0, -30],
+  });
 
 const createMarkerIcon = (color: string, isSelected: boolean, count?: number) =>
   L.divIcon({
@@ -127,7 +144,7 @@ function MapAutoFit({
     }
 
     const bounds = L.latLngBounds(points.map((point) => [point.lat, point.lng]));
-    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
   }, [freezeAutoFit, map, points, selectedId]);
 
   return null;
@@ -384,7 +401,11 @@ export function MapView({ points, selectedId, onSelect, onOpen, center, fullHeig
             <Marker
               key={point.id}
               position={[point.lat, point.lng]}
-              icon={createMarkerIcon(point.color ?? "#AF8C5C", point.id === selectedId, point.count)}
+              icon={
+                point.priceLabel && !(typeof point.count === "number" && point.count > 1)
+                  ? createPriceMarkerIcon(point.color ?? "#AF8C5C", point.id === selectedId, point.priceLabel)
+                  : createMarkerIcon(point.color ?? "#AF8C5C", point.id === selectedId, point.count)
+              }
               eventHandlers={{
                 click: () => {
                   if (point.id.startsWith("cluster:")) return;

@@ -755,7 +755,7 @@ export function AgencyProfilePage() {
                   setPage(1);
                 }}
               >
-                Cuadricula
+                Cuadrícula
               </button>
             </div>
           </div>

@@ -64,7 +64,7 @@ export function OwnerProfileForm({
         <div>
           <h3 className="text-lg text-white">Perfil de dueño</h3>
           <p className="text-xs text-[#D1C7BD]">
-            Actualiza tus datos personales y de contacto.
+            Actualizá tus datos personales y de contacto.
           </p>
         </div>
         <button

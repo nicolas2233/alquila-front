@@ -52,13 +52,13 @@ describe("buildAutoDescription", () => {
         areaM2: 120,
       })
     ).toBe(
-      "Casa en venta en Bragado. 3 ambientes, 2 baños, 120 m². Consultá por WhatsApp para coordinar una visita."
+      "Casa en venta en Bragado. 3 ambientes, 2 baños, 120 m². Escribinos para coordinar una visita."
     );
   });
 
   it("omite los detalles que faltan sin dejar comas sueltas", () => {
     expect(buildAutoDescription({ propertyType: "LAND", operationType: "SALE", locality: "Bragado" })).toBe(
-      "Terreno en venta en Bragado. Consultá por WhatsApp para coordinar una visita."
+      "Terreno en venta en Bragado. Escribinos para coordinar una visita."
     );
   });
 

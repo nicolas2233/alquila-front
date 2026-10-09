@@ -438,7 +438,7 @@ export function HomePage() {
               ¿Listo para empezar?
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm text-[#D1C7BD]">
-              Creá tu cuenta en menos de 2 minutos. Sin tarjeta, sin compromiso. Tu primer publicación es gratis.
+              Creá tu cuenta en menos de 2 minutos. Sin tarjeta, sin compromiso. Tu primera publicación es gratis.
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link to="/registro" className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-8 py-3 text-sm font-bold text-night-900 shadow-[0_8px_24px_rgba(175,140,92,0.35)]">
