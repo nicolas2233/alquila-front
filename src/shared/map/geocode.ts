@@ -90,9 +90,21 @@ function normalizePhotonItem(item: PhotonItem, fallbackQuery: string): GeocodeRe
   };
 }
 
-async function fetchNominatim(query: string, limit: number): Promise<GeocodeResult[]> {
+// Zona de Bragado (ciudad y alrededores). Se usa para que el buscador del mapa sugiera
+// primero calles y barrios locales en vez de lugares homónimos de otras provincias.
+export const BRAGADO_CENTER = { lat: -35.1192, lng: -60.4899 };
+const BRAGADO_VIEWBOX = "-60.62,-35.04,-60.36,-35.20"; // lon1,lat1,lon2,lat2
+
+type GeocodeOptions = { localArea?: boolean };
+
+async function fetchNominatim(
+  query: string,
+  limit: number,
+  options: GeocodeOptions = {}
+): Promise<GeocodeResult[]> {
   const encoded = encodeURIComponent(query);
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&countrycodes=ar&q=${encoded}`;
+  const areaParams = options.localArea ? `&viewbox=${BRAGADO_VIEWBOX}&bounded=1` : "";
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&countrycodes=ar${areaParams}&q=${encoded}`;
   const response = await fetch(url, { headers: { "Accept-Language": "es" } });
   if (!response.ok) return [];
   const data = (await response.json()) as NominatimItem[];
@@ -113,9 +125,14 @@ async function fetchMapsCo(query: string, limit: number): Promise<GeocodeResult[
     .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
 }
 
-async function fetchPhoton(query: string, limit: number): Promise<GeocodeResult[]> {
+async function fetchPhoton(
+  query: string,
+  limit: number,
+  options: GeocodeOptions = {}
+): Promise<GeocodeResult[]> {
   const encoded = encodeURIComponent(query);
-  const url = `https://photon.komoot.io/api/?q=${encoded}&limit=${limit}&lang=es`;
+  const bias = options.localArea ? `&lat=${BRAGADO_CENTER.lat}&lon=${BRAGADO_CENTER.lng}` : "";
+  const url = `https://photon.komoot.io/api/?q=${encoded}&limit=${limit}&lang=es${bias}`;
   const response = await fetch(url, { headers: { "Accept-Language": "es" } });
   if (!response.ok) return [];
   const data = (await response.json()) as { features?: PhotonItem[] };
@@ -150,12 +167,15 @@ async function fetchMapsCoReverse(lat: number, lng: number): Promise<GeocodeResu
   return normalized;
 }
 
-export async function geocodeSuggestions(query: string, limit = 5) {
+export async function geocodeSuggestions(query: string, limit = 5, options: GeocodeOptions = {}) {
   const safeLimit = Math.min(Math.max(limit, 1), 8);
-  const attempts = [fetchNominatim, fetchMapsCo, fetchPhoton];
+  const attempts: Array<(q: string, l: number, o: GeocodeOptions) => Promise<GeocodeResult[]>> =
+    options.localArea
+      ? [fetchNominatim, fetchPhoton, (q, l) => fetchNominatim(q, l)]
+      : [fetchNominatim, fetchMapsCo, fetchPhoton];
   for (const attempt of attempts) {
     try {
-      const results = await attempt(query, safeLimit);
+      const results = await attempt(query, safeLimit, options);
       if (results.length > 0) {
         return results;
       }

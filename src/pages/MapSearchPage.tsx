@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MapView, type MapPoint } from "../shared/map/MapView";
 import { geocodeSuggestions, reverseGeocode } from "../shared/map/geocode";
+import { compactPrice, currencySymbol } from "../shared/utils/compactPrice";
 import { requestGeolocationOnce, forceRequestGeolocation } from "../shared/utils/geolocation";
 import { env } from "../shared/config/env";
 
@@ -208,7 +209,7 @@ export function MapSearchPage() {
     if (!locationSearch.trim() || locationSearch.length < 3) { setLocationSuggestions([]); return; }
     searchDebounce.current = setTimeout(async () => {
       try {
-        const results = await geocodeSuggestions(locationSearch);
+        const results = await geocodeSuggestions(locationSearch, 5, { localArea: true });
         setLocationSuggestions(results.slice(0, 5).map((r) => ({ lat: r.lat, lng: r.lng, displayName: r.displayName })));
         setShowSuggestions(true);
       } catch { /* ignore */ }
@@ -249,7 +250,7 @@ export function MapSearchPage() {
       if (group.length > 1) {
         points.push({ id: `building:${key}`, title: `${group.length} unidades`, address: first.address, subtitle: `${group.length} unidades disponibles`, color: "#7f8cff", lat: first.lat, lng: first.lng, count: group.length });
       } else {
-        points.push({ id: first.id, title: first.title, subtitle: `${operationLabels[first.operationType]} · ${typeLabels[first.propertyType]}`, address: first.address, imageUrl: first.imageUrl, badge: first.badge, color: getMarkerColor(first.propertyType, first.operationType), lat: first.lat, lng: first.lng });
+        points.push({ id: first.id, title: first.title, subtitle: `${operationLabels[first.operationType]} · ${typeLabels[first.propertyType]}`, address: first.address, imageUrl: first.imageUrl, badge: first.badge, color: operationColors[first.operationType] ?? getMarkerColor(first.propertyType, first.operationType), priceLabel: compactPrice(first.priceAmount, first.priceCurrency), lat: first.lat, lng: first.lng });
       }
     });
     return points;
@@ -359,18 +360,18 @@ export function MapSearchPage() {
       {/* ── List panel overlay ─────────────────── */}
       {listPanelOpen && (
         <div
-          className="absolute inset-0 z-20 bg-black/40 md:hidden"
+          className="absolute inset-0 z-[590] bg-black/40 md:hidden"
           onClick={() => setListPanelOpen(false)}
         />
       )}
       <aside
-        className={`absolute inset-y-0 left-0 z-30 flex flex-col w-[300px] bg-night-950/97 backdrop-blur-md border-r border-white/10 shadow-2xl transform transition-transform duration-300 ease-in-out ${listPanelOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`absolute inset-y-0 left-0 z-[600] flex flex-col w-[min(300px,85vw)] bg-night-950/97 backdrop-blur-md border-r border-white/10 shadow-2xl transform transition-transform duration-300 ease-in-out ${listPanelOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Panel header */}
         <div className="flex items-center justify-between border-b border-white/10 px-3 py-3">
           <div>
             <div className="text-sm font-semibold text-white">Inmuebles</div>
-            <div className="text-[11px] text-[#D1C7BD]">{listStatus === "loading" ? "Cargando…" : `${filtered.length} resultados`}</div>
+            <div className="text-[11px] text-[#D1C7BD]">{listStatus === "loading" ? "Cargando…" : `${filtered.length} ${filtered.length === 1 ? "resultado" : "resultados"}`}</div>
           </div>
           <button type="button" onClick={() => setListPanelOpen(false)} className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/50 hover:text-white transition">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
@@ -417,7 +418,7 @@ export function MapSearchPage() {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-medium text-white">{item.title}</div>
                 <div className="mt-0.5 text-[11px] font-semibold" style={{ color: operationColors[item.operationType] }}>
-                  {item.priceCurrency} {item.priceAmount.toLocaleString("es-AR")}
+                  {currencySymbol(item.priceCurrency)} {item.priceAmount.toLocaleString("es-AR")}
                 </div>
                 <div className="mt-0.5 text-[11px] text-[#D1C7BD]">
                   {operationLabels[item.operationType]} · {typeLabels[item.propertyType]}{item.rooms ? ` · ${item.rooms} amb` : ""}
@@ -491,7 +492,7 @@ export function MapSearchPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Buscar zona…"
+                  placeholder="Buscá calle o barrio en Bragado…"
                   value={locationSearch}
                   onChange={(e) => { setLocationSearch(e.target.value); setActiveDropdown(null); }}
                   onFocus={() => { if (locationSuggestions.length > 0) setShowSuggestions(true); setActiveDropdown(null); }}
@@ -552,7 +553,7 @@ export function MapSearchPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Buscar zona…"
+                  placeholder="Buscá calle o barrio en Bragado…"
                   value={locationSearch}
                   onChange={(e) => { setLocationSearch(e.target.value); setActiveDropdown(null); }}
                   onFocus={() => { if (locationSuggestions.length > 0) setShowSuggestions(true); setActiveDropdown(null); }}
@@ -727,7 +728,7 @@ export function MapSearchPage() {
                 )}
                 <div className="truncate text-sm font-semibold text-white leading-snug">{selected.title}</div>
                 <div className="mt-1 text-lg font-bold" style={{ color: operationColors[selected.operationType] }}>
-                  {selected.priceCurrency} {selected.priceAmount.toLocaleString("es-AR")}
+                  {currencySymbol(selected.priceCurrency)} {selected.priceAmount.toLocaleString("es-AR")}
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-white/70">
                   <span>{typeLabels[selected.propertyType]}</span>
