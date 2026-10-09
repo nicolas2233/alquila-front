@@ -47,7 +47,7 @@ const steps: OnboardingStep[] = [
       </svg>
     ),
     title: "Publicá tu primer inmueble",
-    description: "El proceso toma 5 minutos. Completá la información básica, ubicación, características y fotos. ¡Tu primer publicación es gratis!",
+    description: "El proceso toma 5 minutos. Completá la información básica, ubicación, características y fotos. ¡Tu primera publicación es gratis!",
     cta: { label: "Crear publicación", to: "/publicar" },
   },
   {
@@ -108,7 +108,9 @@ export function OnboardingModal({ onClose }: Props) {
           </div>
 
           <div className="flex w-full flex-col gap-2 pt-2">
-            {step.cta ? (
+            {/* Solo el último paso navega: si los pasos intermedios cambian de página,
+                el tour sigue abierto encima de otra pantalla y confunde. */}
+            {step.cta && isLast ? (
               <Link
                 to={step.cta.to}
                 onClick={handleNext}

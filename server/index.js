@@ -159,8 +159,25 @@ app.use(express.static(distDir, { index: false, maxAge: "1h" }));
 
 // --- Fallback del SPA --------------------------------------------------------
 // index.html nunca se cachea: es lo que apunta a los assets con hash nuevo.
-app.get(/.*/, (_req, res) => {
-  res.set("Cache-Control", "no-cache").sendFile(path.join(distDir, "index.html"));
+// Rutas que existen en el router del SPA (src/app/router.tsx). Cualquier otra recibe
+// el mismo index.html (React muestra la pantalla 404) pero con status HTTP 404, para que
+// los buscadores no indexen URLs inexistentes como páginas válidas.
+const KNOWN_ROUTES = [
+  /^\/$/,
+  /^\/(buscar|mapa|publicar|busquedas|notificaciones|mis-solicitudes|perfil|registro|login|recuperar|reset-password|verificar-email|change-password)\/?$/,
+  /^\/publicar\/[^/]+\/editar\/?$/,
+  /^\/agencia\/[^/]+\/?$/,
+  /^\/publicaci(o|ó|%C3%B3)n\/[^/]+\/?$/i,
+  /^\/legal\/[^/]+\/?$/,
+  /^\/(admin|panel)(\/.*)?$/,
+];
+
+app.get(/.*/, (req, res) => {
+  const known = KNOWN_ROUTES.some((pattern) => pattern.test(req.path));
+  res
+    .status(known ? 200 : 404)
+    .set("Cache-Control", "no-cache")
+    .sendFile(path.join(distDir, "index.html"));
 });
 
 app.listen(port, () => {

@@ -1198,7 +1198,7 @@ export function SearchPage() {
                 type="button"
                 onClick={() => setViewMode("grid")}
               >
-                Cuadricula
+                Cuadrícula
               </button>
             </div>
           </div>

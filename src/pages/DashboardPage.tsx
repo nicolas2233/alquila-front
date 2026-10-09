@@ -1021,7 +1021,7 @@ export function DashboardPage() {
     ? "Mes gratis activo"
     : isCurrentSubscriptionPaid
     ? "Cobro recurrente activo"
-    : "Plan gratuito activo";
+    : "Plan gratis activo · sin cobro";
   const subscriptionRevenueDescription = !subscriptionInfo
     ? "No encontramos un plan vinculado a esta cuenta."
     : currentSubscriptionNeedsPaymentMethod
@@ -3281,7 +3281,7 @@ export function DashboardPage() {
             <div>
               <h3 className="text-lg text-white">Perfil de dueño</h3>
               <p className="text-xs text-[#D1C7BD]">
-                Actualiza tus datos personales y de contacto.
+                Actualizá tus datos personales y de contacto.
               </p>
             </div>
             <button
@@ -3497,7 +3497,7 @@ export function DashboardPage() {
             <div>
               <h3 className="text-lg text-white">Mi suscripción</h3>
               <p className="text-xs text-[#D1C7BD]">
-                Estado del plan, cobro recurrente y capacidad disponible.
+                Tu plan, cuántos inmuebles podés publicar y cobros (si los hay).
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -3508,13 +3508,15 @@ export function DashboardPage() {
               >
                 Cambiar plan
               </button>
-              <button
-                type="button"
-                className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
-                onClick={() => void openPlanModal("downgrade")}
-              >
-                Bajar de plan
-              </button>
+              {subscriptionInfo && Number(subscriptionInfo.priceAmount ?? 0) > 0 && (
+                <button
+                  type="button"
+                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
+                  onClick={() => void openPlanModal("downgrade")}
+                >
+                  Bajar de plan
+                </button>
+              )}
               {subscriptionInfo &&
                 Number(subscriptionInfo.priceAmount ?? 0) > 0 &&
                 isPaymentMethodReadyForPaidPlan && (
@@ -3771,6 +3773,7 @@ export function DashboardPage() {
                         <span className="text-white">{subscriptionInfo.paymentProviderStatus}</span>
                       </p>
                     )}
+                  {(Number(subscriptionInfo.priceAmount ?? 0) > 0 || subscriptionInfo.cancelAtPeriodEnd) && (
                   <p>
                     {subscriptionInfo.cancelAtPeriodEnd ? "Fecha de baja: " : "Referencia de cobro: "}
                     <span className="text-white">
@@ -3783,6 +3786,7 @@ export function DashboardPage() {
                         : "A definir al configurar cobro recurrente"}
                     </span>
                   </p>
+                  )}
                   {subscriptionInfo.isTrialActive && subscriptionInfo.nextBillingAt && (
                     <p className="text-xs text-[#D1C7BD]">
                       El primer cobro se realizará al finalizar el mes gratis (si mantienes la renovación activa).
@@ -3936,7 +3940,7 @@ export function DashboardPage() {
               </select>
             </label>
             <label className="space-y-2 text-xs text-[#D1C7BD]">
-              Operacion
+              Operación
               <select
                 className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                 value={propertyFilterOperation}
@@ -3968,7 +3972,17 @@ export function DashboardPage() {
             <p className="text-xs text-[#D1C7BD]">Cargando publicaciones...</p>
           )}
           {propertyStatus === "idle" && items.length === 0 && (
-            <p className="text-xs text-[#D1C7BD]">No hay publicaciones cargadas.</p>
+            <div className="space-y-3 rounded-2xl border border-dashed border-white/15 bg-night-900/30 p-5 text-center">
+              <p className="text-sm text-white">Todavía no publicaste ningún inmueble.</p>
+              <p className="text-xs text-[#D1C7BD]">Publicar es gratis y te lleva unos minutos.</p>
+              <button
+                type="button"
+                className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-xs font-semibold text-night-900"
+                onClick={() => navigate("/publicar")}
+              >
+                Publicar mi primer inmueble
+              </button>
+            </div>
           )}
           {items.length > 0 && Object.keys(propertyStats).length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-2xl border border-white/10 bg-night-900/35 p-4">
@@ -4165,7 +4179,7 @@ export function DashboardPage() {
             <div>
               <h3 className="text-lg text-white">Solicitudes de contacto</h3>
               <p className="text-xs text-[#D1C7BD]">
-                Gestiona interesados y reservas de visita.
+                Gestioná interesados y reservas de visita.
               </p>
             </div>
             <button
@@ -4185,7 +4199,7 @@ export function DashboardPage() {
             <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
           )}
           {requestStatus === "idle" && contactRequests.length === 0 && (
-            <p className="text-xs text-[#D1C7BD]">Todavia no recibiste solicitudes.</p>
+            <p className="text-xs text-[#D1C7BD]">Todavía no recibiste solicitudes.</p>
           )}
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -4208,7 +4222,7 @@ export function DashboardPage() {
               </select>
             </label>
             <label className="space-y-2 text-xs text-[#D1C7BD]">
-              Operacion
+              Operación
               <select
                 className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
                 value={requestFilterOperation}
@@ -4371,7 +4385,7 @@ export function DashboardPage() {
             <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
           )}
           {requestStatus === "idle" && myRequests.length === 0 && (
-            <p className="text-xs text-[#D1C7BD]">Todavia no enviaste solicitudes.</p>
+            <p className="text-xs text-[#D1C7BD]">Todavía no enviaste solicitudes.</p>
           )}
 
           {myRequests.length > 0 && (
