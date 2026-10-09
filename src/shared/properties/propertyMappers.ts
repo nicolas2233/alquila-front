@@ -163,10 +163,18 @@ export const formatPrice = (amount: string | number, currency: string) => {
   }
 };
 
+// Si la dirección se cargó toda en minúsculas ("pellegrini 1200"), la mostramos con mayúscula
+// inicial en cada palabra. Si el usuario ya usó mayúsculas, se respeta tal cual.
+export const formatAddressLine = (value: string | null | undefined): string => {
+  const text = (value ?? "").trim();
+  if (!text || text !== text.toLowerCase()) return text;
+  return text.replace(/(^|[\s/-])(\p{L})/gu, (_match, sep: string, letter: string) => sep + letter.toUpperCase());
+};
+
 export const mapPropertyToSearchListing = (item: PropertyApiListItem): SearchListing => {
   const localityName = item.location.locality?.name ?? item.location.localityId;
   const unitSuffix = item.unitLabel ? ` (${item.unitLabel})` : "";
-  const address = `${item.location.addressLine}${unitSuffix}${
+  const address = `${formatAddressLine(item.location.addressLine)}${unitSuffix}${
     localityName ? ` - ${localityName}` : ""
   }`;
   const rawImages = item.photos?.map((photo) => photo.url) ?? [];
@@ -232,7 +240,7 @@ export const mapPropertyToDetailListing = (
 ): PropertyDetailListing => {
   const localityName = item.location.locality?.name ?? item.location.localityId;
   const unitSuffix = item.unitLabel ? ` (${item.unitLabel})` : "";
-  const address = `${item.location.addressLine}${unitSuffix}${
+  const address = `${formatAddressLine(item.location.addressLine)}${unitSuffix}${
     localityName ? ` - ${localityName}` : ""
   }`;
   // Optimize for detail view: full-resolution for lightbox, thumbnails for strips

@@ -395,6 +395,35 @@ export function ListingPage() {
     }
   };
 
+  const stickyContact = (() => {
+    if (isOwnListing) return null;
+    const whatsapp = contactMethods?.find((item) => item.type === "WHATSAPP" && item.value);
+    if (whatsapp) {
+      const message = `Hola, me interesa "${listing.title}". Link: ${window.location.origin}${canonicalPath}`;
+      const link = buildWhatsappLink(whatsapp.value, message);
+      if (link) {
+        return {
+          kind: "WHATSAPP" as const,
+          label: "WhatsApp",
+          href: sessionUser ? link : null,
+          className:
+            "shrink-0 rounded-full bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white",
+        };
+      }
+    }
+    const phone = contactMethods?.find((item) => item.type === "PHONE" && item.value);
+    if (phone) {
+      return {
+        kind: "PHONE" as const,
+        label: "Llamar",
+        href: sessionUser ? `tel:${phone.value}` : null,
+        className:
+          "shrink-0 rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900",
+      };
+    }
+    return null;
+  })();
+
   return (
     <LazySection fallback={<div className="h-12" />}>
       <PropertyDetailModal
@@ -637,8 +666,42 @@ export function ListingPage() {
           </div>
         </section>
       ) : null}
+      {stickyContact ? <div className="h-16 md:hidden" aria-hidden="true" /> : null}
+      {stickyContact ? (
+        // Barra de contacto fija en celular: el botón de contacto sigue a mano al scrollear.
+        <div className="fixed inset-x-3 bottom-[calc(5.6rem+env(safe-area-inset-bottom))] z-[900] flex items-center gap-3 rounded-2xl border border-white/10 bg-night-900/95 px-3 py-2 shadow-card backdrop-blur md:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{listing.price}</p>
+            <p className="truncate text-[11px] text-[#D1C7BD]">{listing.title}</p>
+          </div>
+          {stickyContact.href ? (
+            <a
+              href={stickyContact.href}
+              target={stickyContact.kind === "WHATSAPP" ? "_blank" : undefined}
+              rel={stickyContact.kind === "WHATSAPP" ? "noreferrer" : undefined}
+              className={stickyContact.className}
+            >
+              {stickyContact.label}
+            </a>
+          ) : (
+            <button
+              type="button"
+              className={stickyContact.className}
+              onClick={() => {
+                addToast(
+                  stickyContact.kind === "WHATSAPP"
+                    ? "Inicia sesión para contactar por WhatsApp."
+                    : "Inicia sesión para ver el teléfono.",
+                  "warning"
+                );
+                navigate("/login");
+              }}
+            >
+              {stickyContact.label}
+            </button>
+          )}
+        </div>
+      ) : null}
     </LazySection>
   );
 }
-
-

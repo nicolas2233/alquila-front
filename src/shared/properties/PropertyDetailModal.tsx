@@ -209,7 +209,7 @@ export function PropertyDetailModal({
       label: "Sup. cubierta",
       value:
         listing.coveredAreaM2 !== undefined && listing.coveredAreaM2 > 0
-          ? `${listing.coveredAreaM2} m2`
+          ? `${listing.coveredAreaM2} m²`
           : "S/D",
       icon: (
         <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -220,7 +220,7 @@ export function PropertyDetailModal({
     },
     {
       label: "Sup. total",
-      value: listing.areaM2 > 0 ? `${listing.areaM2} m2` : "S/D",
+      value: listing.areaM2 > 0 ? `${listing.areaM2} m²` : "S/D",
       icon: (
         <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
           <rect x="4" y="4" width="16" height="16" rx="1.6" />
@@ -281,6 +281,11 @@ export function PropertyDetailModal({
       ),
     },
   ];
+  // Solo mostramos datos que el publicador cargó: "S/D", "-" y los "No" por defecto
+  // no aportan y confunden (ej. "Niños: No" en una venta parece una restricción).
+  const hasKnownValue = (value: string | undefined | null) =>
+    Boolean(value) && value !== "S/D" && value !== "-" && value !== "No";
+  const isSaleListing = listing.operation === "Venta";
   const defaultSummaryMetricKeys = [
     "detail:rooms",
     "detail:coveredAreaM2",
@@ -378,10 +383,15 @@ export function PropertyDetailModal({
       ),
     },
   ];
+  const visibleDetailItems = detailItems.filter((item) => {
+    if (isSaleListing && (item.label === "Mascotas" || item.label === "Niños")) return false;
+    if (item.label === "Mascotas" || item.label === "Niños") return true;
+    return hasKnownValue(item.value);
+  });
   const enabledServices = serviceLabels.filter((service) => services[service.key]);
   const collapsedCount = isMobileViewport ? 3 : 4;
   const detailRows = [
-    ...detailItems.map((item) => ({
+    ...visibleDetailItems.map((item) => ({
       key: item.label,
       label: item.label,
       value: item.value,
@@ -404,7 +414,7 @@ export function PropertyDetailModal({
           {
             key: "Financia",
             label: "Financia",
-            value: listing.financing.amount ? listing.financing.amount : "Si",
+            value: listing.financing.amount ? listing.financing.amount : "Sí",
             icon: null as React.ReactNode,
             full: true,
           },
@@ -597,13 +607,14 @@ export function PropertyDetailModal({
       }
     }
 
+    const knownDefaultMetrics = defaultSummaryMetrics.filter((metric) => hasKnownValue(metric.value));
     if (customMetrics.length === 0) {
-      return defaultSummaryMetrics;
+      return knownDefaultMetrics;
     }
 
     // Mantiene una base visual mínima de 2x2 si el usuario eligió pocos items.
     if (customMetrics.length < 4) {
-      for (const metric of defaultSummaryMetrics) {
+      for (const metric of knownDefaultMetrics) {
         if (customMetrics.some((item) => item.label === metric.label)) continue;
         customMetrics.push(metric);
         if (customMetrics.length >= 4) break;
@@ -786,7 +797,7 @@ export function PropertyDetailModal({
               {activeImageUrl ? (
                 <img
                   key={activeImageUrl}
-                  className="h-56 w-full animate-fadeUp cursor-zoom-in object-cover sm:h-64 md:h-72"
+                  className="aspect-[4/3] w-full animate-fadeUp cursor-zoom-in bg-night-800 object-cover sm:aspect-auto sm:h-64 md:h-72"
                   src={cloudinaryCard(activeImageUrl)}
                   alt={listing.title}
                   loading="eager"
@@ -865,7 +876,7 @@ export function PropertyDetailModal({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-                    Precio destacado
+                    Precio
                   </div>
                   <div className="mt-1 text-xl font-semibold text-white sm:text-2xl">{listing.price}</div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -887,11 +898,10 @@ export function PropertyDetailModal({
                       {publisherRole}
                     </span>
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-white">{publisherName}</div>
+                  {publisherName !== publisherRole && (
+                    <div className="mt-2 text-sm font-semibold text-white">{publisherName}</div>
+                  )}
                 </div>
-                <span className="rounded-full border border-white/10 bg-night-900/65 px-3 py-1 text-xs text-[#D1C7BD]">
-                  {listing.areaM2} m2
-                </span>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4">
                 {summaryMetrics.map((item) => (

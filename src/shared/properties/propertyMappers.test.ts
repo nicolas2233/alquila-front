@@ -3,6 +3,7 @@ import {
   operationLabel,
   propertyTypeLabel,
   formatPrice,
+  formatAddressLine,
   mapPropertyToSearchListing,
   type PropertyApiListItem,
 } from "./propertyMappers";
@@ -84,5 +85,15 @@ describe("mapPropertyToSearchListing", () => {
   it("usa imagen de fallback cuando no hay fotos", () => {
     const listing = mapPropertyToSearchListing({ ...apiItem, photos: [] });
     expect(listing.image).toBeTruthy();
+  });
+});
+
+describe("formatAddressLine", () => {
+  it("capitaliza direcciones cargadas en minúsculas", () => {
+    expect(formatAddressLine("pellegrini 1200")).toBe("Pellegrini 1200");
+    expect(formatAddressLine("av. san martín 45")).toBe("Av. San Martín 45");
+  });
+  it("respeta la dirección si ya tiene mayúsculas", () => {
+    expect(formatAddressLine("Calle 9 de Julio 300")).toBe("Calle 9 de Julio 300");
   });
 });

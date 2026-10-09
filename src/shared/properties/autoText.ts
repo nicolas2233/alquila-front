@@ -71,7 +71,7 @@ export function buildAutoDescription(datos: DatosAuto): string {
   if (superficie) detalles.push(`${superficie} m²`);
 
   const cuerpo = detalles.length ? ` ${detalles.join(", ")}.` : "";
-  return `${encabezado}${cuerpo} Consultá por WhatsApp para coordinar una visita.`;
+  return `${encabezado}${cuerpo} Escribinos para coordinar una visita.`;
 }
 
 /** Etiqueta preposicional suelta, para no repetir el mapa en otros archivos. */
