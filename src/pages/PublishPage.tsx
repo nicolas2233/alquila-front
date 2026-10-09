@@ -1,5 +1,6 @@
 ﻿
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildPropertyPath } from "../shared/properties/slug";
 import { MapContainer, TileLayer, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import { geocodeAddress, geocodeSuggestions, reverseGeocode } from "../shared/map/geocode";
 import type { GeocodeResult } from "../shared/map/geocode";
@@ -208,7 +209,7 @@ function LocationPicker({
 
   return (
     <div className="space-y-2">
-      <div className="text-xs text-[#D1C7BD]">Marca el punto exacto en el mapa.</div>
+      <div className="text-xs text-[#D1C7BD]">Tocá el mapa para marcar o corregir el punto exacto.</div>
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <MapContainer
           center={center as [number, number]}
@@ -260,6 +261,14 @@ export function PublishPage() {
   const [showNoSlotsModal, setShowNoSlotsModal] = useState(false);
   const planUsageInitialCheckRef = useRef(false);
   const [step, setStep] = useState<Step>(0);
+  // Paso más lejano al que llegó el usuario: un paso solo se marca como hecho si ya pasó por él.
+  const [maxStepReached, setMaxStepReached] = useState<number>(0);
+  const [publishedListing, setPublishedListing] = useState<{
+    path: string;
+    title: string;
+    price: string;
+    photoUrl: string | null;
+  } | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -948,6 +957,7 @@ export function PublishPage() {
         setExistingPhotos(data.photos ?? []);
         setPhotos([]);
         setStep(0);
+        setMaxStepReached(0);
         setLocationReviewConfirmed(false);
         setShowErrors(false);
         setShowPreview(false);
@@ -1547,6 +1557,7 @@ export function PublishPage() {
     roomsValid,
     bathroomsValid,
     bedroomsValid,
+    photosValid,
     contactRequired,
     whatsappValid,
     phoneValid,
@@ -1577,6 +1588,7 @@ export function PublishPage() {
     roomsValid,
     bathroomsValid,
     bedroomsValid,
+    photosValid,
   ]);
 
   const stepCompletion = useMemo(
@@ -1585,9 +1597,10 @@ export function PublishPage() {
       addressValid && localityValid,
       areaValid && roomsValid && bathroomsValid && bedroomsValid,
       true,
-      !contactRequired && whatsappValid && phoneValid,
+      photosValid && !contactRequired && whatsappValid && phoneValid,
     ],
     [
+      photosValid,
       titleValid,
       descriptionValid,
       priceValid,
@@ -1602,7 +1615,14 @@ export function PublishPage() {
       phoneValid,
     ]
   );
-  const completedCount = stepCompletion.filter(Boolean).length;
+  useEffect(() => {
+    setMaxStepReached((prev) => (step > prev ? step : prev));
+  }, [step]);
+  // En edición todos los pasos ya existen; al crear, solo cuentan los pasos ya recorridos.
+  const stepDone = stepCompletion.map((valid, index) =>
+    isEditMode ? valid : valid && index < Math.max(maxStepReached, step) && index !== step
+  );
+  const completedCount = stepDone.filter(Boolean).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
   const locationLockedInEdit = isEditMode;
 
@@ -2162,7 +2182,7 @@ export function PublishPage() {
               expensesAmount: "Expensas",
               expensesCurrency: "Moneda de expensas",
               rooms: "Ambientes",
-              bathrooms: "Banos",
+              bathrooms: "Baños",
               bedrooms: "Dormitorios",
               areaM2: "Superficie total",
               availabilityMode: "Disponibilidad",
@@ -2174,7 +2194,7 @@ export function PublishPage() {
               "location.lng": "Longitud",
               "features.financingAmount": "Monto financiable",
               "features.financingCurrency": "Moneda de financiación",
-              "features.ageYears": "Antiguedad",
+              "features.ageYears": "Antigüedad",
               "features.coveredAreaM2": "Superficie cubierta",
               "features.semiCoveredAreaM2": "Superficie semicubierta",
               "features.floorsCount": "Pisos",
@@ -2212,6 +2232,20 @@ export function PublishPage() {
 
       const result = (await response.json()) as { id: string };
       const targetPropertyId = isEditMode ? editPropertyId : result.id;
+      const publishedSnapshot =
+        !isEditMode && result.id
+          ? {
+              path: buildPropertyPath({
+                id: result.id,
+                operationType,
+                propertyType,
+                locality: localityId,
+              }),
+              title: title.trim() || "Tu publicación",
+              price: `${priceCurrency === "USD" ? "US$" : "$"} ${Number(priceAmount || 0).toLocaleString("es-AR")}`,
+              photoUrl: photos[0] ? URL.createObjectURL(photos[0]) : null,
+            }
+          : null;
 
       if (photos.length && targetPropertyId) {
         const formData = new FormData();
@@ -2231,16 +2265,20 @@ export function PublishPage() {
         if (!uploadResponse.ok) {
           throw new Error(
             isEditMode
-              ? "Los cambios se guardaron pero fallo la carga de fotos."
-              : "La publicación se creo pero fallo la carga de fotos."
+              ? "Los cambios se guardaron pero falló la carga de fotos."
+              : "La publicación se creó pero falló la carga de fotos."
           );
         }
         setPhotos([]);
       }
 
       setStatus("success");
+      if (publishedSnapshot) {
+        setPublishedListing(publishedSnapshot);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       addToast(
-        isEditMode ? "Cambios guardados con exito." : "Publicación creada con exito.",
+        isEditMode ? "Cambios guardados con éxito." : "Publicación creada con éxito.",
         "success"
       );
       if (!isEditMode) clearDraft();
@@ -2291,9 +2329,65 @@ export function PublishPage() {
     );
   }
 
+  if (!isEditMode && publishedListing) {
+    const absoluteUrl = `${window.location.origin}${publishedListing.path}`;
+    const shareText = `Mirá mi publicación en DomusBrag: ${publishedListing.title} · ${publishedListing.price} ${absoluteUrl}`;
+    return (
+      <div className="mx-auto max-w-xl space-y-5 pb-safe-tabs md:pb-0">
+        <div className="glass-card overflow-hidden p-0 text-center">
+          {publishedListing.photoUrl ? (
+            <img
+              src={publishedListing.photoUrl}
+              alt=""
+              className="aspect-[4/3] w-full object-cover"
+            />
+          ) : null}
+          <div className="space-y-3 p-6">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
+                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-semibold text-white">¡Tu inmueble ya está publicado!</h1>
+            <p className="text-sm text-[#D1C7BD]">
+              <span className="text-white">{publishedListing.title}</span> · {publishedListing.price}
+            </p>
+            <p className="text-xs text-[#D1C7BD]">
+              Ya aparece en la búsqueda y en el mapa. Te avisamos cuando alguien consulte.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3">
+          <button
+            type="button"
+            className="w-full rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-3 text-sm font-semibold text-night-950"
+            onClick={() => navigate(publishedListing.path)}
+          >
+            Ver mi publicación
+          </button>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full rounded-full border border-emerald-400/40 bg-emerald-500/10 px-5 py-3 text-center text-sm font-semibold text-emerald-200"
+          >
+            Compartir por WhatsApp
+          </a>
+          <button
+            type="button"
+            className="w-full rounded-full border border-white/20 px-5 py-3 text-sm text-[#E7E2DD]"
+            onClick={() => navigate("/panel?tab=listings")}
+          >
+            Ir a mis inmuebles
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-full min-w-0 overflow-hidden space-y-4 pb-safe-tabs md:space-y-8 md:pb-0">
-      {!isEditMode && hasDraftToRestore && (
+      {!isEditMode && hasDraftToRestore && !isDirty && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-500/40 bg-gold-500/10 px-4 py-3 text-sm">
           <div className="flex items-center gap-2 text-gold-300">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4 shrink-0"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
@@ -2331,7 +2425,7 @@ export function PublishPage() {
               {isEditMode ? "Editar inmueble" : "Publicar inmueble"}
             </span>
             <h2 className="text-xl leading-tight text-white sm:text-2xl md:text-3xl">
-              {isEditMode ? "Edita tu publicación" : "Crea tu publicación en 5 minutos"}
+              {isEditMode ? "Editá tu publicación" : "Creá tu publicación en 5 minutos"}
             </h2>
             <p className="max-w-2xl text-xs leading-relaxed text-[#D1C7BD] sm:text-sm">
               {isEditMode
@@ -2340,7 +2434,7 @@ export function PublishPage() {
             </p>
           </div>
           <div className="grid w-full min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-            <span className="gold-pill min-w-0 truncate">{isEditMode ? "Editas como" : "Publicas como"} {roleLabel}</span>
+            <span className="gold-pill min-w-0 truncate">{isEditMode ? "Editás como" : "Publicás como"} {roleLabel}</span>
             <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD]">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[#AF8C5C]">Paso actual</p>
               <p className="mt-1 text-sm text-white">
@@ -2399,8 +2493,8 @@ export function PublishPage() {
                 </h3>
                 <p className="text-xs leading-relaxed text-[#D1C7BD]">
                   {isEditMode
-                    ? "Entra al paso que necesites, modifica y guarda."
-                    : "Avanza por pasos cortos. Solo pedimos lo necesario para publicar rápido."}
+                    ? "Entrá al paso que necesites, modificá y guardá."
+                    : "Avanzá por pasos cortos. Solo pedimos lo necesario para publicar rápido."}
                 </p>
               </div>
               <div className="space-y-2">
@@ -2426,7 +2520,7 @@ export function PublishPage() {
               <div className="hidden overflow-hidden rounded-2xl border border-white/10 md:grid">
                 {steps.map((item, index) => {
                   const current = step === index;
-                  const completed = stepCompletion[index];
+                  const completed = stepDone[index];
                   return (
                     <button
                       key={item.title}
@@ -2538,7 +2632,7 @@ export function PublishPage() {
             <div className="grid grid-cols-5 gap-1.5">
             {steps.map((item, index) => {
               const current = step === index;
-              const completed = stepCompletion[index];
+              const completed = stepDone[index];
               return (
                 <button
                   key={`${item.title}-mobile`}
@@ -2958,7 +3052,7 @@ export function PublishPage() {
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4 md:hidden">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-xs text-[#D1C7BD]">
-                  Marcá el punto exacto en el mapa.
+                  Revisá que el punto esté bien ubicado.
                 </div>
                 <button
                   type="button"
@@ -2979,7 +3073,7 @@ export function PublishPage() {
               />
               {lat !== undefined && lng !== undefined ? (
                 <div className="text-[11px] text-[#D1C7BD]">
-                  Coordenadas actuales: {lat.toFixed(5)}, {lng.toFixed(5)}
+                  ✓ Ubicación marcada. Si no es exacta, tocá el mapa para moverla.
                 </div>
               ) : (
                 <div className="text-[11px] text-[#D1C7BD]">
@@ -3009,228 +3103,6 @@ export function PublishPage() {
               Tipo seleccionado: <span className="text-white">{propertyTypeLabel}</span>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-night-900/28 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-white">Vista destacada en ficha</h4>
-                  <p className="mt-1 text-xs text-[#D1C7BD]">
-                    Elegí y ordená hasta 8 datos para el bloque de resumen (2 columnas).
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {normalizedSummaryHighlights.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSummaryHighlights([])}
-                      className="rounded-full border border-white/15 px-3 py-1 text-xs text-[#D1C7BD]"
-                    >
-                      Automático
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowSummaryEditor((current) => !current)}
-                    className="rounded-full border border-gold-400/30 bg-gold-500/10 px-3 py-1 text-xs font-medium text-gold-300"
-                  >
-                    {showSummaryEditor ? "Cerrar editor" : "Editar vista"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-white/10 bg-night-900/40 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-[#D1C7BD]">
-                    Vista seleccionada ({normalizedSummaryHighlights.length}/8)
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowPreview(true)}
-                      className="rounded-full border border-white/15 bg-night-900/60 px-3 py-1 text-[11px] text-[#E7E2DD]"
-                    >
-                      Previsualizar ficha
-                    </button>
-                    {normalizedSummaryHighlights.length > 0 &&
-                      normalizedSummaryHighlights.length < 4 && (
-                        <div className="text-[11px] text-amber-200">
-                          Seleccioná al menos 4.
-                        </div>
-                      )}
-                  </div>
-                </div>
-
-                {normalizedSummaryHighlights.length > 0 ? (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {selectedSummaryPreviewMetrics.map((metric, index) => (
-                      <div
-                        key={metric.key}
-                        draggable
-                        onDragStart={() => setDraggingSummaryKey(metric.key)}
-                        onDragEnd={() => {
-                          setDraggingSummaryKey(null);
-                          setDragOverSummaryKey(null);
-                        }}
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          if (draggingSummaryKey && draggingSummaryKey !== metric.key) {
-                            setDragOverSummaryKey(metric.key);
-                          }
-                        }}
-                        onDragLeave={() => {
-                          if (dragOverSummaryKey === metric.key) {
-                            setDragOverSummaryKey(null);
-                          }
-                        }}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          if (!draggingSummaryKey) return;
-                          reorderSummaryHighlight(draggingSummaryKey, metric.key);
-                          setDraggingSummaryKey(null);
-                          setDragOverSummaryKey(null);
-                        }}
-                        className={`group relative rounded-xl border px-3 py-2 transition ${
-                          draggingSummaryKey === metric.key
-                            ? "border-gold-400/45 bg-gold-500/10 shadow-[0_0_0_1px_rgba(175,140,92,0.22)]"
-                            : dragOverSummaryKey === metric.key
-                            ? "border-sky-300/35 bg-sky-400/10 shadow-[0_0_0_1px_rgba(125,211,252,0.15)]"
-                            : metric.active
-                            ? "border-white/10 bg-night-900/55"
-                            : "border-white/5 bg-night-900/35 opacity-75"
-                        }`}
-                        title="Arrastrá para cambiar el orden"
-                      >
-                        {dragOverSummaryKey === metric.key && draggingSummaryKey !== metric.key && (
-                          <div className="pointer-events-none absolute inset-x-2 -top-1">
-                            <div className="h-0.5 rounded-full bg-sky-300 shadow-[0_0_10px_rgba(125,211,252,0.6)]" />
-                          </div>
-                        )}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/10 bg-night-800 px-1 text-[11px] text-[#D1C7BD]">
-                              {index + 1}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
-                                {metric.label}
-                              </div>
-                              <div className={`truncate text-xs font-semibold ${metric.active ? "text-white" : "text-[#9a948a]"}`}>
-                                {metric.value}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => moveSummaryHighlight(metric.key, "up")}
-                              disabled={index === 0}
-                              className="rounded-md border border-white/10 px-1.5 py-1 text-[11px] text-[#D1C7BD] disabled:opacity-30"
-                              aria-label="Subir"
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveSummaryHighlight(metric.key, "down")}
-                              disabled={index === selectedSummaryPreviewMetrics.length - 1}
-                              className="rounded-md border border-white/10 px-1.5 py-1 text-[11px] text-[#D1C7BD] disabled:opacity-30"
-                              aria-label="Bajar"
-                            >
-                              ↓
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleSummaryHighlight(metric.key)}
-                              className="rounded-md border border-red-400/25 bg-red-500/10 px-1.5 py-1 text-[11px] text-red-200"
-                              aria-label="Quitar"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-2 text-xs text-[#D1C7BD]">
-                    Modo automático activo. La ficha mostrará el resumen por defecto.
-                  </div>
-                )}
-              </div>
-
-              {showSummaryEditor && (
-                <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-night-900/35 p-3">
-                  <div className="text-xs text-[#D1C7BD]">
-                    Elegí qué mostrar. Los que no tienen datos cargados se ven deshabilitados.
-                    Podés seleccionarlos igual después de completar el formulario.
-                  </div>
-                  {(["Detalle", "Amenity", "Servicio"] as const).map((group) => {
-                    const isOpen = summaryEditorGroupsOpen[group];
-                    const options = visibleSummaryHighlightsByGroup[group];
-                    return (
-                      <div key={group} className="rounded-xl border border-white/10 bg-night-900/30">
-                        <button
-                          type="button"
-                          onClick={() => toggleSummaryEditorGroup(group)}
-                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
-                        >
-                          <span className="text-[11px] uppercase tracking-[0.14em] text-[#D1C7BD]">
-                            {group}
-                          </span>
-                          <span
-                            className={`text-xs text-[#D1C7BD] transition-transform ${
-                              isOpen ? "rotate-180" : ""
-                            }`}
-                            aria-hidden="true"
-                          >
-                            ▾
-                          </span>
-                        </button>
-                        {isOpen && (
-                          <div className="border-t border-white/10 px-3 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              {options.map((option) => {
-                                const selected = normalizedSummaryHighlights.includes(option.key);
-                                const limitReached =
-                                  !selected && normalizedSummaryHighlights.length >= 8;
-                                const metric = summaryMetricValueMap[option.key];
-                                const isActive = metric?.active ?? false;
-                                return (
-                                  <button
-                                    key={option.key}
-                                    type="button"
-                                    onClick={() => toggleSummaryHighlight(option.key)}
-                                    disabled={limitReached}
-                                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                                      selected
-                                        ? "border-gold-400/35 bg-gold-500/15 text-gold-200"
-                                        : isActive
-                                        ? "border-white/10 bg-night-900/60 text-[#E7E2DD]"
-                                        : "border-white/10 bg-night-900/45 text-[#8e887f]"
-                                    } ${limitReached ? "opacity-40" : ""}`}
-                                    title={
-                                      isActive
-                                        ? `${option.label}: ${metric?.value ?? "Si"}`
-                                        : "Todavía no tiene datos cargados"
-                                    }
-                                  >
-                                    {selected ? "✓ " : ""}{option.label}
-                                  </button>
-                                );
-                              })}
-                              {options.length === 0 && (
-                                <span className="text-xs text-[#8e887f]">
-                                  No hay opciones relevantes para este tipo de inmueble.
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-white">Características principales</h4>
@@ -3282,7 +3154,7 @@ export function PublishPage() {
                   )}
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Banos
+                  Baños
                   <input
                     className={inputClass(bathroomsError)}
                     data-error={bathroomsError ? "true" : undefined}
@@ -3310,7 +3182,7 @@ export function PublishPage() {
                   )}
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Antiguedad (anos)
+                  Antigüedad (años)
                   <input
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={ageYears}
@@ -3497,7 +3369,7 @@ export function PublishPage() {
                     checked={amenityCameras}
                     onChange={(event) => setAmenityCameras(event.target.checked)}
                   />
-                  Camaras de seguridad
+                  Cámaras de seguridad
                 </label>
                 <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
                   <input
@@ -3737,6 +3609,236 @@ export function PublishPage() {
                 </div>
               </div>
             )}
+            <details className="group rounded-2xl border border-white/10 bg-night-900/20">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm text-[#D1C7BD] marker:hidden">
+                <span className="text-white">Personalizar el resumen de la ficha</span>{" "}
+                <span className="text-xs">(opcional · si no lo tocás, lo armamos automáticamente)</span>
+              </summary>
+              <div className="px-1 pb-1">
+            <div className="rounded-2xl border border-white/10 bg-night-900/28 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-white">Vista destacada en ficha</h4>
+                  <p className="mt-1 text-xs text-[#D1C7BD]">
+                    Elegí y ordená hasta 8 datos para el bloque de resumen (2 columnas).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {normalizedSummaryHighlights.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSummaryHighlights([])}
+                      className="rounded-full border border-white/15 px-3 py-1 text-xs text-[#D1C7BD]"
+                    >
+                      Automático
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowSummaryEditor((current) => !current)}
+                    className="rounded-full border border-gold-400/30 bg-gold-500/10 px-3 py-1 text-xs font-medium text-gold-300"
+                  >
+                    {showSummaryEditor ? "Cerrar editor" : "Editar vista"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-xl border border-white/10 bg-night-900/40 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-[#D1C7BD]">
+                    Vista seleccionada ({normalizedSummaryHighlights.length}/8)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(true)}
+                      className="rounded-full border border-white/15 bg-night-900/60 px-3 py-1 text-[11px] text-[#E7E2DD]"
+                    >
+                      Previsualizar ficha
+                    </button>
+                    {normalizedSummaryHighlights.length > 0 &&
+                      normalizedSummaryHighlights.length < 4 && (
+                        <div className="text-[11px] text-amber-200">
+                          Seleccioná al menos 4.
+                        </div>
+                      )}
+                  </div>
+                </div>
+
+                {normalizedSummaryHighlights.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {selectedSummaryPreviewMetrics.map((metric, index) => (
+                      <div
+                        key={metric.key}
+                        draggable
+                        onDragStart={() => setDraggingSummaryKey(metric.key)}
+                        onDragEnd={() => {
+                          setDraggingSummaryKey(null);
+                          setDragOverSummaryKey(null);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          if (draggingSummaryKey && draggingSummaryKey !== metric.key) {
+                            setDragOverSummaryKey(metric.key);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverSummaryKey === metric.key) {
+                            setDragOverSummaryKey(null);
+                          }
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          if (!draggingSummaryKey) return;
+                          reorderSummaryHighlight(draggingSummaryKey, metric.key);
+                          setDraggingSummaryKey(null);
+                          setDragOverSummaryKey(null);
+                        }}
+                        className={`group relative rounded-xl border px-3 py-2 transition ${
+                          draggingSummaryKey === metric.key
+                            ? "border-gold-400/45 bg-gold-500/10 shadow-[0_0_0_1px_rgba(175,140,92,0.22)]"
+                            : dragOverSummaryKey === metric.key
+                            ? "border-sky-300/35 bg-sky-400/10 shadow-[0_0_0_1px_rgba(125,211,252,0.15)]"
+                            : metric.active
+                            ? "border-white/10 bg-night-900/55"
+                            : "border-white/5 bg-night-900/35 opacity-75"
+                        }`}
+                        title="Arrastrá para cambiar el orden"
+                      >
+                        {dragOverSummaryKey === metric.key && draggingSummaryKey !== metric.key && (
+                          <div className="pointer-events-none absolute inset-x-2 -top-1">
+                            <div className="h-0.5 rounded-full bg-sky-300 shadow-[0_0_10px_rgba(125,211,252,0.6)]" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/10 bg-night-800 px-1 text-[11px] text-[#D1C7BD]">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
+                                {metric.label}
+                              </div>
+                              <div className={`truncate text-xs font-semibold ${metric.active ? "text-white" : "text-[#9a948a]"}`}>
+                                {metric.value}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveSummaryHighlight(metric.key, "up")}
+                              disabled={index === 0}
+                              className="rounded-md border border-white/10 px-1.5 py-1 text-[11px] text-[#D1C7BD] disabled:opacity-30"
+                              aria-label="Subir"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveSummaryHighlight(metric.key, "down")}
+                              disabled={index === selectedSummaryPreviewMetrics.length - 1}
+                              className="rounded-md border border-white/10 px-1.5 py-1 text-[11px] text-[#D1C7BD] disabled:opacity-30"
+                              aria-label="Bajar"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleSummaryHighlight(metric.key)}
+                              className="rounded-md border border-red-400/25 bg-red-500/10 px-1.5 py-1 text-[11px] text-red-200"
+                              aria-label="Quitar"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs text-[#D1C7BD]">
+                    Modo automático activo. La ficha mostrará el resumen por defecto.
+                  </div>
+                )}
+              </div>
+
+              {showSummaryEditor && (
+                <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-night-900/35 p-3">
+                  <div className="text-xs text-[#D1C7BD]">
+                    Elegí qué mostrar. Los que no tienen datos cargados se ven deshabilitados.
+                    Podés seleccionarlos igual después de completar el formulario.
+                  </div>
+                  {(["Detalle", "Amenity", "Servicio"] as const).map((group) => {
+                    const isOpen = summaryEditorGroupsOpen[group];
+                    const options = visibleSummaryHighlightsByGroup[group];
+                    return (
+                      <div key={group} className="rounded-xl border border-white/10 bg-night-900/30">
+                        <button
+                          type="button"
+                          onClick={() => toggleSummaryEditorGroup(group)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                        >
+                          <span className="text-[11px] uppercase tracking-[0.14em] text-[#D1C7BD]">
+                            {group}
+                          </span>
+                          <span
+                            className={`text-xs text-[#D1C7BD] transition-transform ${
+                              isOpen ? "rotate-180" : ""
+                            }`}
+                            aria-hidden="true"
+                          >
+                            ▾
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <div className="border-t border-white/10 px-3 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              {options.map((option) => {
+                                const selected = normalizedSummaryHighlights.includes(option.key);
+                                const limitReached =
+                                  !selected && normalizedSummaryHighlights.length >= 8;
+                                const metric = summaryMetricValueMap[option.key];
+                                const isActive = metric?.active ?? false;
+                                return (
+                                  <button
+                                    key={option.key}
+                                    type="button"
+                                    onClick={() => toggleSummaryHighlight(option.key)}
+                                    disabled={limitReached}
+                                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                                      selected
+                                        ? "border-gold-400/35 bg-gold-500/15 text-gold-200"
+                                        : isActive
+                                        ? "border-white/10 bg-night-900/60 text-[#E7E2DD]"
+                                        : "border-white/10 bg-night-900/45 text-[#8e887f]"
+                                    } ${limitReached ? "opacity-40" : ""}`}
+                                    title={
+                                      isActive
+                                        ? `${option.label}: ${metric?.value ?? "Si"}`
+                                        : "Todavía no tiene datos cargados"
+                                    }
+                                  >
+                                    {selected ? "✓ " : ""}{option.label}
+                                  </button>
+                                );
+                              })}
+                              {options.length === 0 && (
+                                <span className="text-xs text-[#8e887f]">
+                                  No hay opciones relevantes para este tipo de inmueble.
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+              </div>
+            </details>
           </div>
         )}
         {step === 3 && (
@@ -3917,7 +4019,7 @@ export function PublishPage() {
                   no recibe consultas, asi que publicarlo no le sirve a nadie. */}
               {photosValid ? (
                 <p className="text-[11px] text-[#9f988d]">
-                  La primera foto es la principal: es la que se ve en el listado y al compartir.
+                  La primera foto es la principal: es la que se ve en el listado y al compartir. Arrastrá las miniaturas para cambiar el orden.
                 </p>
               ) : (
                 <p className={`text-[11px] ${showErrors ? "text-red-300" : "text-[#AF8C5C]"}`}>
@@ -3949,9 +4051,6 @@ export function PublishPage() {
                   event.target.value = "";
                 }}
               />
-              <p className="text-[11px] leading-relaxed text-[#D1C7BD]">
-                La primera foto es la principal. Arrastrá las miniaturas para cambiar el orden.
-              </p>
               {photos.length > 0 && (
                 <div className="space-y-3">
                   <div className="text-xs text-[#D1C7BD]">
@@ -4017,7 +4116,7 @@ export function PublishPage() {
                 />
                 {contactRequiredError && (
                   <span className="text-[11px] text-red-300">
-                    Ingresa WhatsApp o teléfono para poder contactar.
+                    Ingresá WhatsApp o teléfono para que puedan contactarte.
                   </span>
                 )}
                 {whatsappError && (
@@ -4036,7 +4135,7 @@ export function PublishPage() {
                 />
                 {contactRequiredError && (
                   <span className="text-[11px] text-red-300">
-                    Ingresa WhatsApp o teléfono para poder contactar.
+                    Ingresá WhatsApp o teléfono para que puedan contactarte.
                   </span>
                 )}
                 {phoneError && (
@@ -4047,9 +4146,14 @@ export function PublishPage() {
               </label>
             </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
+              <details className="rounded-2xl border border-white/10 bg-night-900/20 px-4 py-3">
+                <summary className="cursor-pointer list-none text-sm text-[#D1C7BD]">
+                  <span className="text-white">Datos catastrales</span>{" "}
+                  <span className="text-xs">(opcional · figuran en la boleta de ABL o en la escritura)</span>
+                </summary>
+              <div className="mt-3 grid gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Catastro tipo
+                  Tipo de dato catastral
                   <select
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={cadastralType}
@@ -4061,7 +4165,7 @@ export function PublishPage() {
                   </select>
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
-                  Catastro valor
+                  Número
                   <input
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={cadastralValue}
@@ -4069,6 +4173,7 @@ export function PublishPage() {
                   />
                 </label>
               </div>
+              </details>
 
               <button
                 type="button"

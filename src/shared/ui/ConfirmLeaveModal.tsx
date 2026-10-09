@@ -1,4 +1,6 @@
-﻿type ConfirmLeaveModalProps = {
+import { createPortal } from "react-dom";
+
+type ConfirmLeaveModalProps = {
   open: boolean;
   title?: string;
   message?: string;
@@ -19,8 +21,14 @@ export function ConfirmLeaveModal({
 }: ConfirmLeaveModalProps) {
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[1800] flex items-center justify-center bg-night-950 px-4 py-6">
+  // Portal al body: si el modal queda dentro de un contenedor con backdrop-filter/transform,
+  // `position: fixed` se calcula respecto de ese contenedor y el aviso aparece fuera de vista.
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[1800] flex items-center justify-center bg-night-950/85 px-4 py-6 backdrop-blur-sm"
+    >
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card">
         <div className="border-b border-white/10 px-6 py-4">
           <h3 className="text-lg text-white">{title}</h3>
@@ -43,6 +51,7 @@ export function ConfirmLeaveModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
