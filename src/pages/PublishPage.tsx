@@ -1,6 +1,7 @@
 ﻿
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPropertyPath } from "../shared/properties/slug";
+import { trackEvent } from "../shared/analytics/posthog";
 import { MapContainer, TileLayer, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import { geocodeAddress, geocodeSuggestions, reverseGeocode } from "../shared/map/geocode";
 import type { GeocodeResult } from "../shared/map/geocode";
@@ -2167,6 +2168,7 @@ export function PublishPage() {
 
       setStatus("success");
       if (publishedSnapshot) {
+        trackEvent("publish_listing", { operationType, propertyType, photos: photos.length });
         setPublishedListing(publishedSnapshot);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }

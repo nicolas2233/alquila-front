@@ -128,7 +128,7 @@ function MobileDockTab({ to, label, icon, showDot = false, onClick }: MobileDock
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-transparent text-current transition group-hover:bg-white/8 group-hover:text-white">
             {icon}
           </span>
-          <span className="max-w-[54px] truncate text-[11px] font-semibold leading-none">{label}</span>
+          <span className="max-w-[64px] truncate text-[12px] font-semibold leading-none">{label}</span>
           {showDot && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gold-500" />}
         </span>
       </button>
@@ -151,7 +151,7 @@ function MobileDockTab({ to, label, icon, showDot = false, onClick }: MobileDock
           >
             {icon}
           </span>
-          <span className="max-w-[54px] truncate text-[11px] font-semibold leading-none">{label}</span>
+          <span className="max-w-[64px] truncate text-[12px] font-semibold leading-none">{label}</span>
           {showDot && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gold-500" />}
         </span>
       )}
@@ -275,9 +275,11 @@ export function AppLayout() {
   let accountLinks: Array<{ to: string; label: string; showDot?: boolean }> = [];
 
   if (!user) {
-    mobileCenterAction = { to: "/registro", label: "Crear cuenta", icon: <IconPlus /> };
+    // Sin sesión la mayoría busca: el botón central es el Mapa. "Publicar" queda a un costado
+    // y lleva al registro con el perfil de dueño ya elegido.
+    mobileCenterAction = { to: "/mapa", label: "Mapa", icon: <IconMap /> };
     mobileRightItems = [
-      mapItem,
+      { to: "/registro?tipo=dueno", label: "Publicar", icon: <DockIcon><IconPlus /></DockIcon> },
       { to: "/login", label: "Ingresar", icon: <DockIcon><IconLogin /></DockIcon> },
     ];
   } else if (user.role === "VISITOR") {
@@ -527,7 +529,7 @@ export function AppLayout() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1200] lg:hidden">
         <Container>
           <div className="relative px-1 pb-[calc(0.45rem+env(safe-area-inset-bottom))] pt-1">
-            <div className="pointer-events-auto relative mx-auto flex max-w-md items-end justify-between rounded-[24px] border border-white/12 bg-night-950/97 px-3 pb-1.5 pt-4 shadow-[0_12px_28px_rgba(0,0,0,0.36)]">
+            <div className="pointer-events-auto relative mx-auto flex max-w-md items-end justify-between rounded-[24px] border border-white/12 bg-[#2A2622] px-3 pb-1.5 pt-4 shadow-[0_12px_28px_rgba(0,0,0,0.36)]">
               <div className={`grid ${mobileLeftWidth} ${mobileLeftCols} items-end`}>
                 {mobileLeftDockItems.map((item) => (
                   <MobileDockTab
@@ -554,13 +556,17 @@ export function AppLayout() {
               </div>
               <Link
                 to={mobileCenterAction.to}
-                className="absolute left-1/2 top-0 inline-flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-night-900 bg-gradient-to-br from-[#AF8C5C] to-[#7f6a4a] text-white shadow-[0_12px_24px_rgba(0,0,0,0.34)] transition hover:scale-[1.03]"
+                className="absolute left-1/2 top-0 inline-flex h-14 w-14 -translate-x-1/2 -translate-y-[62%] items-center justify-center rounded-full border-[3px] border-night-900 bg-gradient-to-br from-[#AF8C5C] to-[#7f6a4a] text-white shadow-[0_12px_24px_rgba(0,0,0,0.34)] transition hover:scale-[1.03]"
                 aria-label={mobileCenterAction.label}
               >
                 <DockIcon>
                   {mobileCenterAction.icon}
                 </DockIcon>
               </Link>
+              {/* Etiqueta del botón central: sin texto, el "+" no decía qué hacía. */}
+              <span className="pointer-events-none absolute bottom-[0.55rem] left-1/2 -translate-x-1/2 text-[12px] font-semibold leading-none text-[#E7E2DD]">
+                {mobileCenterAction.label}
+              </span>
             </div>
           </div>
         </Container>

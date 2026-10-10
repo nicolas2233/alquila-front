@@ -118,7 +118,13 @@ export function RegisterPage() {
   const [betaAccepted, setBetaAccepted] = useState(false);
   const [betaCheckStatus, setBetaCheckStatus] = useState<"idle" | "loading" | "invalid">("idle");
 
-  const [accountType, setAccountType] = useState<AccountType>("viewer");
+  // /registro?tipo=dueno o ?tipo=inmobiliaria preselecciona el perfil (lo usa el botón "Publicar").
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    const tipo = new URLSearchParams(window.location.search).get("tipo");
+    if (tipo === "dueno") return "owner";
+    if (tipo === "inmobiliaria") return "agency";
+    return "viewer";
+  });
   const [plan] = useState<PlanKey>("gold");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

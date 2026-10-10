@@ -13,6 +13,7 @@ import { getSessionUser, getToken } from "../shared/auth/session";
 import { hasSentContactRequest, markContactRequestSent } from "../shared/utils/contactRequests";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { useSeo } from "../shared/seo/useSeo";
+import { trackEvent } from "../shared/analytics/posthog";
 import { buildBreadcrumbList } from "../shared/seo/seo";
 import { buildPropertyPath, extractPropertyId } from "../shared/properties/slug";
 
@@ -370,6 +371,7 @@ export function ListingPage() {
       setContactMessage("Consulta enviada correctamente.");
       setInterestPresetOpen(false);
       addToast("Consulta enviada correctamente.", "success");
+      trackEvent("contact_request", { propertyId: listing?.id });
     } catch (interestError) {
       const message =
         interestError instanceof Error
@@ -502,6 +504,7 @@ export function ListingPage() {
                     href={link}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => trackEvent("click_whatsapp", { propertyId: listing.id, source: "listing" })}
                   >
                     <svg
                       aria-hidden="true"
@@ -537,6 +540,7 @@ export function ListingPage() {
                     key={contact.id}
                     className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] sm:w-auto"
                     href={`tel:${contact.value}`}
+                    onClick={() => trackEvent("click_phone", { propertyId: listing.id, source: "listing" })}
                   >
                     Llamar
                   </a>
@@ -685,6 +689,7 @@ export function ListingPage() {
           </div>
           {stickyContact.href ? (
             <a
+              onClick={() => trackEvent(stickyContact.kind === "WHATSAPP" ? "click_whatsapp" : "click_phone", { propertyId: listing.id, source: "sticky" })}
               href={stickyContact.href}
               target={stickyContact.kind === "WHATSAPP" ? "_blank" : undefined}
               rel={stickyContact.kind === "WHATSAPP" ? "noreferrer" : undefined}
