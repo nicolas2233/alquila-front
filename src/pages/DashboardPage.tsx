@@ -1690,7 +1690,9 @@ export function DashboardPage() {
       setAgencyProfileTab("data");
     }
     setSidebarOpen(false);
-  }, []);
+    // La sección queda en la URL: "atrás" y recargar vuelven a la misma pestaña.
+    navigate(`/panel?tab=${section}`, { replace: false });
+  }, [navigate]);
 
   useEffect(() => {
     if (activeSection === "listings") {

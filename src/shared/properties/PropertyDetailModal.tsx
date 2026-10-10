@@ -711,9 +711,6 @@ export function PropertyDetailModal({
                 <span aria-hidden="true">●</span> Publicación de ejemplo
               </span>
             ) : null}
-            <p className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-              Ficha de inmueble
-            </p>
             <h3 className={isModal ? "font-display text-2xl leading-tight text-white" : "font-display text-2xl leading-tight text-white md:text-3xl"}>
               {listing.title}
             </h3>
@@ -875,11 +872,8 @@ export function PropertyDetailModal({
             <div className="rounded-2xl border border-gold-500/25 bg-gradient-to-br from-[#5A534C]/35 via-night-800 to-night-800 p-3 sm:p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-                    Precio
-                  </div>
-                  <div className="mt-1 text-xl font-semibold text-white sm:text-2xl">{listing.price}</div>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  {/* El precio ya está arriba, junto al título: acá solo operación, tipo y publicador. */}
+                  <div className="flex flex-wrap gap-2">
                     <span className="inline-flex rounded-full bg-gold-500/20 px-3 py-1 text-xs font-semibold text-gold-300">
                       {listing.operation}
                     </span>

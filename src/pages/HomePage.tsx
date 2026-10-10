@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { env } from "../shared/config/env";
 import { getSessionUser, getToken } from "../shared/auth/session";
 import { useSeo } from "../shared/seo/useSeo";
+import { mapPropertyToSearchListing, type PropertyApiListItem, type SearchListing } from "../shared/properties/propertyMappers";
+import { buildPropertyPath } from "../shared/properties/slug";
 
 type HomeAd = {
   id: string;
@@ -59,6 +61,21 @@ export function HomePage() {
   const [alertCount, setAlertCount] = useState(0);
   const [heroOperation, setHeroOperation] = useState("RENT");
   const [homeAds, setHomeAds] = useState<HomeAd[]>([]);
+  const [latestListings, setLatestListings] = useState<SearchListing[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ status: "ACTIVE", page: "1", pageSize: "6", sortBy: "date_desc" });
+    void fetch(`${env.apiUrl}/properties?${params.toString()}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { items?: PropertyApiListItem[] } | null) => {
+        if (cancelled || !data?.items?.length) return;
+        setLatestListings(data.items.map(mapPropertyToSearchListing));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     fetch(`${env.apiUrl}/ads?limit=3`)
@@ -213,27 +230,48 @@ export function HomePage() {
           </Reveal>
         )}
 
-        {/* Stats bar */}
-        <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: "Sin comisiones", sub: "El contacto es directo", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
-            { label: "Publicá en 5 minutos", sub: "Proceso guiado paso a paso", icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z" },
-            { label: "Contacto real", sub: "WhatsApp, llamada o consulta", icon: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" },
-            { label: "Mapa interactivo", sub: "Explorá por ubicación", icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" },
-          ].map((stat, i) => (
-            <Reveal key={stat.label} delayMs={i * 60} className="glass-card flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/25 bg-gold-500/10">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-gold-300">
-                  <path d={stat.icon} />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-white">{stat.label}</div>
-                <div className="text-xs text-[#D1C7BD]">{stat.sub}</div>
-              </div>
-            </Reveal>
-          ))}
-        </Reveal>
+        {/* Últimas publicaciones: solo aparece cuando hay avisos activos. Reemplaza la franja
+            de "Sin comisiones / 5 minutos / Contacto / Mapa", que repetía lo que dice el hero. */}
+        {latestListings.length > 0 && (
+          <Reveal>
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <h2 className="font-display text-2xl text-white md:text-3xl">Últimas publicaciones</h2>
+              <Link to="/buscar" className="text-sm text-gold-300 hover:text-white">Ver todas →</Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {latestListings.map((item) => (
+                <Link
+                  key={item.id}
+                  to={buildPropertyPath({
+                    id: item.id,
+                    operationType: item.operationTypeRaw,
+                    propertyType: item.propertyTypeRaw,
+                    locality: item.localityName,
+                  })}
+                  className="group overflow-hidden rounded-2xl border border-white/10 bg-night-800/70"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden bg-night-800">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                    />
+                    <span className="absolute left-3 top-3 rounded-full bg-night-950/85 px-3 py-1 text-xs font-semibold text-gold-300">
+                      {item.operation}
+                    </span>
+                  </div>
+                  <div className="space-y-1 p-4">
+                    <p className="text-lg font-semibold text-white">{item.price}</p>
+                    <p className="truncate text-sm text-[#E7E2DD]">{item.title}</p>
+                    <p className="truncate text-xs text-[#BDB5A9]">{item.address}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Reveal>
+        )}
 
         {/* For who section */}
         <Reveal>
