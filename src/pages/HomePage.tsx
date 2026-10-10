@@ -147,7 +147,7 @@ export function HomePage() {
 
           {/* Trust badges */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            {["Búsqueda gratuita", "Sin comisiones ocultas", "Contacto directo", "Publicación en minutos"].map((badge) => (
+            {["Búsqueda gratuita", "Sin comisiones", "Contacto directo", "Publicá en 5 minutos"].map((badge) => (
               <span key={badge} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-xs text-[#E7E2DD]">
                 {badge}
               </span>
@@ -217,8 +217,8 @@ export function HomePage() {
         <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
             { label: "Sin comisiones", sub: "El contacto es directo", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
-            { label: "Publicación en 5 min", sub: "Proceso guiado paso a paso", icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z" },
-            { label: "Contacto real", sub: "WhatsApp o solicitud directa", icon: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" },
+            { label: "Publicá en 5 minutos", sub: "Proceso guiado paso a paso", icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z" },
+            { label: "Contacto real", sub: "WhatsApp, llamada o consulta", icon: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" },
             { label: "Mapa interactivo", sub: "Explorá por ubicación", icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" },
           ].map((stat, i) => (
             <Reveal key={stat.label} delayMs={i * 60} className="glass-card flex items-center gap-3 p-4">
@@ -247,8 +247,8 @@ export function HomePage() {
               {
                 icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
                 label: "Quienes buscan",
-                title: "Encontrá sin registrarte",
-                body: "Buscá con filtros claros, navegá en mapa interactivo, ampliá fotos y contactá directo. Sin crear cuenta.",
+                title: "Buscá sin registrarte",
+                body: "Filtros claros, mapa interactivo y fotos grandes, sin crear cuenta. Para contactar al dueño o la inmobiliaria, creá tu cuenta gratis.",
                 cta: { label: "Buscar ahora", to: "/buscar" },
                 accent: "from-sky-500/20 to-sky-600/5",
                 border: "border-sky-500/20",
@@ -258,7 +258,7 @@ export function HomePage() {
                 icon: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z",
                 label: "Dueño directo",
                 title: "Publicá sin comisiones",
-                body: "1 publicación gratis para siempre. Escalá con planes si necesitás más. Sin intermediarios que te lleven un porcentaje.",
+                body: "Publicar es gratis para dueños directos. Sin intermediarios ni comisiones: te contactan directo a vos.",
                 cta: { label: "Publicar gratis", to: "/registro" },
                 accent: "from-gold-500/20 to-gold-600/5",
                 border: "border-gold-500/20",
@@ -268,7 +268,7 @@ export function HomePage() {
                 icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
                 label: "Inmobiliaria",
                 title: "Tu vitrina digital",
-                body: "Perfil público con logo, portada y tu cartera completa. Gestioná tus publicaciones y las solicitudes de contacto desde un panel.",
+                body: "Perfil público con logo, portada y tu cartera completa. Gestioná publicaciones y consultas desde un panel, con planes según tu cartera.",
                 cta: { label: "Crear perfil", to: "/registro" },
                 accent: "from-violet-500/20 to-violet-600/5",
                 border: "border-violet-500/20",
@@ -304,7 +304,7 @@ export function HomePage() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { n: "01", title: "Creá tu cuenta", body: "Elegí tu perfil (buscador, dueño o inmobiliaria) y verificá tu email en 60 segundos.", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+              { n: "01", title: "Creá tu cuenta", body: "Elegí tu perfil (buscador, dueño o inmobiliaria) y verificá tu email con el link que te enviamos.", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
               { n: "02", title: "Buscá o publicá", body: "Usá los filtros, el mapa interactivo o cargá tu propiedad con el asistente de 5 pasos.", icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" },
               { n: "03", title: "Conectá y cerrá", body: "Contactá por WhatsApp, enviá una solicitud o respondé desde el panel. Sin pasos innecesarios.", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
             ].map((step, i) => (
@@ -380,14 +380,14 @@ export function HomePage() {
           <div className="glass-card p-6 text-center md:p-10">
             <span className="gold-pill">Sin costo</span>
             <h2 className="mt-3 font-display text-2xl text-white md:text-3xl">
-              Publicar es gratis
+              Si sos dueño directo, publicar es gratis
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#D1C7BD]">
-              Subí tu propiedad sin pagar nada y sin tarjeta. Dueños directos e inmobiliarias,
-              con contacto directo por WhatsApp y tu aviso visible en búsqueda y mapa.
+              Subí tu propiedad sin pagar nada y sin tarjeta. Aparece en la búsqueda y en el mapa,
+              y los interesados te contactan directo. Las inmobiliarias tienen planes propios.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {["Sin comisiones", "Sin tarjeta", "Publicación en minutos", "Cancelás cuando quieras"].map((b) => (
+              {["Sin comisiones", "Sin tarjeta", "Publicá en 5 minutos"].map((b) => (
                 <span key={b} className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-xs text-[#E7E2DD]">
                   {b}
                 </span>
@@ -413,7 +413,7 @@ export function HomePage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", text: "Verificación de email para publicar" },
-              { icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z", text: "Datos protegidos con cookie segura" },
+              { icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z", text: "Tus datos de contacto solo los ven usuarios registrados" },
               { icon: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9", text: "Reportes de usuarios y publicaciones" },
               { icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", text: "Términos, privacidad y políticas claras" },
             ].map((item) => (
@@ -438,7 +438,7 @@ export function HomePage() {
               ¿Listo para empezar?
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm text-[#D1C7BD]">
-              Creá tu cuenta en menos de 2 minutos. Sin tarjeta, sin compromiso. Tu primera publicación es gratis.
+              Creá tu cuenta en 2 minutos, sin tarjeta. Si sos dueño directo, publicar es gratis.
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link to="/registro" className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-8 py-3 text-sm font-bold text-night-900 shadow-[0_8px_24px_rgba(175,140,92,0.35)]">

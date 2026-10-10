@@ -6,12 +6,10 @@ import { geocodeAddress, geocodeSuggestions, reverseGeocode } from "../shared/ma
 import type { GeocodeResult } from "../shared/map/geocode";
 import { useNavigate, useParams } from "react-router-dom";
 import { env } from "../shared/config/env";
-import { getSessionUser, getToken } from "../shared/auth/session";
+import { getSessionUser, getToken, saveSession } from "../shared/auth/session";
 import { useToast } from "../shared/ui/toast/ToastProvider";
 import { parseVideoUrl } from "../shared/properties/videoEmbed";
 import { buildAutoTitle, buildAutoDescription } from "../shared/properties/autoText";
-import { PropertyDetailModal } from "../shared/properties/PropertyDetailModal";
-import type { PropertyDetailListing } from "../shared/properties/PropertyDetailModal";
 import { useUnsavedChanges } from "../shared/hooks/useUnsavedChanges";
 import { useDirtyTracker } from "../shared/hooks/useDirtyTracker";
 import { ConfirmLeaveModal } from "../shared/ui/ConfirmLeaveModal";
@@ -23,25 +21,40 @@ const PLAN_LIMIT_COUNTED_STATUSES = ["DRAFT", "ACTIVE", "TEMPORARILY_UNAVAILABLE
 const steps = [
   {
     title: "Datos básicos",
+    short: "Datos",
     description: "Título, operación, precio y descripción.",
   },
   {
     title: "Ubicación",
+    short: "Ubicación",
     description: "Dirección, localidad y punto del mapa.",
   },
   {
     title: "Características",
-    description: "Superficie, ambientes y detalles del inmueble.",
+    short: "Detalles",
+    description: "Ambientes, superficie, comodidades y servicios.",
   },
   {
-    title: "Servicios y costos",
-    description: "Servicios disponibles y costos complementarios.",
+    // Paso 3 (servicios) quedó integrado en Características: se conserva el índice
+    // para no tocar borradores ni validaciones, pero no se muestra.
+    title: "Servicios",
+    short: "Servicios",
+    description: "",
   },
   {
     title: "Fotos y contacto",
-    description: "Imágenes, WhatsApp, teléfono y vista previa.",
+    short: "Fotos",
+    description: "Fotos y un teléfono o WhatsApp.",
   },
 ];
+
+// Pasos que ve el usuario, en orden.
+const VISIBLE_STEPS: Step[] = [0, 1, 2, 4];
+const nextVisibleStep = (current: Step): Step =>
+  VISIBLE_STEPS[Math.min(VISIBLE_STEPS.indexOf(current) + 1, VISIBLE_STEPS.length - 1)] ?? current;
+const prevVisibleStep = (current: Step): Step =>
+  VISIBLE_STEPS[Math.max(VISIBLE_STEPS.indexOf(current) - 1, 0)] ?? current;
+const LAST_STEP: Step = 4;
 
 type SummaryHighlightOption = {
   key: string;
@@ -252,6 +265,69 @@ export function PublishPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle"
   );
+  // Publicar requiere email verificado (el backend lo exige). Se refresca contra /auth/me
+  // por si el usuario tocó el link en otra pestaña o en el celular.
+  const [emailVerified, setEmailVerified] = useState<boolean>(Boolean(sessionUser?.emailVerifiedAt));
+  const [verifyEmailStatus, setVerifyEmailStatus] = useState<"idle" | "sending" | "sent" | "checking">("idle");
+  useEffect(() => {
+    if (isEditMode || emailVerified || !sessionToken) return;
+    let cancelled = false;
+    void fetch(`${env.apiUrl}/auth/me`, {
+      credentials: "include",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { user?: { emailVerifiedAt?: string | null } } | null) => {
+        if (cancelled || !data?.user?.emailVerifiedAt) return;
+        setEmailVerified(true);
+        const current = getSessionUser();
+        if (current) saveSession(sessionToken, { ...current, emailVerifiedAt: data.user.emailVerifiedAt });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, emailVerified, sessionToken]);
+
+  const resendVerificationEmail = async () => {
+    setVerifyEmailStatus("sending");
+    try {
+      const response = await fetch(`${env.apiUrl}/auth/verify-email/request`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({}),
+      });
+      const data = (await response.json().catch(() => null)) as { message?: string } | null;
+      if (!response.ok) throw new Error(data?.message ?? "No pudimos reenviar el email.");
+      setVerifyEmailStatus("sent");
+      addToast("Te reenviamos el email de verificación.", "success");
+    } catch (error) {
+      setVerifyEmailStatus("idle");
+      addToast(error instanceof Error ? error.message : "No pudimos reenviar el email.", "error");
+    }
+  };
+
+  const recheckEmailVerification = async () => {
+    setVerifyEmailStatus("checking");
+    try {
+      const response = await fetch(`${env.apiUrl}/auth/me`, {
+        credentials: "include",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = (await response.json().catch(() => null)) as { user?: { emailVerifiedAt?: string | null } } | null;
+      if (data?.user?.emailVerifiedAt) {
+        setEmailVerified(true);
+        const current = getSessionUser();
+        if (current && sessionToken) saveSession(sessionToken, { ...current, emailVerifiedAt: data.user.emailVerifiedAt });
+        addToast("¡Listo! Tu email está verificado.", "success");
+      } else {
+        addToast("Todavía no figura verificado. Tocá el link del email y volvé a probar.", "warning");
+      }
+    } finally {
+      setVerifyEmailStatus((prev) => (prev === "checking" ? "idle" : prev));
+    }
+  };
   const [initialStatus, setInitialStatus] = useState<"idle" | "loading" | "error">("idle");
   const [initialError, setInitialError] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -270,8 +346,6 @@ export function PublishPage() {
     photoUrl: string | null;
   } | null>(null);
   const [showErrors, setShowErrors] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
-  const previewRef = useRef<HTMLDivElement | null>(null);
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showLocationReviewModal, setShowLocationReviewModal] = useState(false);
@@ -293,17 +367,6 @@ export function PublishPage() {
   const [dragOverExistingPhotoIndex, setDragOverExistingPhotoIndex] = useState<number | null>(null);
   const [photoDropActive, setPhotoDropActive] = useState(false);
 
-  const togglePreview = useCallback(() => {
-    setShowPreview((current) => {
-      const next = !current;
-      if (next) {
-        window.setTimeout(() => {
-          previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 0);
-      }
-      return next;
-    });
-  }, []);
 
   const [title, setTitle] = useState("");
   // Mientras el usuario no escriba un titulo propio, lo mantenemos sincronizado con los
@@ -723,7 +786,7 @@ export function PublishPage() {
       setServicePavement(d.servicePavement ?? false);
       setSummaryHighlights(d.summaryHighlights ?? []);
       if (typeof d.step === "number" && d.step >= 0 && d.step <= 4) {
-        setStep(d.step as Step);
+        setStep((d.step === 3 ? 2 : d.step) as Step);
       }
       setHasDraftToRestore(false);
       setAutoSaveStatus("restored");
@@ -960,7 +1023,6 @@ export function PublishPage() {
         setMaxStepReached(0);
         setLocationReviewConfirmed(false);
         setShowErrors(false);
-        setShowPreview(false);
         setStatus("idle");
         setErrorMessage("");
         setInitialStatus("idle");
@@ -979,73 +1041,7 @@ export function PublishPage() {
     };
   }, [editPropertyId, isEditMode, sessionToken, sessionUser?.phone]);
 
-  const roleLabel = isOwner
-    ? "Dueño directo"
-    : isAgency
-    ? "Inmobiliaria"
-    : "Usuario";
-  const propertyTypeLabel = useMemo(() => {
-    switch (propertyType) {
-      case "HOUSE":
-        return "Casa";
-      case "APARTMENT":
-        return "Departamento";
-      case "LAND":
-        return "Terreno";
-      case "FIELD":
-        return "Campo";
-      case "QUINTA":
-        return "Quinta";
-      case "COMMERCIAL":
-        return "Negocio";
-      case "OFFICE":
-        return "Oficina";
-      case "WAREHOUSE":
-        return "Galpón / Depósito";
-      default:
-        return "Inmueble";
-    }
-  }, [propertyType]);
-  const operationLabel = useMemo(() => {
-    switch (operationType) {
-      case "SALE":
-        return "Venta";
-      case "RENT":
-        return "Alquiler";
-      case "TEMPORARY":
-        return "Temporario";
-      default:
-        return operationType;
-    }
-  }, [operationType]);
 
-  const previewAmenities = useMemo(() => {
-    const values: string[] = [];
-    if (amenityAir) values.push("AIR_CONDITIONING");
-    if (amenityHeater) values.push("HEATER");
-    if (amenityKitchen) values.push("KITCHEN");
-    if (amenityGrill) values.push("GRILL");
-    if (amenityPool) values.push("POOL");
-    if (amenityJacuzzi) values.push("JACUZZI");
-    if (amenitySolarium) values.push("SOLARIUM");
-    if (amenityElevator) values.push("ELEVATOR");
-    if (amenitySecurity) values.push("PRIVATE_SECURITY");
-    if (amenityCameras) values.push("SECURITY_CAMERAS");
-    if (amenityQuincho) values.push("QUINCHO");
-    return values;
-  }, [
-    amenityAir,
-    amenityHeater,
-    amenityKitchen,
-    amenityGrill,
-    amenityPool,
-    amenityJacuzzi,
-    amenitySolarium,
-    amenityElevator,
-    amenitySecurity,
-    amenityCameras,
-    amenityQuincho,
-  ]);
 
   const normalizedSummaryHighlights = useMemo(
     () =>
@@ -1357,108 +1353,6 @@ export function PublishPage() {
     }));
   };
 
-  const previewListing = useMemo<PropertyDetailListing>(
-    () => ({
-      id: "preview",
-      title: title || "Sin titulo",
-      address: `${addressLine || "Sin dirección"}${localityId ? ` - ${localityId}` : ""}`,
-      price: priceAmount ? `${priceAmount} ${priceCurrency}` : "Sin precio",
-      operation: operationLabel,
-      areaM2: areaM2 ? Number(areaM2) : 0,
-      coveredAreaM2: coveredAreaM2 ? Number(coveredAreaM2) : undefined,
-      summaryHighlights: canPersistCustomSummary ? normalizedSummaryHighlights : undefined,
-      rooms: rooms ? Number(rooms) : 0,
-      bathrooms: bathrooms ? Number(bathrooms) : undefined,
-      bedrooms: bedrooms ? Number(bedrooms) : undefined,
-      garage: hasGarage,
-      garageSpots: garageSpots ? Number(garageSpots) : undefined,
-      garageType: hasGarage ? garageType : undefined,
-      pets: petsAllowed,
-      kids: kidsAllowed,
-      hasPatio,
-      patioType: hasPatio ? patioType : undefined,
-      laundry: hasLaundry,
-      descriptionLong: description || "Sin descripción",
-      images: photoPreviews.length
-        ? photoPreviews.map((item) => item.url)
-        : existingPhotos.map((photo) => photo.url),
-      amenities: previewAmenities.length ? previewAmenities : undefined,
-      services: {
-        electricity: serviceElectricity,
-        gas: serviceGas,
-        water: serviceWater,
-        sewer: serviceSewer,
-        internet: serviceInternet,
-        pavement: servicePavement,
-      },
-      expensesAmount: expensesAmount ? `${expensesAmount} ${expensesCurrency}` : undefined,
-      financing: {
-        available: financingAvailable,
-        amount:
-          financingAvailable && financingAmount
-            ? `${financingAmount} ${financingCurrency}`
-            : undefined,
-      },
-      rentalRequirements:
-        operationType === "RENT" && rentInfoPublic
-          ? {
-              guarantees: rentGuarantees || undefined,
-              entryMonths: rentEntryMonths ? Number(rentEntryMonths) : undefined,
-              contractDurationMonths: rentContractDuration
-                ? Number(rentContractDuration)
-                : undefined,
-              indexFrequency: rentIndexFrequency || undefined,
-              indexType: rentIndexType || undefined,
-              indexValue: rentIndexValue ? Number(rentIndexValue) : undefined,
-              isPublic: rentInfoPublic,
-            }
-          : undefined,
-    }),
-    [
-      title,
-      addressLine,
-      localityId,
-      priceAmount,
-      priceCurrency,
-      operationLabel,
-      areaM2,
-      coveredAreaM2,
-      normalizedSummaryHighlights,
-      canPersistCustomSummary,
-      rooms,
-      bathrooms,
-      hasGarage,
-      garageSpots,
-      garageType,
-      petsAllowed,
-      kidsAllowed,
-      hasPatio,
-      patioType,
-      hasLaundry,
-      description,
-      photoPreviews,
-      existingPhotos,
-      previewAmenities,
-      serviceElectricity,
-      serviceGas,
-      serviceWater,
-      serviceSewer,
-      serviceInternet,
-      servicePavement,
-      expensesAmount,
-      expensesCurrency,
-      financingAvailable,
-      financingAmount,
-      financingCurrency,
-      rentGuarantees,
-      rentEntryMonths,
-      rentContractDuration,
-      rentIndexFrequency,
-      rentIndexType,
-      rentIndexValue,
-      rentInfoPublic,
-    ]
-  );
 
   const inputBaseClass =
     "w-full rounded-xl border bg-night-900/48 px-3 py-2 text-sm text-white";
@@ -1622,8 +1516,7 @@ export function PublishPage() {
   const stepDone = stepCompletion.map((valid, index) =>
     isEditMode ? valid : valid && index < Math.max(maxStepReached, step) && index !== step
   );
-  const completedCount = stepDone.filter(Boolean).length;
-  const progressPercent = Math.round((completedCount / steps.length) * 100);
+  const visibleStepNumber = VISIBLE_STEPS.indexOf(step) + 1;
   const locationLockedInEdit = isEditMode;
 
   const requestStepChange = (target: Step) => {
@@ -1669,7 +1562,7 @@ export function PublishPage() {
       return;
     }
     setShowErrors(false);
-    requestStepChange((step + 1) as Step);
+    requestStepChange(nextVisibleStep(step));
   };
 
   const applyGeocodeResult = (
@@ -1955,7 +1848,7 @@ export function PublishPage() {
       phoneValid;
 
     if (!canSubmit) {
-      const firstInvalidStep = stepCompletion.findIndex((isComplete) => !isComplete);
+      const firstInvalidStep = VISIBLE_STEPS.find((index) => !stepCompletion[index]) ?? -1;
       if (firstInvalidStep >= 0 && firstInvalidStep !== step) {
         setStep(firstInvalidStep as Step);
       }
@@ -2417,240 +2310,94 @@ export function PublishPage() {
           {autoSaveStatus === "restored" ? "Borrador restaurado correctamente." : "Borrador guardado automáticamente."}
         </div>
       )}
-      <section className="relative max-w-full min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-night-900/75 p-4 sm:p-5 md:rounded-[28px] md:p-5">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(175,140,92,0.28),transparent_40%),radial-gradient(circle_at_85%_80%,rgba(209,199,189,0.16),transparent_45%)]" />
-        <div className="relative grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] lg:items-center">
-          <div className="min-w-0 space-y-2">
-            <span className="inline-flex items-center rounded-full border border-[#AF8C5C]/40 bg-[#AF8C5C]/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#E7E2DD]">
-              {isEditMode ? "Editar inmueble" : "Publicar inmueble"}
-            </span>
-            <h2 className="text-xl leading-tight text-white sm:text-2xl md:text-3xl">
-              {isEditMode ? "Editá tu publicación" : "Creá tu publicación en 5 minutos"}
-            </h2>
-            <p className="max-w-2xl text-xs leading-relaxed text-[#D1C7BD] sm:text-sm">
-              {isEditMode
-                ? "Actualizá datos, ubicación y fotos desde un flujo ordenado."
-                : "Cargá los datos clave y revisá la ficha antes de publicar."}
+      <header className="flex min-w-0 flex-wrap items-end justify-between gap-2 px-1">
+        <h1 className="text-2xl leading-tight text-white md:text-3xl">
+          {isEditMode ? "Editar publicación" : "Publicar propiedad"}
+        </h1>
+        {!isEditMode && (isOwner || isAgency) && subscriptionInfo && planHasLimit && planSlotsRemaining !== null && planSlotsRemaining <= 1 && (
+          <p className={`text-xs ${planSlotsRemaining <= 0 ? "text-rose-300" : "text-amber-200"}`}>
+            {planSlotsRemaining <= 0
+              ? "No te quedan publicaciones disponibles en tu plan."
+              : "Te queda 1 publicación disponible en tu plan."}
+          </p>
+        )}
+        {planUsageStatus === "error" && (
+          <p className="text-xs text-[#AF8C5C]">{planUsageError}</p>
+        )}
+      </header>
+      {!isEditMode && !emailVerified && (
+        <div className="mx-auto w-full max-w-3xl space-y-3 rounded-2xl border border-amber-300/35 bg-amber-400/10 p-4">
+          <div>
+            <p className="text-sm font-semibold text-white">Verificá tu email para poder publicar</p>
+            <p className="mt-1 text-sm text-[#E7E2DD]">
+              Te enviamos un link a <span className="text-white">{sessionUser?.email}</span>. Tocalo y volvé acá: lo que cargues se guarda solo.
             </p>
           </div>
-          <div className="grid w-full min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-            <span className="gold-pill min-w-0 truncate">{isEditMode ? "Editás como" : "Publicás como"} {roleLabel}</span>
-            <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD]">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[#AF8C5C]">Paso actual</p>
-              <p className="mt-1 text-sm text-white">
-                {String(step + 1).padStart(2, "0")} · {steps[step]?.title}
-              </p>
-            </div>
-            {!isEditMode && (isOwner || isAgency) && subscriptionInfo && (
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/55 px-3 py-2 text-xs text-[#D1C7BD]">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-[#AF8C5C]">
-                  Plan y cupo
-                </p>
-                <p className="mt-1 text-sm text-white">
-                  {subscriptionInfo.planCode}
-                  {planHasLimit ? ` · ${planUsageCount}/${maxPropertiesByPlan}` : ""}
-                </p>
-                {planHasLimit && planSlotsRemaining !== null && (
-                  <p
-                    className={`mt-1 text-[11px] ${
-                      planSlotsRemaining <= 0
-                        ? "text-rose-300"
-                        : planSlotsRemaining <= 1
-                        ? "text-amber-200"
-                        : "text-[#D1C7BD]"
-                    }`}
-                  >
-                    {planSlotsRemaining <= 0
-                      ? "Sin cupo disponible para nuevas publicaciones."
-                      : `${planSlotsRemaining} cupo(s) libre(s).`}
-                  </p>
-                )}
-                {subscriptionInfo.isTrialActive && (
-                  <p className="mt-1 text-[11px] text-[#9fe0c0]">
-                    Primer mes gratis activo · {subscriptionInfo.trialDaysRemaining} días restantes
-                  </p>
-                )}
-                {planUsageStatus === "error" && (
-                  <p className="mt-1 text-[11px] text-[#AF8C5C]">{planUsageError}</p>
-                )}
-              </div>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={verifyEmailStatus === "checking"}
+              className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-60"
+              onClick={() => void recheckEmailVerification()}
+            >
+              {verifyEmailStatus === "checking" ? "Revisando…" : "Ya lo verifiqué"}
+            </button>
+            <button
+              type="button"
+              disabled={verifyEmailStatus === "sending" || verifyEmailStatus === "sent"}
+              className="rounded-full border border-white/25 px-4 py-2 text-sm text-[#E7E2DD] disabled:opacity-60"
+              onClick={() => void resendVerificationEmail()}
+            >
+              {verifyEmailStatus === "sent" ? "Email reenviado" : verifyEmailStatus === "sending" ? "Enviando…" : "Reenviar email"}
+            </button>
           </div>
         </div>
-      </section>
+      )}
 
-      <div className={`grid max-w-full min-w-0 items-start gap-4 md:gap-6 xl:grid-cols-[320px_minmax(0,1fr)] ${showNoSlotsModal ? "pointer-events-none select-none opacity-60" : ""}`}>
-        <aside className="hidden min-w-0 max-w-full space-y-4 xl:sticky xl:top-24 xl:block">
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-night-900/65 p-4">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(175,140,92,0.25),transparent_56%)]" />
-            <div className="relative space-y-4">
-              <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-                  {isEditMode ? "Edicion guiada" : "Publicacion guiada"}
-                </p>
-                <h3 className="text-base text-white">
-                  {isEditMode ? "Actualiza en pocos pasos" : "Completa en 5 minutos"}
-                </h3>
-                <p className="text-xs leading-relaxed text-[#D1C7BD]">
-                  {isEditMode
-                    ? "Entrá al paso que necesites, modificá y guardá."
-                    : "Avanzá por pasos cortos. Solo pedimos lo necesario para publicar rápido."}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-[#D1C7BD]">
-                  <span>
-                    Paso {step + 1} de {steps.length}
-                  </span>
-                  <span>{progressPercent}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-night-900/38 px-3 py-2 text-xs text-[#D1C7BD] md:hidden">
-                Paso actual:{" "}
-                <span className="text-white">
-                  {String(step + 1).padStart(2, "0")} · {steps[step]?.title}
-                </span>
-              </div>
-              <div className="hidden overflow-hidden rounded-2xl border border-white/10 md:grid">
-                {steps.map((item, index) => {
-                  const current = step === index;
-                  const completed = stepDone[index];
-                  return (
-                    <button
-                      key={item.title}
-                      type="button"
-                      onClick={() => handleGoToStep(index as Step)}
-                      className={`flex w-full min-w-0 items-center gap-3 border-b border-white/10 px-3 py-2 text-left transition last:border-b-0 ${
-                        current
-                          ? "bg-gold-500/10"
-                          : "bg-night-900/35 hover:bg-night-900/55"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold ${
-                          completed
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-gold-500/15 text-gold-300"
-                        }`}
-                      >
-                        {completed ? "OK" : String(index + 1).padStart(2, "0")}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-white">{item.title}</p>
-                        <p className="truncate text-[11px] text-[#D1C7BD]">{item.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4 text-xs text-[#D1C7BD]">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
-              Resumen rápido
-            </p>
-            <div className="mt-3 space-y-2">
-              <div className="flex justify-between gap-3">
-                <span>Operación</span>
-                <span className="text-white">{operationLabel}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Tipo</span>
-                <span className="text-white">{propertyTypeLabel}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Precio</span>
-                <span className="text-white">
-                  {priceAmount ? `${priceCurrency} ${priceAmount}` : "-"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Ubicacion</span>
-                <span className="max-w-[160px] truncate text-right text-white">
-                  {addressLine || "-"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Fotos</span>
-                <span className="text-white">{photos.length}</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+      <div className={`mx-auto grid w-full max-w-3xl min-w-0 items-start gap-4 md:gap-6 ${showNoSlotsModal ? "pointer-events-none select-none opacity-60" : ""}`}>
 
         <form
         ref={formRef}
         className="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-white/20 bg-night-800/70 shadow-soft space-y-5 p-4 sm:p-5 md:space-y-6 md:p-6"
         onSubmit={handleSubmit}
       >
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-night-900/45 p-4">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
-                Paso {step + 1} de {steps.length}
-              </p>
-              <h3 className="mt-1 text-lg text-white">{steps[step]?.title}</h3>
-              <p className="text-xs text-[#D1C7BD]">{steps[step]?.description}</p>
-            </div>
-            <span className="hidden rounded-full border border-white/15 px-3 py-1 text-xs text-[#D1C7BD] sm:inline-flex">
-              Tiempo estimado: 5 min
-            </span>
-            <button
-              type="button"
-              className="hidden rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] md:inline-flex"
-              onClick={togglePreview}
-            >
-              {showPreview ? "Ocultar vista previa" : "Ver vista previa"}
-            </button>
-          </div>
+        <div className="space-y-3">
+          <ol className="grid grid-cols-4 gap-1.5" aria-label="Pasos">
+            {VISIBLE_STEPS.map((index, position) => {
+              const current = step === index;
+              const completed = stepDone[index];
+              return (
+                <li key={steps[index].title}>
+                  <button
+                    type="button"
+                    onClick={() => handleGoToStep(index)}
+                    aria-current={current ? "step" : undefined}
+                    className="group flex w-full flex-col gap-1.5 text-left"
+                  >
+                    <span
+                      className={`h-1.5 w-full rounded-full transition ${
+                        current ? "bg-[#D4B07A]" : completed ? "bg-[#D4B07A]/55" : "bg-white/12"
+                      }`}
+                    />
+                    <span className={`truncate text-[12px] ${current ? "font-semibold text-white" : "text-[#BDB5A9]"}`}>
+                      {completed && !current ? "✓ " : `${position + 1}. `}
+                      <span className="sm:hidden">{steps[index].short}</span>
+                      <span className="hidden sm:inline">{steps[index].title}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="text-sm text-[#BDB5A9]">
+            Paso {visibleStepNumber} de {VISIBLE_STEPS.length} · {steps[step]?.description}
+          </p>
           {showErrors && stepMissingLabels.length > 0 && (
-            <div className="mt-3 rounded-2xl border border-red-300/25 bg-red-500/8 px-4 py-3 text-xs text-red-100">
+            <div className="rounded-2xl border border-red-300/25 bg-red-500/8 px-4 py-3 text-xs text-red-100">
               <span className="font-semibold text-white">Falta completar: </span>
               {stepMissingLabels.join(", ")}.
             </div>
           )}
-          <div className="mt-4 space-y-3 md:hidden">
-            <div className="flex items-center justify-between text-[11px] text-[#D1C7BD]">
-              <span>
-                Paso {step + 1} de {steps.length}
-              </span>
-              <span>{progressPercent}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-            {steps.map((item, index) => {
-              const current = step === index;
-              const completed = stepDone[index];
-              return (
-                <button
-                  key={`${item.title}-mobile`}
-                  type="button"
-                  aria-label={`Ir a ${item.title}`}
-                  onClick={() => handleGoToStep(index as Step)}
-                    className={`flex h-10 min-w-0 items-center justify-center rounded-xl border text-[11px] font-semibold ${
-                    current
-                      ? "border-gold-500/60 bg-gold-500/12 text-white"
-                      : "border-white/10 bg-night-900/42 text-[#D1C7BD]"
-                  }`}
-                >
-                    {completed ? "OK" : index + 1}
-                </button>
-              );
-            })}
-            </div>
-          </div>
         </div>
         {step === 0 && (
           <div className="space-y-6">
@@ -3099,17 +2846,60 @@ export function PublishPage() {
 
         {step === 2 && (
           <div className="space-y-8">
-            <div className="rounded-2xl border border-white/10 bg-night-900/32 px-4 py-3 text-sm text-[#cfc9bf]">
-              Tipo seleccionado: <span className="text-white">{propertyTypeLabel}</span>
-            </div>
 
 
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-white">Características principales</h4>
-              <div className="grid gap-4 md:grid-cols-3">
+              <h4 className="text-sm font-semibold text-white">Lo principal</h4>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Superficie total (m2)
+                  Ambientes
                   <input
+                    inputMode="numeric"
+                    className={inputClass(roomsError)}
+                    data-error={roomsError ? "true" : undefined}
+                    value={rooms}
+                    onChange={(event) => setRooms(event.target.value)}
+                  />
+                  {roomsError && (
+                    <span className="text-[11px] text-red-300">
+                      Debe ser 0 o mayor.
+                    </span>
+                  )}
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Dormitorios
+                  <input
+                    inputMode="numeric"
+                    className={inputClass(bedroomsError)}
+                    data-error={bedroomsError ? "true" : undefined}
+                    value={bedrooms}
+                    onChange={(event) => setBedrooms(event.target.value)}
+                  />
+                  {bedroomsError && (
+                    <span className="text-[11px] text-red-300">
+                      Debe ser 0 o mayor.
+                    </span>
+                  )}
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Baños
+                  <input
+                    inputMode="numeric"
+                    className={inputClass(bathroomsError)}
+                    data-error={bathroomsError ? "true" : undefined}
+                    value={bathrooms}
+                    onChange={(event) => setBathrooms(event.target.value)}
+                  />
+                  {bathroomsError && (
+                    <span className="text-[11px] text-red-300">
+                      Debe ser 0 o mayor.
+                    </span>
+                  )}
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Superficie total (m²)
+                  <input
+                    inputMode="numeric"
                     className={inputClass(areaError)}
                     data-error={areaError ? "true" : undefined}
                     value={areaM2}
@@ -3124,77 +2914,12 @@ export function PublishPage() {
                   )}
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Superficie cubierta (m2)
+                  Superficie cubierta (m²)
                   <input
+                    inputMode="numeric"
                     className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                     value={coveredAreaM2}
                     onChange={(event) => setCoveredAreaM2(event.target.value)}
-                  />
-                </label>
-                <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Superficie semicubierta (m2)
-                  <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                    value={semiCoveredAreaM2}
-                    onChange={(event) => setSemiCoveredAreaM2(event.target.value)}
-                  />
-                </label>
-                <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Ambientes
-                  <input
-                    className={inputClass(roomsError)}
-                    data-error={roomsError ? "true" : undefined}
-                    value={rooms}
-                    onChange={(event) => setRooms(event.target.value)}
-                  />
-                  {roomsError && (
-                    <span className="text-[11px] text-red-300">
-                      Debe ser 0 o mayor.
-                    </span>
-                  )}
-                </label>
-                <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Baños
-                  <input
-                    className={inputClass(bathroomsError)}
-                    data-error={bathroomsError ? "true" : undefined}
-                    value={bathrooms}
-                    onChange={(event) => setBathrooms(event.target.value)}
-                  />
-                  {bathroomsError && (
-                    <span className="text-[11px] text-red-300">
-                      Debe ser 0 o mayor.
-                    </span>
-                  )}
-                </label>
-                <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Dormitorios
-                  <input
-                    className={inputClass(bedroomsError)}
-                    data-error={bedroomsError ? "true" : undefined}
-                    value={bedrooms}
-                    onChange={(event) => setBedrooms(event.target.value)}
-                  />
-                  {bedroomsError && (
-                    <span className="text-[11px] text-red-300">
-                      Debe ser 0 o mayor.
-                    </span>
-                  )}
-                </label>
-                <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Antigüedad (años)
-                  <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                    value={ageYears}
-                    onChange={(event) => setAgeYears(event.target.value)}
-                  />
-                </label>
-                <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Pisos
-                  <input
-                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
-                    value={floorsCount}
-                    onChange={(event) => setFloorsCount(event.target.value)}
                   />
                 </label>
                 <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
@@ -3276,10 +3001,44 @@ export function PublishPage() {
                   </>
                 )}
               </div>
+              <details className="rounded-2xl border border-white/10 bg-night-900/20 px-4 py-3">
+                <summary className="cursor-pointer list-none text-sm text-[#D1C7BD]">
+                  <span className="text-white">Más datos</span> <span className="text-xs">(opcional · semicubierta, antigüedad, pisos)</span>
+                </summary>
+                <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Superficie semicubierta (m²)
+                  <input
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                    value={semiCoveredAreaM2}
+                    onChange={(event) => setSemiCoveredAreaM2(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Antigüedad (años)
+                  <input
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                    value={ageYears}
+                    onChange={(event) => setAgeYears(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-[#D1C7BD]">
+                  Pisos
+                  <input
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
+                    value={floorsCount}
+                    onChange={(event) => setFloorsCount(event.target.value)}
+                  />
+                </label>
+                </div>
+              </details>
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-white">Amenities</h4>
+              <h4 className="text-sm font-semibold text-white">Comodidades</h4>
               <div className="grid gap-3 md:grid-cols-3">
                 <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
                   <input
@@ -3383,7 +3142,7 @@ export function PublishPage() {
               </div>
             </div>
 
-            {(propertyType === "HOUSE" || propertyType === "APARTMENT") && (
+            {(propertyType === "HOUSE" || propertyType === "APARTMENT") && operationType !== "SALE" && (
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold text-white">Convivencia</h4>
                 <div className="grid gap-3 md:grid-cols-3">
@@ -3609,6 +3368,66 @@ export function PublishPage() {
                 </div>
               </div>
             )}
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-white">Servicios</h4>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={serviceElectricity}
+                  onChange={(event) => setServiceElectricity(event.target.checked)}
+                />
+                Luz
+              </label>
+              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={serviceGas}
+                  onChange={(event) => setServiceGas(event.target.checked)}
+                />
+                Gas
+              </label>
+              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={serviceWater}
+                  onChange={(event) => setServiceWater(event.target.checked)}
+                />
+                Agua
+              </label>
+              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={serviceSewer}
+                  onChange={(event) => setServiceSewer(event.target.checked)}
+                />
+                Cloaca
+              </label>
+              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#AF8C5C]"
+                  checked={serviceInternet}
+                  onChange={(event) => setServiceInternet(event.target.checked)}
+                />
+                Internet
+              </label>
+                <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#AF8C5C]"
+                    checked={servicePavement}
+                    onChange={(event) => setServicePavement(event.target.checked)}
+                  />
+                  Asfalto
+                </label>
+              </div>
+            </div>
+
             <details className="group rounded-2xl border border-white/10 bg-night-900/20">
               <summary className="cursor-pointer list-none px-4 py-3 text-sm text-[#D1C7BD] marker:hidden">
                 <span className="text-white">Personalizar el resumen de la ficha</span>{" "}
@@ -3649,13 +3468,6 @@ export function PublishPage() {
                     Vista seleccionada ({normalizedSummaryHighlights.length}/8)
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowPreview(true)}
-                      className="rounded-full border border-white/15 bg-night-900/60 px-3 py-1 text-[11px] text-[#E7E2DD]"
-                    >
-                      Previsualizar ficha
-                    </button>
                     {normalizedSummaryHighlights.length > 0 &&
                       normalizedSummaryHighlights.length < 4 && (
                         <div className="text-[11px] text-amber-200">
@@ -3841,100 +3653,9 @@ export function PublishPage() {
             </details>
           </div>
         )}
-        {step === 3 && (
-            <div className="space-y-6">
-              <div className="grid gap-3 md:grid-cols-3">
-                <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#AF8C5C]"
-                  checked={serviceElectricity}
-                  onChange={(event) => setServiceElectricity(event.target.checked)}
-                />
-                Luz
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#AF8C5C]"
-                  checked={serviceGas}
-                  onChange={(event) => setServiceGas(event.target.checked)}
-                />
-                Gas
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#AF8C5C]"
-                  checked={serviceWater}
-                  onChange={(event) => setServiceWater(event.target.checked)}
-                />
-                Agua
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#AF8C5C]"
-                  checked={serviceSewer}
-                  onChange={(event) => setServiceSewer(event.target.checked)}
-                />
-                Cloaca
-              </label>
-              <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#AF8C5C]"
-                  checked={serviceInternet}
-                  onChange={(event) => setServiceInternet(event.target.checked)}
-                />
-                Internet
-              </label>
-                <label className="flex items-center gap-3 text-xs text-[#D1C7BD]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#AF8C5C]"
-                    checked={servicePavement}
-                    onChange={(event) => setServicePavement(event.target.checked)}
-                  />
-                  Asfalto
-                </label>
-              </div>
-            </div>
-          )}
 
         {step === 4 && (
           <div className="space-y-6">
-            {/* Video del inmueble. Es un link, no una subida: las inmobiliarias ya hacen
-                estos videos para Instagram, asi que aprovechamos el contenido que existe
-                sin costo de storage ni de ancho de banda. */}
-            <div className="space-y-2 rounded-2xl border border-white/10 bg-night-900/30 p-4">
-              <label className="text-xs text-[#D1C7BD]" htmlFor="videoUrl">
-                Video del inmueble <span className="text-[#9f988d]">(opcional)</span>
-              </label>
-              <input
-                id="videoUrl"
-                type="url"
-                inputMode="url"
-                value={videoUrl}
-                onChange={(event) => setVideoUrl(event.target.value)}
-                placeholder="https://www.instagram.com/reel/... o https://youtu.be/..."
-                className={inputClass(videoUrl.trim().length > 0 && !parseVideoUrl(videoUrl))}
-              />
-              {videoUrl.trim().length === 0 ? (
-                <p className="text-[11px] leading-tight text-[#9f988d]">
-                  Pegá el link de un reel de Instagram o un video de YouTube y se va a ver dentro
-                  de la ficha. Los avisos con video reciben más consultas.
-                </p>
-              ) : parseVideoUrl(videoUrl) ? (
-                <p className="text-[11px] leading-tight text-emerald-300/90">
-                  Link válido de {parseVideoUrl(videoUrl)!.provider === "youtube" ? "YouTube" : "Instagram"}.
-                </p>
-              ) : (
-                <p className="text-[11px] leading-tight text-[#AF8C5C]">
-                  Por ahora solo aceptamos links de YouTube o Instagram.
-                </p>
-              )}
-            </div>
             {isEditMode && (
               <div className="space-y-3">
                 <label className="text-xs text-[#D1C7BD]">Fotos actuales — arrastrá para reordenar, la primera es la principal.</label>
@@ -4146,6 +3867,40 @@ export function PublishPage() {
               </label>
             </div>
 
+              {/* Video del inmueble. Es un link, no una subida: las inmobiliarias ya hacen
+                  estos videos para Instagram, asi que aprovechamos el contenido que existe
+                  sin costo de storage ni de ancho de banda. */}
+              <details className="rounded-2xl border border-white/10 bg-night-900/20 px-4 py-3" open={videoUrl.trim().length > 0}>
+                <summary className="cursor-pointer list-none text-sm text-[#D1C7BD]">
+                  <span className="text-white">Agregar un video</span> <span className="text-xs">(opcional · YouTube o Instagram)</span>
+                </summary>
+                <div className="mt-3 space-y-2">
+                <label className="sr-only" htmlFor="videoUrl">Link del video</label>
+                <input
+                  id="videoUrl"
+                  type="url"
+                  inputMode="url"
+                  value={videoUrl}
+                  onChange={(event) => setVideoUrl(event.target.value)}
+                  placeholder="https://www.instagram.com/reel/... o https://youtu.be/..."
+                  className={inputClass(videoUrl.trim().length > 0 && !parseVideoUrl(videoUrl))}
+                />
+                {videoUrl.trim().length === 0 ? (
+                  <p className="text-[11px] leading-tight text-[#9f988d]">
+                    Pegá el link de un reel de Instagram o un video de YouTube y se va a ver dentro
+                    de la ficha. Los avisos con video reciben más consultas.
+                  </p>
+                ) : parseVideoUrl(videoUrl) ? (
+                  <p className="text-[11px] leading-tight text-emerald-300/90">
+                    Link válido de {parseVideoUrl(videoUrl)!.provider === "youtube" ? "YouTube" : "Instagram"}.
+                  </p>
+                ) : (
+                  <p className="text-[11px] leading-tight text-[#AF8C5C]">
+                    Por ahora solo aceptamos links de YouTube o Instagram.
+                  </p>
+                )}
+                </div>
+              </details>
               <details className="rounded-2xl border border-white/10 bg-night-900/20 px-4 py-3">
                 <summary className="cursor-pointer list-none text-sm text-[#D1C7BD]">
                   <span className="text-white">Datos catastrales</span>{" "}
@@ -4175,49 +3930,9 @@ export function PublishPage() {
               </div>
               </details>
 
-              <button
-                type="button"
-                className="hidden rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] md:inline-flex"
-                onClick={togglePreview}
-              >
-                {showPreview ? "Ocultar vista previa" : "Ver vista previa pública"}
-              </button>
             </div>
           )}
 
-          {showPreview && (
-            <section ref={previewRef} className="hidden space-y-3 rounded-3xl border border-white/10 bg-night-950/45 p-3 sm:p-4 md:block">
-              <div className="flex flex-wrap items-start justify-between gap-3 px-1">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#AF8C5C]">
-                    Vista previa pública
-                  </p>
-                  <h3 className="mt-1 text-base font-semibold text-white">
-                    Así se verá la ficha antes de publicarla
-                  </h3>
-                  <p className="mt-1 text-xs text-[#D1C7BD]">
-                    Los botones de contacto quedan desactivados en esta vista.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
-                  onClick={() => setShowPreview(false)}
-                >
-                  Ocultar
-                </button>
-              </div>
-              <PropertyDetailModal
-                listing={previewListing}
-                variant="page"
-                actions={
-                  <div className="rounded-2xl border border-white/10 bg-night-950/45 px-4 py-3 text-xs text-[#D1C7BD]">
-                    Vista previa: al publicar, acá aparecerán las acciones de contacto.
-                  </div>
-                }
-              />
-            </section>
-          )}
           {showMapPicker && !locationLockedInEdit && (
             <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-night-950 p-4">
               <div className="w-full max-w-2xl max-h-[88vh] overflow-y-auto space-y-4 rounded-3xl border border-white/10 bg-night-900 p-4 shadow-card md:p-6">
@@ -4271,13 +3986,13 @@ export function PublishPage() {
                 type="button"
                 onClick={() => {
                   setShowErrors(false);
-                  requestStepChange(step > 0 ? ((step - 1) as Step) : step);
+                  requestStepChange(prevVisibleStep(step));
                 }}
                 disabled={step === 0}
               >
                 Anterior
               </button>
-              {step < steps.length - 1 && (
+              {step !== LAST_STEP && (
                 <button
                   className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
                   type="button"
@@ -4288,7 +4003,7 @@ export function PublishPage() {
               )}
             </div>
 
-          {(isEditMode || step === steps.length - 1) && (
+          {(isEditMode || step === LAST_STEP) && (
             <button
               className="w-full rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900 sm:w-auto"
               type="submit"
