@@ -146,7 +146,7 @@ export function MapSearchPage() {
       try {
         const params = new URLSearchParams({ status: "ACTIVE", page: "1", pageSize: "100" });
         const res = await fetch(`${env.apiUrl}/properties?${params}`, { signal: controller.signal });
-        if (!res.ok) throw new Error("Error al cargar inmuebles");
+        if (!res.ok) throw new Error("No pudimos cargar inmuebles. Revisá tu conexión y probá de nuevo.");
         const data = (await res.json()) as {
           items: Array<{
             id: string; title: string; operationType: OperationType; propertyType: PropertyType;

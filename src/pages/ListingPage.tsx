@@ -92,7 +92,7 @@ export function ListingPage() {
       } catch (err) {
         if (ignore) return;
         setStatus("error");
-        setError(err instanceof Error ? err.message : "Error al cargar.");
+        setError(err instanceof Error ? err.message : "No pudimos cargar los datos. Revisá tu conexión y probá de nuevo.");
       }
     };
     void load();
@@ -270,6 +270,15 @@ export function ListingPage() {
     }
     return false;
   }, [listing, sessionUser]);
+
+  // La barra fija de contacto aparece recién cuando los botones de arriba quedaron fuera de vista.
+  const [showStickyContact, setShowStickyContact] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowStickyContact(window.scrollY > 700);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   if (status === "loading") {
     return <p className="text-xs text-[#D1C7BD]">Cargando publicación...</p>;
@@ -667,7 +676,7 @@ export function ListingPage() {
         </section>
       ) : null}
       {stickyContact ? <div className="h-16 md:hidden" aria-hidden="true" /> : null}
-      {stickyContact ? (
+      {stickyContact && showStickyContact ? (
         // Barra de contacto fija en celular: el botón de contacto sigue a mano al scrollear.
         <div className="fixed inset-x-3 bottom-[calc(5.6rem+env(safe-area-inset-bottom))] z-[900] flex items-center gap-3 rounded-2xl border border-white/10 bg-night-900/95 px-3 py-2 shadow-card backdrop-blur md:hidden">
           <div className="min-w-0 flex-1">

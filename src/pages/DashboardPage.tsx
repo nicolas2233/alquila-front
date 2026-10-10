@@ -594,7 +594,7 @@ export function DashboardPage() {
     } catch (error) {
       setPropertyStatus("error");
       setPropertyError(
-        error instanceof Error ? error.message : "Error al cargar publicaciones."
+        error instanceof Error ? error.message : "No pudimos cargar publicaciones. Revisá tu conexión y probá de nuevo."
       );
     } finally {
       clearTimeout(timeout);
@@ -1554,7 +1554,7 @@ export function DashboardPage() {
     } catch (error) {
       setRequestStatus("error");
       setRequestError(
-        error instanceof Error ? error.message : "Error al cargar consultas."
+        error instanceof Error ? error.message : "No pudimos cargar consultas. Revisá tu conexión y probá de nuevo."
       );
     }
   }, [sessionToken]);
@@ -1621,7 +1621,7 @@ export function DashboardPage() {
     } catch (error) {
       setRequestStatus("error");
       setRequestError(
-        error instanceof Error ? error.message : "Error al cargar tus consultas."
+        error instanceof Error ? error.message : "No pudimos cargar tus consultas. Revisá tu conexión y probá de nuevo."
       );
     }
   }, [sessionToken]);
@@ -1679,7 +1679,7 @@ export function DashboardPage() {
     } catch (error) {
       setAgencyStatus("error");
       setAgencyError(
-        error instanceof Error ? error.message : "Error al cargar la inmobiliaria."
+        error instanceof Error ? error.message : "No pudimos cargar la inmobiliaria. Revisá tu conexión y probá de nuevo."
       );
     }
   }, [agencyId]);
@@ -1899,7 +1899,7 @@ export function DashboardPage() {
       } catch (error) {
         setOwnerStatus("error");
         setOwnerError(
-          error instanceof Error ? error.message : "Error al cargar tu perfil."
+          error instanceof Error ? error.message : "No pudimos cargar tu perfil. Revisá tu conexión y probá de nuevo."
         );
       }
     };
@@ -1976,7 +1976,7 @@ export function DashboardPage() {
     } catch (error) {
       setPublicStatus("error");
       const message =
-        error instanceof Error ? error.message : "Error al cargar la propiedad."
+        error instanceof Error ? error.message : "No pudimos cargar la propiedad. Revisá tu conexión y probá de nuevo."
       setPublicError(message);
       addToast(message, "error");
     }
@@ -2290,7 +2290,7 @@ export function DashboardPage() {
     } catch (error) {
       setAgencyStatus("error");
       setAgencyError(
-        error instanceof Error ? error.message : "Error al guardar la inmobiliaria."
+        error instanceof Error ? error.message : "No pudimos guardar la inmobiliaria. Probá de nuevo en unos segundos."
       );
       addToast("No pudimos guardar el perfil.", "error");
     }
@@ -2432,7 +2432,7 @@ export function DashboardPage() {
     } catch (error) {
       setOwnerStatus("error");
       setOwnerError(
-        error instanceof Error ? error.message : "Error al guardar tu perfil."
+        error instanceof Error ? error.message : "No pudimos guardar tu perfil. Probá de nuevo en unos segundos."
       );
       addToast("No pudimos guardar tu perfil.", "error");
     }

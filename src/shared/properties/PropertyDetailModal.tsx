@@ -711,14 +711,14 @@ export function PropertyDetailModal({
                 <span aria-hidden="true">●</span> Publicación de ejemplo
               </span>
             ) : null}
-            <h3 className={isModal ? "font-display text-2xl leading-tight text-white" : "font-display text-2xl leading-tight text-white md:text-3xl"}>
+            <h3 className={isModal ? "font-display text-2xl leading-tight text-white" : "hidden font-display text-2xl leading-tight text-white md:block md:text-3xl"}>
               {listing.title}
             </h3>
-            <p className={isModal ? "text-sm text-[#D1C7BD]" : "text-sm text-[#D1C7BD] md:text-base"}>
+            <p className={isModal ? "text-sm text-[#D1C7BD]" : "hidden text-sm text-[#D1C7BD] md:block md:text-base"}>
               {listing.address}
             </p>
           </div>
-          <div className="flex items-center justify-between gap-2 rounded-full border border-white/10 bg-night-950/85 px-3 py-1.5 md:min-w-[280px] md:justify-end md:gap-4 md:rounded-2xl md:px-4 md:py-2">
+          <div className={`${isModal ? "flex" : "hidden md:flex"} items-center justify-between gap-2 rounded-full border border-white/10 bg-night-950/85 px-3 py-1.5 md:min-w-[280px] md:justify-end md:gap-4 md:rounded-2xl md:px-4 md:py-2`}>
             <div className="text-left md:text-right">
               <div className="hidden text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD] md:block">
                 Precio
@@ -856,6 +856,14 @@ export function PropertyDetailModal({
                     />
                   </button>
                 ))}
+              </div>
+            )}
+            {!isModal && (
+              // Celular: la foto va primero y debajo, título, precio y dirección.
+              <div className="space-y-1 md:hidden">
+                <p className="text-2xl font-semibold text-white">{listing.price}</p>
+                <h1 className="font-display text-xl leading-tight text-white">{listing.title}</h1>
+                <p className="text-sm text-[#D1C7BD]">{listing.address}</p>
               </div>
             )}
             {actions && (
