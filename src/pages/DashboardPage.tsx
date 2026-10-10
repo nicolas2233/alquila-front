@@ -1967,7 +1967,7 @@ export function DashboardPage() {
     try {
       const response = await fetch(`${env.apiUrl}/properties/${item.id}`);
       if (!response.ok) {
-        throw new Error("No pudimos cargar la propiedad.");
+        throw new Error("No pudimos cargar el inmueble.");
       }
       const data = (await response.json()) as PropertyApiDetail;
       setSelectedItem(data);
@@ -1976,7 +1976,7 @@ export function DashboardPage() {
     } catch (error) {
       setPublicStatus("error");
       const message =
-        error instanceof Error ? error.message : "No pudimos cargar la propiedad. Revisá tu conexión y probá de nuevo."
+        error instanceof Error ? error.message : "No pudimos cargar el inmueble. Revisá tu conexión y probá de nuevo."
       setPublicError(message);
       addToast(message, "error");
     }

@@ -27,7 +27,7 @@ const steps: OnboardingStep[] = [
       </svg>
     ),
     title: "Bienvenido a DomusBrag",
-    description: "La plataforma inmobiliaria de Bragado. En minutos podrás publicar tu propiedad y conectar con interesados.",
+    description: "La plataforma inmobiliaria de Bragado. En minutos podrás publicar tu inmueble y conectar con interesados.",
   },
   {
     icon: (
@@ -57,7 +57,7 @@ const steps: OnboardingStep[] = [
       </svg>
     ),
     title: "Respondé consultas rápido",
-    description: "Recibirás notificaciones cuando alguien se interese en tu propiedad. Respondé rápido para aumentar tus chances de concretar.",
+    description: "Recibirás notificaciones cuando alguien se interese en tu inmueble. Respondé rápido para aumentar tus chances de concretar.",
     cta: { label: "Ver panel", to: "/panel" },
   },
 ];

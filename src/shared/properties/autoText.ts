@@ -56,7 +56,7 @@ export function buildAutoTitle(datos: DatosAuto): string {
  * de la ficha, asi que un aviso sin texto perjudica al que publica.
  */
 export function buildAutoDescription(datos: DatosAuto): string {
-  const tipo = datos.propertyType ? propertyTypeLabel(datos.propertyType) : "Propiedad";
+  const tipo = datos.propertyType ? propertyTypeLabel(datos.propertyType) : "Inmueble";
   const operacion = datos.operationType ? OPERACION_PREPOSICIONAL[datos.operationType] ?? "" : "";
   const localidad = datos.locality?.trim() || "Bragado";
 

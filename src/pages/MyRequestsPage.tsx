@@ -182,7 +182,7 @@ export function MyRequestsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl text-white">Mis consultas</h2>
-        <p className="text-sm text-[#D1C7BD]">Tus consultas enviadas a propiedades.</p>
+        <p className="text-sm text-[#D1C7BD]">Tus consultas enviadas a inmuebles.</p>
       </div>
 
       {status === "loading" && (

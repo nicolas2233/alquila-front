@@ -27,7 +27,7 @@ export function NotFoundPage() {
             to="/buscar"
             className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-5 py-2 text-sm font-semibold text-night-900"
           >
-            Buscar propiedades
+            Buscar inmuebles
           </Link>
           <Link
             to="/mapa"
@@ -45,7 +45,7 @@ export function NotFoundPage() {
 
         <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
           {[
-            ["Propiedades", "Explorá inmuebles activos con filtros claros."],
+            ["Inmuebles", "Explorá inmuebles activos con filtros claros."],
             ["Mapa", "Ubicá opciones por zona y servicios cercanos."],
             ["Publicar", "Cargá tu inmueble desde un flujo guiado."],
           ].map(([title, body]) => (
