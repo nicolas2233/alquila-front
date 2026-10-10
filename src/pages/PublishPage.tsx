@@ -2185,15 +2185,15 @@ export function PublishPage() {
         error instanceof Error
           ? error.message
           : isEditMode
-          ? "Error al guardar cambios."
-          : "Error al publicar."
+          ? "No pudimos guardar cambios. Probá de nuevo en unos segundos."
+          : "No pudimos publicar. Probá de nuevo en unos segundos."
       );
       addToast(
         error instanceof Error
           ? error.message
           : isEditMode
-          ? "Error al guardar cambios."
-          : "Error al publicar.",
+          ? "No pudimos guardar cambios. Probá de nuevo en unos segundos."
+          : "No pudimos publicar. Probá de nuevo en unos segundos.",
         "error"
       );
     }

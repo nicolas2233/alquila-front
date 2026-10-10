@@ -610,7 +610,7 @@ export function SearchPage() {
         if (controller.signal.aborted) return;
         setListStatus("error");
         setListError(
-          error instanceof Error ? error.message : "Error al cargar publicaciones."
+          error instanceof Error ? error.message : "No pudimos cargar publicaciones. Revisá tu conexión y probá de nuevo."
         );
         setListings([]);
       }

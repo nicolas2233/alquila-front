@@ -467,7 +467,7 @@ export function AdminPage() {
       })
       .catch((error) => {
         setOverviewStatus("error");
-        setOverviewError(error instanceof Error ? error.message : "Error al cargar.");
+        setOverviewError(error instanceof Error ? error.message : "No pudimos cargar los datos. Revisá tu conexión y probá de nuevo.");
       });
   }, [token, effectiveRole]);
 
@@ -496,7 +496,7 @@ export function AdminPage() {
       })
       .catch((error) => {
         setUsersStatus("error");
-        setUsersError(error instanceof Error ? error.message : "Error al cargar usuarios.");
+        setUsersError(error instanceof Error ? error.message : "No pudimos cargar usuarios. Revisá tu conexión y probá de nuevo.");
       });
   }, [token, effectiveRole, tab, userPage, userSearchCommitted]);
 
@@ -526,7 +526,7 @@ export function AdminPage() {
       .catch((error) => {
         setVerificationsStatus("error");
         setVerificationsError(
-          error instanceof Error ? error.message : "Error al cargar verificaciones."
+          error instanceof Error ? error.message : "No pudimos cargar verificaciones. Revisá tu conexión y probá de nuevo."
         );
       });
   }, [token, effectiveRole, tab, verificationsPage, verificationsStatusFilter]);
@@ -557,7 +557,7 @@ export function AdminPage() {
       .catch((error) => {
         setPropertiesStatus("error");
         setPropertiesError(
-          error instanceof Error ? error.message : "Error al cargar publicaciones."
+          error instanceof Error ? error.message : "No pudimos cargar publicaciones. Revisá tu conexión y probá de nuevo."
         );
       });
   }, [token, effectiveRole, tab, propertiesPage, propertiesStatusFilter]);
@@ -582,7 +582,7 @@ export function AdminPage() {
       })
       .catch((error) => {
         setReportsStatus("error");
-        setReportsError(error instanceof Error ? error.message : "Error al cargar reportes.");
+        setReportsError(error instanceof Error ? error.message : "No pudimos cargar reportes. Revisá tu conexión y probá de nuevo.");
       });
   }, [token, effectiveRole, tab]);
 
@@ -606,7 +606,7 @@ export function AdminPage() {
       })
       .catch((error) => {
         setPoisStatus("error");
-        setPoisError(error instanceof Error ? error.message : "Error al cargar puntos.");
+        setPoisError(error instanceof Error ? error.message : "No pudimos cargar puntos. Revisá tu conexión y probá de nuevo.");
       });
   }, [token, effectiveRole, tab, userSearch]);
 
@@ -643,7 +643,7 @@ export function AdminPage() {
       })
       .catch((error) => {
         setPlansStatus("error");
-        setPlansError(error instanceof Error ? error.message : "Error al cargar planes.");
+        setPlansError(error instanceof Error ? error.message : "No pudimos cargar planes. Revisá tu conexión y probá de nuevo.");
       });
   }, [token, effectiveRole, tab]);
 
@@ -653,7 +653,7 @@ export function AdminPage() {
     setBetaInvitesStatus("loading");
     fetch(`${env.apiUrl}/admin/beta-invites`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
-        if (!r.ok) throw new Error(await readApiError(r, "Error al cargar invitaciones."));
+        if (!r.ok) throw new Error(await readApiError(r, "No pudimos cargar invitaciones. Revisá tu conexión y probá de nuevo."));
         return r.json() as Promise<{ items: AdminBetaInvite[] }>;
       })
       .then((data) => {
@@ -673,7 +673,7 @@ export function AdminPage() {
     if (betaFeedbackStatusFilter) params.set("status", betaFeedbackStatusFilter);
     fetch(`${env.apiUrl}/admin/beta-feedback?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
-        if (!r.ok) throw new Error(await readApiError(r, "Error al cargar observaciones."));
+        if (!r.ok) throw new Error(await readApiError(r, "No pudimos cargar observaciones. Revisá tu conexión y probá de nuevo."));
         return r.json() as Promise<{ items: AdminBetaFeedback[]; total: number }>;
       })
       .then((data) => {
@@ -704,7 +704,7 @@ export function AdminPage() {
       })
       .catch((error) => {
         setAdsStatus("error");
-        setAdsError(error instanceof Error ? error.message : "Error al cargar publicidad.");
+        setAdsError(error instanceof Error ? error.message : "No pudimos cargar publicidad. Revisá tu conexión y probá de nuevo.");
       });
   }, [token, effectiveRole, tab]);
 
@@ -782,7 +782,7 @@ export function AdminPage() {
       }));
       addToast("Beneficio aplicado al usuario.", "success");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Error al aplicar beneficio.";
+      const message = error instanceof Error ? error.message : "No pudimos aplicar beneficio. Probá de nuevo en unos segundos.";
       setUsersError(message);
       addToast(message, "error");
     } finally {
@@ -809,7 +809,7 @@ export function AdminPage() {
       );
       addToast(nextFeatured ? "Propiedad destacada." : "Destaque removido.", "success");
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "Error al actualizar.", "error");
+      addToast(error instanceof Error ? error.message : "No pudimos actualizar. Probá de nuevo en unos segundos.", "error");
     } finally {
       setFeaturedSavingId(null);
     }
@@ -861,7 +861,7 @@ export function AdminPage() {
       }));
       addToast(`Plan ${updated.name} actualizado.`, "success");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Error al actualizar el plan.";
+      const message = error instanceof Error ? error.message : "No pudimos actualizar el plan. Probá de nuevo en unos segundos.";
       setPlansError(message);
       addToast(message, "error");
     } finally {
@@ -974,7 +974,7 @@ export function AdminPage() {
       setPoiAddress("");
       setPoiDescription("");
     } catch (error) {
-      setPoisError(error instanceof Error ? error.message : "Error al crear punto.");
+      setPoisError(error instanceof Error ? error.message : "No pudimos crear punto. Probá de nuevo en unos segundos.");
     } finally {
       setPoiSaving(false);
     }
@@ -1051,7 +1051,7 @@ export function AdminPage() {
       setAdCtaText("");
       setAdPriority("0");
     } catch (error) {
-      setAdsError(error instanceof Error ? error.message : "Error al crear publicidad.");
+      setAdsError(error instanceof Error ? error.message : "No pudimos crear publicidad. Probá de nuevo en unos segundos.");
     } finally {
       setAdSaving(false);
     }
@@ -1089,14 +1089,14 @@ export function AdminPage() {
           maxUses: betaInviteMaxUses ? Number(betaInviteMaxUses) : undefined,
         }),
       });
-      if (!response.ok) throw new Error(await readApiError(response, "Error al crear invitación."));
+      if (!response.ok) throw new Error(await readApiError(response, "No pudimos crear invitación. Probá de nuevo en unos segundos."));
       const created = (await response.json()) as AdminBetaInvite;
       setBetaInvites((prev) => [created, ...prev]);
       setBetaInviteLabel("");
       setBetaInviteMaxUses("");
       addToast("Invitación creada.", "success");
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "Error al crear.", "error");
+      addToast(error instanceof Error ? error.message : "No pudimos crear. Probá de nuevo en unos segundos.", "error");
     } finally {
       setBetaInviteSaving(false);
     }
@@ -1170,7 +1170,7 @@ export function AdminPage() {
       setAdEditId(null);
       addToast("Publicidad actualizada.", "success");
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "Error al actualizar.", "error");
+      addToast(error instanceof Error ? error.message : "No pudimos actualizar. Probá de nuevo en unos segundos.", "error");
     } finally {
       setAdEditSaving(false);
     }

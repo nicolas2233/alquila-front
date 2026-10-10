@@ -70,7 +70,7 @@ function RatingWidget({ requestId, token, onRated }: { requestId: string; token:
       onRated(requestId, stars);
       addToast("¡Gracias por calificar!", "success");
     } catch (e) {
-      addToast(e instanceof Error ? e.message : "Error al calificar.", "error");
+      addToast(e instanceof Error ? e.message : "No pudimos calificar. Probá de nuevo en unos segundos.", "error");
     } finally {
       setSaving(false);
     }
