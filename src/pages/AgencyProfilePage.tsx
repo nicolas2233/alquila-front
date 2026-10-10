@@ -792,7 +792,7 @@ export function AgencyProfilePage() {
               <p className="mt-1">Explora otras opciones o publica un inmueble.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
+                  className="inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-full bg-[#D4B07A] px-4 py-2 text-sm font-semibold text-night-950 transition hover:brightness-105"
                   to="/publicar"
                 >
                   Publicar inmueble
@@ -850,29 +850,35 @@ export function AgencyProfilePage() {
                         <p className="line-clamp-1 text-sm text-[#D1C7BD]">{listing.address}</p>
                       </div>
                       <p className="line-clamp-1 text-sm text-[#D1C7BD]">
-                        {listing.description?.trim() ? listing.description : "Sin descripción."}
+                        {listing.description?.trim() ?? ""}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#D1C7BD]">
                         <span className="inline-flex items-center gap-2">
                           {renderFeatureIcon("rooms")}
-                          {listing.rooms > 0 ? `${listing.rooms} ambientes` : "Sin ambientes"}
+                          {listing.rooms > 0 ? `${listing.rooms} ambientes` : null}
                         </span>
                         <span className="inline-flex items-center gap-2">
                           {renderFeatureIcon("area")}
-                          {listing.areaM2} m2
+                          {listing.areaM2} m²
                         </span>
-                        <span className="inline-flex items-center gap-2">
-                          {renderFeatureIcon("garage")}
-                          Cochera: {listing.garage ? "Sí" : "No"}
-                        </span>
-                        <span className="inline-flex items-center gap-2">
-                          {renderFeatureIcon("pets")}
-                          Mascotas: {listing.pets ? "Sí" : "No"}
-                        </span>
-                        <span className="inline-flex items-center gap-2">
-                          {renderFeatureIcon("kids")}
-                          Niños: {listing.kids ? "Sí" : "No"}
-                        </span>
+                        {listing.garage && (
+                          <span className="inline-flex items-center gap-2">
+                            {renderFeatureIcon("garage")}
+                            Cochera
+                          </span>
+                        )}
+                        {listing.pets && (
+                          <span className="inline-flex items-center gap-2">
+                            {renderFeatureIcon("pets")}
+                            Acepta mascotas
+                          </span>
+                        )}
+                        {listing.kids && (
+                          <span className="inline-flex items-center gap-2">
+                            {renderFeatureIcon("kids")}
+                            Apto niños
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -885,9 +891,9 @@ export function AgencyProfilePage() {
                         {listing.price}
                       </div>
                     </div>
-                    <div className="mt-auto flex flex-wrap gap-1.5 md:flex-nowrap md:justify-end">
+                    <div className="mt-auto grid grid-cols-2 gap-2 md:flex md:flex-nowrap md:justify-end">
                       <button
-                        className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-night-900"
+                        className="inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-full bg-[#D4B07A] px-4 py-2 text-sm font-semibold text-night-950 transition hover:brightness-105"
                         type="button"
                         onClick={() => openModal(listing)}
                         onMouseEnter={() => prefetchDetail(listing.id)}
@@ -895,7 +901,7 @@ export function AgencyProfilePage() {
                         Ver ficha
                       </button>
                       <button
-                        className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/30 bg-[#128C7E] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                         type="button"
                         onClick={() => void handleCardWhatsapp(listing)}
                       >
@@ -969,9 +975,9 @@ export function AgencyProfilePage() {
                           <p className="line-clamp-1 text-sm text-[#D1C7BD]">{listing.address}</p>
                         </div>
                         <p className="mt-3 min-h-[2.7rem] text-sm text-[#D1C7BD] line-clamp-2">
-                          {listing.description?.trim() ? listing.description : "Sin descripción."}
+                          {listing.description?.trim() ?? ""}
                         </p>
-                        <div className="mt-3 flex min-h-[72px] flex-wrap content-start gap-2 text-xs text-[#D1C7BD]">
+                        <div className="mt-3 flex flex-wrap content-start gap-2 text-xs text-[#D1C7BD]">
                           {visibleGridFeatures.map((feature) => (
                             <span
                               key={`${listing.id}-${feature.key}`}
@@ -983,11 +989,11 @@ export function AgencyProfilePage() {
                           ))}
                           {extraGridFeatures > 0 && (
                             <span className="inline-flex items-center rounded-full border border-gold-500/35 bg-gold-500/10 px-3 py-1 text-gold-300">
-                              +{extraGridFeatures} mas
+                              +{extraGridFeatures} más
                             </span>
                           )}
                         </div>
-                        <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
+                        <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
                           <button
                             className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
                             type="button"
@@ -997,7 +1003,7 @@ export function AgencyProfilePage() {
                             Ver ficha
                           </button>
                           <button
-                            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
+                            className="inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                             type="button"
                             onClick={() => void handleCardWhatsapp(listing)}
                           >
