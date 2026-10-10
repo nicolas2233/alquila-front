@@ -924,13 +924,11 @@ export function AgencyProfilePage() {
                     {
                       key: "area",
                       icon: "area" as FeatureIconName,
-                      label: `${listing.areaM2} m2`,
+                      label: `${listing.areaM2} m²`,
                     },
-                    {
-                      key: "garage",
-                      icon: "garage" as FeatureIconName,
-                      label: listing.garage ? "Cochera" : "Sin cochera",
-                    },
+                    listing.garage
+                      ? { key: "garage", icon: "garage" as FeatureIconName, label: "Cochera" }
+                      : null,
                     listing.pets
                       ? { key: "pets", icon: "pets" as FeatureIconName, label: "Mascotas permitidas" }
                       : null,

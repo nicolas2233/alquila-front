@@ -83,6 +83,9 @@ export function MapSearchPage() {
   const [activeDropdown, setActiveDropdown] = useState<DropdownKey>(null);
   const [listPanelOpen, setListPanelOpen] = useState(false);
   const [toolbarOpen, setToolbarOpen] = useState(true);
+  // En celular los 4 filtros arrancan plegados detrás de un botón "Filtros":
+  // antes ocupaban un cuarto de la pantalla y tapaban los pines.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Geo
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
@@ -568,6 +571,16 @@ export function MapSearchPage() {
                 <div className="h-4 w-px shrink-0" style={{ background: "rgba(255,255,255,0.15)" }} />
                 <button
                   type="button"
+                  onClick={() => { setMobileFiltersOpen((v) => !v); setActiveDropdown(null); setShowSuggestions(false); }}
+                  aria-expanded={mobileFiltersOpen}
+                  className="flex min-h-[36px] shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold"
+                  style={{ color: totalActiveFilters > 0 || mobileFiltersOpen ? "#D4B07A" : "#E7E2DD", background: mobileFiltersOpen ? "rgba(175,140,92,0.15)" : "transparent" }}
+                >
+                  Filtros{totalActiveFilters > 0 ? ` (${totalActiveFilters})` : ""}
+                </button>
+                <div className="h-4 w-px shrink-0" style={{ background: "rgba(255,255,255,0.15)" }} />
+                <button
+                  type="button"
                   onClick={() => setListPanelOpen((v) => !v)}
                   className="flex items-center gap-1 shrink-0 text-[11px] transition-colors"
                   style={{ color: listPanelOpen ? "#AF8C5C" : "#D1C7BD" }}
@@ -579,8 +592,8 @@ export function MapSearchPage() {
                 </button>
               </div>
 
-              {/* Grid 2×2 filtros */}
-              <div className="grid grid-cols-2">
+              {/* Grid 2×2 filtros (plegado por defecto) */}
+              <div className={mobileFiltersOpen ? "grid grid-cols-2" : "hidden"}>
                 {[
                   { key: "operation" as DropdownKey, label: "Operación", count: activeOperations.length },
                   { key: "type"      as DropdownKey, label: "Tipo",      count: activeTypes.length },
@@ -607,7 +620,7 @@ export function MapSearchPage() {
               </div>
 
               {/* Limpiar — solo con filtros activos */}
-              {hasActiveFilters && (
+              {hasActiveFilters && mobileFiltersOpen && (
                 <div className="px-3 py-2" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                   <button type="button" onClick={clearFilters} className="text-[11px] hover:underline" style={{ color: "#AF8C5C" }}>
                     Limpiar filtros ({totalActiveFilters})
@@ -683,6 +696,37 @@ export function MapSearchPage() {
             </svg>
           )}
         </button>
+
+        {/* ── Tira de propiedades (celular): se ve cuando no hay una seleccionada ── */}
+        {!selected && selectedBuildingItems.length === 0 && filtered.length > 0 && (
+          <div className="absolute inset-x-0 bottom-[4.75rem] z-[500] sm:hidden">
+            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: "none" }}>
+              {filtered.slice(0, 30).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => { setSelectedId(item.id); setSelectedBuildingId(null); setMapCenter([item.lat, item.lng]); }}
+                  className="flex w-[78%] max-w-[300px] shrink-0 snap-start items-center gap-3 overflow-hidden rounded-2xl border border-white/15 bg-night-950/95 p-2 text-left shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                >
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="" className="h-16 w-20 shrink-0 rounded-xl object-cover" loading="lazy" />
+                  ) : (
+                    <div className="h-16 w-20 shrink-0 rounded-xl bg-night-800" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">
+                      {currencySymbol(item.priceCurrency)} {item.priceAmount.toLocaleString("es-AR")}
+                    </p>
+                    <p className="truncate text-xs text-[#E7E2DD]">{item.title}</p>
+                    <p className="truncate text-[12px]" style={{ color: operationColors[item.operationType] }}>
+                      {operationLabels[item.operationType]} · {typeLabels[item.propertyType]}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Selected property card ── */}
         {selected && (

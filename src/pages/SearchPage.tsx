@@ -1400,14 +1400,12 @@ export function SearchPage() {
                     ? {
                         key: "area",
                         icon: "area" as FeatureIconName,
-                        label: `${item.areaM2} m2`,
+                        label: `${item.areaM2} m²`,
                       }
                     : null,
-                  {
-                    key: "garage",
-                    icon: "garage" as FeatureIconName,
-                    label: item.garage ? "Cochera" : "Sin cochera",
-                  },
+                  item.garage
+                    ? { key: "garage", icon: "garage" as FeatureIconName, label: "Cochera" }
+                    : null,
                   item.pets
                     ? {
                         key: "pets",
@@ -1588,12 +1586,14 @@ export function SearchPage() {
                               <div className="text-[11px] font-semibold tracking-[0.02em] text-sky-200">
                                 {isAgencyPublisher ? "Inmobiliaria" : "Dueño directo"}
                               </div>
+{publisherName !== "Dueño directo" && (
                               <div
                                 className="line-clamp-1 text-base font-semibold leading-tight text-white"
                                 title={publisherName}
                               >
                                 {publisherName}
                               </div>
+)}
                             </div>
                           </div>
                         </div>
@@ -1721,9 +1721,11 @@ export function SearchPage() {
                           <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-200">
                             {isAgencyPublisher ? "Inmobiliaria" : "Dueño directo"}
                           </div>
+{publisherName !== "Dueño directo" && (
                           <div className="line-clamp-1 text-base font-semibold leading-tight text-white" title={publisherName}>
                             {publisherName}
                           </div>
+)}
                         </div>
                       </div>
 
