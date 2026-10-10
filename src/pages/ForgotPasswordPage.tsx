@@ -30,7 +30,7 @@ export function ForgotPasswordPage() {
       }
 
       setStatus("success");
-      setMessage(data?.message ?? "Revisa tu email para continuar.");
+      setMessage(data?.message ?? "Revisá tu email para continuar.");
       if (data?.resetLink) setResetLink(data.resetLink);
       addToast("Solicitud enviada.", "success");
     } catch (error) {
@@ -59,7 +59,7 @@ export function ForgotPasswordPage() {
 
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Recuperacion segura</p>
-            <h2 className="font-display text-3xl leading-tight text-white">Recupera tu cuenta en minutos</h2>
+            <h2 className="font-display text-3xl leading-tight text-white">Recuperá tu cuenta en minutos</h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
               Valida email y DNI. Si los datos coinciden te enviamos un enlace para crear una nueva contraseña.
             </p>
@@ -68,8 +68,8 @@ export function ForgotPasswordPage() {
           <div className="grid gap-2">
             {[
               { label: "1", title: "Verifica", detail: "Email + DNI." },
-              { label: "2", title: "Recibe enlace", detail: "Revisa tu correo." },
-              { label: "3", title: "Actualiza clave", detail: "Vuelve a ingresar." },
+              { label: "2", title: "Recibe enlace", detail: "Revisá tu correo." },
+              { label: "3", title: "Actualizá la contraseña", detail: "Volvé a ingresar." },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="flex items-center gap-3">
@@ -90,7 +90,7 @@ export function ForgotPasswordPage() {
           <form className="w-full max-w-md space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5 text-center lg:text-left">
               <h1 className="font-display text-3xl text-white sm:text-[2rem]">Olvidé mi contraseña</h1>
-              <p className="text-sm text-[#D1C7BD]">Ingresa tus datos para recuperar el acceso.</p>
+              <p className="text-sm text-[#D1C7BD]">Ingresá tus datos para recuperar el acceso.</p>
             </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
@@ -116,7 +116,7 @@ export function ForgotPasswordPage() {
               </label>
 
               {message && (
-                <p className={status === "error" ? "text-xs text-[#AF8C5C]" : "text-xs text-[#D1C7BD]"}>
+                <p className={status === "error" ? "text-xs text-[#D4B07A]" : "text-xs text-[#D1C7BD]"}>
                   {message}
                 </p>
               )}

@@ -34,7 +34,7 @@ const propertyLabels: Record<string, string> = {
   LAND: "Terreno",
   FIELD: "Campo",
   QUINTA: "Quinta",
-  COMMERCIAL: "Comercio",
+  COMMERCIAL: "Local comercial",
   OFFICE: "Oficina",
   WAREHOUSE: "Depósito",
 };
@@ -76,7 +76,7 @@ export function SavedSearchesPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Inicia sesión para ver tus búsquedas guardadas.");
+        setMessage("Iniciá sesión para ver tus búsquedas guardadas.");
         return;
       }
       setStatus("loading");
@@ -178,7 +178,7 @@ export function SavedSearchesPage() {
         <p className="text-xs text-[#D1C7BD]">Cargando búsquedas...</p>
       )}
       {status === "error" && (
-        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#AF8C5C]">
+        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#D4B07A]">
           {message}
         </div>
       )}

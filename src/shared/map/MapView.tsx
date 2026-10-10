@@ -239,7 +239,7 @@ function clusterNearbyPoints(points: MapPoint[], selectedId: string | null) {
     result.push({
       id: `cluster:${key}`,
       title: `${group.length} inmuebles cercanos`,
-      subtitle: "Hace zoom o selecciona al acercarte",
+      subtitle: "Hace zoom o seleccioná al acercarte",
       address: first.address,
       imageUrl: first.imageUrl,
       badge: "Cluster",

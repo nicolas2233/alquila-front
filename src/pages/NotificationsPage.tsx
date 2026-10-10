@@ -26,7 +26,7 @@ export function NotificationsPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Inicia sesión para ver tus notificaciones.");
+        setMessage("Iniciá sesión para ver tus notificaciones.");
         return;
       }
       setStatus("loading");
@@ -108,7 +108,7 @@ export function NotificationsPage() {
         <p className="text-xs text-[#D1C7BD]">Cargando notificaciones...</p>
       )}
       {status === "error" && (
-        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#AF8C5C]">
+        <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#D4B07A]">
           {message}
         </div>
       )}

@@ -95,7 +95,7 @@ export function VerifyEmailPage() {
           </h1>
           <p
             className={`mt-3 text-sm ${
-              status === "error" ? "text-[#AF8C5C]" : "text-[#D1C7BD]"
+              status === "error" ? "text-[#D4B07A]" : "text-[#D1C7BD]"
             }`}
           >
             {message}

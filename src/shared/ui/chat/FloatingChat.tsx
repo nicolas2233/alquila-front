@@ -186,7 +186,7 @@ export function FloatingChat({
   const sendReply = useCallback(async () => {
     if (!token || !selectedChat) return;
     if (!replyMessage.trim() || replyMessage.trim().length < 3) {
-      setReplyError("Escribe un mensaje de al menos 3 caracteres.");
+      setReplyError("Escribí un mensaje de al menos 3 caracteres.");
       return;
     }
     setReplyStatus("sending");
@@ -249,7 +249,7 @@ export function FloatingChat({
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] text-xl text-night-900 shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         onClick={() => {
           if (!canUseChat) {
-            addToast("Inicia sesión para ver tus chats.", "warning");
+            addToast("Iniciá sesión para ver tus chats.", "warning");
             return;
           }
           setOpen((prev) => !prev);
@@ -297,7 +297,7 @@ export function FloatingChat({
                 <div className="px-3 py-2 text-[11px] text-[#D1C7BD]">Cargando...</div>
               )}
               {chatStatus === "error" && (
-                <div className="px-3 py-2 text-[11px] text-[#AF8C5C]">{chatError}</div>
+                <div className="px-3 py-2 text-[11px] text-[#D4B07A]">{chatError}</div>
               )}
               {chatStatus === "idle" && chats.length === 0 && (
                 <div className="px-3 py-2 text-[11px] text-[#D1C7BD]">
@@ -358,7 +358,7 @@ export function FloatingChat({
                       </div>
                     )}
                     {messagesStatus === "error" && (
-                      <div className="text-[11px] text-[#AF8C5C]">{messagesError}</div>
+                      <div className="text-[11px] text-[#D4B07A]">{messagesError}</div>
                     )}
                     {messagesStatus === "idle" && messages.length === 0 && (
                       <div className="text-[11px] text-[#D1C7BD]">
@@ -411,12 +411,12 @@ export function FloatingChat({
                   </div>
                   <div className="border-t border-white/10 bg-night-900/82 px-3 py-3">
                     {replyError && (
-                      <div className="mb-2 text-[11px] text-[#AF8C5C]">{replyError}</div>
+                      <div className="mb-2 text-[11px] text-[#D4B07A]">{replyError}</div>
                     )}
                     <div className="flex items-end gap-2">
                       <textarea
                         className="min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-night-900/48 px-3 py-2 text-xs text-white"
-                        placeholder="Escribe un mensaje..."
+                        placeholder="Escribí un mensaje..."
                         value={replyMessage}
                         onChange={(event) => setReplyMessage(event.target.value)}
                       />
@@ -433,7 +433,7 @@ export function FloatingChat({
                 </>
               ) : (
                 <div className="flex h-full items-center justify-center text-[11px] text-[#D1C7BD]">
-                  Selecciona un chat.
+                  Seleccioná un chat.
                 </div>
               )}
             </div>

@@ -37,7 +37,7 @@ export function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("registered") === "1") {
-      addToast("Cuenta creada. Revisa tu email para validarla y luego inicia sesión.", "success");
+      addToast("Cuenta creada. Revisá tu email para validarla y luego iniciá sesión.", "success");
       navigate("/login", { replace: true });
     }
   }, [location.search, addToast, navigate]);
@@ -119,7 +119,7 @@ export function LoginPage() {
       addToast("Sesion iniciada correctamente.", "success");
       if (!sessionUser.emailVerifiedAt && sessionUser.email) {
         addToast(
-          "Tu email aun no esta verificado. Puedes seguir usando la cuenta y validarlo cuando quieras.",
+          "Tu email aun no esta verificado. Podés seguir usando la cuenta y validarlo cuando quieras.",
           "warning",
           6000,
           "Reenviar verificación",
@@ -169,7 +169,7 @@ export function LoginPage() {
     }
     const normalizedEmail = (emailOverride ?? email).trim().toLowerCase();
     if (!normalizedEmail) {
-      addToast("Ingresa tu email para reenviar la verificación.", "warning");
+      addToast("Ingresá tu email para reenviar la verificación.", "warning");
       return;
     }
     setVerifyStatus("loading");
@@ -233,7 +233,7 @@ export function LoginPage() {
               Bienvenido de nuevo a DomusBrag
             </h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
-              Ingresa para gestionar tus publicaciones, solicitudes y panel de forma
+              Ingresá para gestionar tus publicaciones, consultas y panel de forma
               simple desde cualquier dispositivo.
             </p>
           </div>
@@ -242,7 +242,7 @@ export function LoginPage() {
             {[
               { label: "1", title: "Iniciar sesión", detail: "Con email y contraseña." },
               { label: "2", title: "Gestiona", detail: "Publicaciones y estados." },
-              { label: "3", title: "Conecta", detail: "Responde solicitudes rápido." },
+              { label: "3", title: "Conecta", detail: "Respondé consultas rápido." },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="flex items-center gap-3">
@@ -271,7 +271,7 @@ export function LoginPage() {
             <div className="space-y-1.5 text-center lg:text-left">
               <h1 className="font-display text-3xl text-white sm:text-[2rem]">Bienvenido</h1>
               <p className="text-sm text-[#D1C7BD]">
-                Ingresa con tu cuenta para continuar.
+                Ingresá con tu cuenta para continuar.
               </p>
             </div>
 
@@ -296,7 +296,7 @@ export function LoginPage() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     autoComplete="current-password"
-                    placeholder="Ingresa tu contraseña"
+                    placeholder="Ingresá tu contraseña"
                   />
                   <button
                     type="button"
@@ -308,7 +308,7 @@ export function LoginPage() {
                 </div>
               </label>
 
-              {status === "error" && <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>}
+              {status === "error" && <p className="text-xs text-[#D4B07A]">{errorMessage}</p>}
 
               <div className="flex flex-wrap gap-3">
                 <button

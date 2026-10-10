@@ -101,6 +101,15 @@ function IconLogin() {
   );
 }
 
+function IconUser() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[1.8]">
+      <circle cx="12" cy="8.5" r="3.6" />
+      <path d="M5 19.2c.9-3.3 3.7-5.2 7-5.2s6.1 1.9 7 5.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconLogout() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[1.8]">
@@ -154,6 +163,9 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
+  useEffect(() => {
+    setShowAccountMenu(false);
+  }, [location.pathname, location.search]);
   const isMapPage = location.pathname === "/mapa";
   const isListingPage =
     location.pathname.startsWith("/publicacion/") ||
@@ -167,6 +179,7 @@ export function AppLayout() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -240,76 +253,66 @@ export function AppLayout() {
     setShowLogoutConfirm(false);
   };
 
-  const mobileLeftItems: MobileDockItem[] = [
-    { to: "/buscar", label: "Buscar", icon: <DockIcon><IconSearch /></DockIcon> },
-    { to: "/mapa", label: "Mapa", icon: <DockIcon><IconMap /></DockIcon> },
-  ];
+  // Barra inferior (celular): Inicio y Buscar a la izquierda, acción principal al centro,
+  // Mapa y Cuenta a la derecha. "Cerrar sesión" vive dentro del menú de Cuenta, no en la barra.
+  const homeItem: MobileDockItem = { to: "/", label: "Inicio", icon: <DockIcon><IconHome /></DockIcon> };
+  const searchItem: MobileDockItem = { to: "/buscar", label: "Buscar", icon: <DockIcon><IconSearch /></DockIcon> };
+  const mapItem: MobileDockItem = { to: "/mapa", label: "Mapa", icon: <DockIcon><IconMap /></DockIcon> };
+  const accountItem: MobileDockItem = {
+    label: "Cuenta",
+    icon: <DockIcon><IconUser /></DockIcon>,
+    onClick: () => setShowAccountMenu((open) => !open),
+    showDot: notificationCount > 0,
+  };
 
-  let mobileRightItems: MobileDockItem[] = [];
+  let mobileLeftDockItems: MobileDockItem[] = [homeItem, searchItem];
+  let mobileRightItems: MobileDockItem[] = [mapItem, accountItem];
   let mobileCenterAction: { to: string; label: string; icon: ReactNode } = {
-    to: "/registro",
-    label: "Crear cuenta",
+    to: "/publicar",
+    label: "Publicar",
     icon: <IconPlus />,
   };
+  let accountLinks: Array<{ to: string; label: string; showDot?: boolean }> = [];
 
   if (!user) {
     mobileCenterAction = { to: "/registro", label: "Crear cuenta", icon: <IconPlus /> };
     mobileRightItems = [
-      { to: "/", label: "Inicio", icon: <DockIcon><IconHome /></DockIcon> },
-      { to: "/login", label: "Login", icon: <DockIcon><IconLogin /></DockIcon> },
+      mapItem,
+      { to: "/login", label: "Ingresar", icon: <DockIcon><IconLogin /></DockIcon> },
     ];
   } else if (user.role === "VISITOR") {
-    mobileCenterAction = {
-      to: "/buscar",
-      label: "Buscar",
-      icon: <IconSearch />,
-    };
+    mobileLeftDockItems = [homeItem, mapItem];
+    mobileCenterAction = { to: "/buscar", label: "Buscar", icon: <IconSearch /> };
     mobileRightItems = [
-      {
-        label: "Salir",
-        icon: <DockIcon><IconLogout /></DockIcon>,
-        onClick: handleLogout,
-        showDot: notificationCount > 0,
-      },
+      { to: "/mis-solicitudes", label: "Consultas", icon: <DockIcon><IconBell /></DockIcon> },
+      accountItem,
+    ];
+    accountLinks = [
+      { to: "/perfil", label: "Mi perfil" },
+      { to: "/busquedas", label: "Búsquedas guardadas" },
+      { to: "/notificaciones", label: "Notificaciones", showDot: notificationCount > 0 },
     ];
   } else if (user.role === "ADMIN") {
     mobileCenterAction = { to: "/admin", label: "Admin", icon: <IconPanel /> };
     mobileRightItems = [
-      {
-        to: "/notificaciones",
-        label: "Avisos",
-        icon: <DockIcon><IconBell /></DockIcon>,
-        showDot: notificationCount > 0,
-      },
-      { label: "Salir", icon: <DockIcon><IconLogout /></DockIcon>, onClick: handleLogout },
+      { to: "/notificaciones", label: "Avisos", icon: <DockIcon><IconBell /></DockIcon>, showDot: notificationCount > 0 },
+      accountItem,
     ];
   } else {
-    mobileCenterAction = { to: "/publicar", label: "Publicar", icon: <IconPlus /> };
-    mobileRightItems = [
-      {
-        to: "/panel?tab=listings",
-        label: "Panel",
-        icon: <DockIcon><IconPanel /></DockIcon>,
-        showDot: notificationCount > 0,
-      },
-      {
-        label: "Salir",
-        icon: <DockIcon><IconLogout /></DockIcon>,
-        onClick: handleLogout,
-        showDot: notificationCount > 0,
-      },
+    accountLinks = [
+      { to: "/panel?tab=listings", label: "Mis publicaciones" },
+      { to: "/panel?tab=requests", label: "Consultas recibidas", showDot: notificationCount > 0 },
+      { to: "/panel?tab=profile", label: "Mi perfil" },
+      { to: "/panel?tab=subscription", label: "Mi plan" },
+      { to: "/notificaciones", label: "Notificaciones", showDot: notificationCount > 0 },
     ];
   }
 
-  const mobileLeftDockItems: MobileDockItem[] =
-    user?.role === "VISITOR"
-      ? [{ to: "/mapa", label: "Mapa", icon: <DockIcon><IconMap /></DockIcon> }]
-      : mobileLeftItems;
-  const mobileLeftCols = mobileLeftDockItems.length === 1 ? "grid-cols-1" : "grid-cols-2";
-  const mobileLeftWidth = mobileLeftDockItems.length === 1 ? "w-[30%]" : "w-[42%]";
-  const mobileRightCols = mobileRightItems.length === 1 ? "grid-cols-1" : "grid-cols-2";
-  const mobileRightWidth = mobileRightItems.length === 1 ? "w-[30%]" : "w-[42%]";
-  const mobileRightAlign = mobileRightItems.length === 1 ? "justify-items-end" : "";
+  const mobileLeftCols = "grid-cols-2";
+  const mobileLeftWidth = "w-[42%]";
+  const mobileRightCols = "grid-cols-2";
+  const mobileRightWidth = "w-[42%]";
+  const mobileRightAlign = "";
 
   return (
     <ToastProvider>
@@ -335,7 +338,7 @@ export function AppLayout() {
                 <>
                   <NavLink to="/mis-solicitudes" className={navClass}>
                     <span className="inline-flex items-center gap-2">
-                      Mis solicitudes
+                      Mis consultas
                       {notificationCount > 0 && (
                         <span className="h-2 w-2 rounded-full bg-gold-400" />
                       )}
@@ -524,7 +527,7 @@ export function AppLayout() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1200] lg:hidden">
         <Container>
           <div className="relative px-1 pb-[calc(0.45rem+env(safe-area-inset-bottom))] pt-1">
-            <div className="pointer-events-auto relative mx-auto flex max-w-md items-end justify-between rounded-[24px] border border-white/12 bg-night-900/88 px-3 pb-1.5 pt-4 shadow-[0_12px_28px_rgba(0,0,0,0.36)] backdrop-blur-xl">
+            <div className="pointer-events-auto relative mx-auto flex max-w-md items-end justify-between rounded-[24px] border border-white/12 bg-night-950/97 px-3 pb-1.5 pt-4 shadow-[0_12px_28px_rgba(0,0,0,0.36)]">
               <div className={`grid ${mobileLeftWidth} ${mobileLeftCols} items-end`}>
                 {mobileLeftDockItems.map((item) => (
                   <MobileDockTab
@@ -562,6 +565,40 @@ export function AppLayout() {
           </div>
         </Container>
       </div>
+      {showAccountMenu && user && (
+        <div className="fixed inset-0 z-[1250] lg:hidden" onClick={() => setShowAccountMenu(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <nav
+            aria-label="Mi cuenta"
+            className="absolute inset-x-3 bottom-[calc(5.8rem+env(safe-area-inset-bottom))] mx-auto max-w-md overflow-hidden rounded-2xl border border-white/12 bg-night-950 shadow-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="truncate border-b border-white/10 px-4 py-3 text-sm text-[#BDB5A9]">{user.email}</p>
+            {accountLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setShowAccountMenu(false)}
+                className="flex min-h-[48px] items-center justify-between border-b border-white/5 px-4 text-[15px] text-white hover:bg-white/5"
+              >
+                {link.label}
+                {link.showDot && <span className="h-2 w-2 rounded-full bg-gold-300" />}
+              </Link>
+            ))}
+            <button
+              type="button"
+              className="flex min-h-[48px] w-full items-center gap-2 px-4 text-left text-[15px] text-rose-200 hover:bg-white/5"
+              onClick={() => {
+                setShowAccountMenu(false);
+                handleLogout();
+              }}
+            >
+              <IconLogout />
+              Cerrar sesión
+            </button>
+          </nav>
+        </div>
+      )}
       {/** Chat in-app desactivado temporalmente */}
       <LegalModal
         open={showTerms}
@@ -582,7 +619,7 @@ export function AppLayout() {
       <ConfirmLeaveModal
         open={showLogoutConfirm}
         title="¿Cerrar sesión?"
-        message="Vas a salir de tu cuenta y volver a la pantalla de login. Podras ingresar nuevamente cuando quieras."
+        message="Vas a salir de tu cuenta. Podés volver a ingresar cuando quieras."
         confirmLabel="Cerrar sesión"
         cancelLabel="Cancelar"
         onConfirm={confirmLogout}

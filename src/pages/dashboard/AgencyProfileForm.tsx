@@ -79,7 +79,7 @@ export function AgencyProfileForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg text-white">Perfil de inmobiliaria</h3>
-          <p className="text-xs text-[#D1C7BD]">Edita los datos que vern tus clientes.</p>
+          <p className="text-xs text-[#D1C7BD]">Editá los datos que verán tus clientes.</p>
         </div>
         <button
           className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
@@ -92,7 +92,7 @@ export function AgencyProfileForm({
       </div>
 
       {!agencyId && (
-        <p className="text-xs text-[#AF8C5C]">
+        <p className="text-xs text-[#D4B07A]">
           Necesitamos asociar tu usuario a una inmobiliaria.
         </p>
       )}
@@ -100,7 +100,7 @@ export function AgencyProfileForm({
       {status === "loading" && (
         <p className="text-xs text-[#D1C7BD]">Cargando datos...</p>
       )}
-      {status === "error" && <p className="text-xs text-[#AF8C5C]">{error}</p>}
+      {status === "error" && <p className="text-xs text-[#D4B07A]">{error}</p>}
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2 text-xs text-[#D1C7BD]">

@@ -227,7 +227,7 @@ export function UserProfilePage() {
       <div>
         <h2 className="text-3xl text-white">Mi perfil</h2>
         <p className="text-sm text-[#D1C7BD]">
-          Completa tus datos de contacto y perfil. La identidad registrada se muestra en modo lectura.
+          Completá tus datos de contacto y perfil. La identidad registrada se muestra en modo lectura.
         </p>
       </div>
 
@@ -273,7 +273,7 @@ export function UserProfilePage() {
           <p className="text-xs text-[#D1C7BD]">Cargando perfil...</p>
         )}
         {status === "error" && (
-          <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>
+          <p className="text-xs text-[#D4B07A]">{errorMessage}</p>
         )}
 
         <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/48 p-4">

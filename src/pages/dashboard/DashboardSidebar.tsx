@@ -45,7 +45,7 @@ export function DashboardSidebar({
             : "w-full rounded-xl border border-white/10 bg-night-900/32 px-3 py-2.5 text-left text-sm text-[#E7E2DD]"
         }
       >
-        Solicitudes
+        Consultas
       </button>
       {showMyRequests && (
         <button
@@ -57,7 +57,7 @@ export function DashboardSidebar({
               : "w-full rounded-xl border border-white/10 bg-night-900/32 px-3 py-2.5 text-left text-sm text-[#E7E2DD]"
           }
         >
-          Mis solicitudes
+          Mis consultas
         </button>
       )}
     </aside>

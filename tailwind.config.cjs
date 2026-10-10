@@ -1,10 +1,12 @@
-﻿/** @type {import('tailwindcss').Config} */
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./index.html", "./src/**/*.{ts,tsx}", "./src/**/*.{js,jsx}", "./src/**/*.html"],
   theme: {
     extend: {
       colors: {
         night: {
+          // 950 se usaba en ~34 clases pero no estaba definido: esos fondos salían transparentes.
+          950: "#2A2622",
           900: "#3A342F",
           800: "#474440",
           700: "#5A534C",
@@ -13,7 +15,8 @@ module.exports = {
         gold: {
           100: "#E7E2DD",
           200: "#D1C7BD",
-          300: "#AF8C5C",
+          // Dorado para TEXTO: #AF8C5C daba contraste 3.1 sobre night-800 (WCAG pide 4.5).
+          300: "#D4B07A",
           500: "#AF8C5C",
           400: "#D1C7BD",
         },
@@ -38,6 +41,12 @@ module.exports = {
         xs: ["0.8125rem", { lineHeight: "1.15rem" }], // 13px (era 12)
         sm: ["0.9375rem", { lineHeight: "1.35rem" }], // 15px (era 14)
       },
+      // Opacidades de 1 a 99. Tailwind solo trae múltiplos de 5 (/10, /15...), pero el código
+      // usa ~290 clases como bg-night-900/48 o border-white/12 que, sin esto, no se generaban
+      // y quedaban transparentes (por ejemplo, la barra inferior del celular).
+      opacity: Object.fromEntries(
+        Array.from({ length: 99 }, (_, i) => [String(i + 1), String((i + 1) / 100)])
+      ),
       boxShadow: {
         card: "0 20px 50px rgba(0, 0, 0, 0.45)",
         soft: "0 10px 30px rgba(0, 0, 0, 0.35)",
