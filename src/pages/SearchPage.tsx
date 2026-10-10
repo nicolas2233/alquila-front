@@ -1209,7 +1209,7 @@ export function SearchPage() {
             />
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-[#D1C7BD]">
-            <div>{listings.length > 0 ? `${listings.length} de ${total} resultados` : ""}</div>
+            <div>{listings.length > 0 ? `${listings.length} de ${total} ${total === 1 ? "resultado" : "resultados"}` : ""}</div>
             {hasMore && <div className="text-[11px] text-[#D1C7BD]/70">Scroll para ver más</div>}
           </div>
         </div>
@@ -1282,7 +1282,7 @@ export function SearchPage() {
         <div
           className={
             viewMode === "grid"
-              ? "grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+              ? "grid gap-5 sm:grid-cols-2 2xl:grid-cols-3"
               : "space-y-4"
           }
         >
@@ -1479,7 +1479,7 @@ export function SearchPage() {
                             <p className="line-clamp-1 text-sm text-[#D1C7BD]">{item.address}</p>
                           </div>
                           <p className="line-clamp-1 text-sm text-[#D1C7BD]">
-                            {item.description?.trim() ? item.description : "Sin descripción."}
+                            {item.description?.trim() ?? ""}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#D1C7BD]">
                             {item.rooms > 0 && (
@@ -1511,10 +1511,11 @@ export function SearchPage() {
                                   <path d="M4 4h16v16H4z" />
                                   <path d="M4 9h16M9 4v16" />
                                 </svg>
-                                {item.areaM2} m2
+                                {item.areaM2} m²
                               </span>
                             )}
-                            <span className="inline-flex items-center gap-2">
+                            {item.garage && (
+                              <span className="inline-flex items-center gap-2">
                               <svg
                                 aria-hidden="true"
                                 className="h-4 w-4"
@@ -1526,9 +1527,11 @@ export function SearchPage() {
                                 <path d="M3 11l9-7 9 7v9H3v-9z" />
                                 <path d="M8 20v-5h8v5" />
                               </svg>
-                              Cochera: {item.garage ? "Sí" : "No"}
-                            </span>
-                            <span className="inline-flex items-center gap-2">
+                              Cochera
+                              </span>
+                            )}
+                            {item.pets && (
+                              <span className="inline-flex items-center gap-2">
                               <svg
                                 aria-hidden="true"
                                 className="h-4 w-4"
@@ -1540,9 +1543,11 @@ export function SearchPage() {
                                 <path d="M7 12h10M5 8l2 12M19 8l-2 12" />
                                 <path d="M9 6l3 4 3-4" />
                               </svg>
-                              Mascotas: {item.pets ? "Sí" : "No"}
-                            </span>
-                            <span className="inline-flex items-center gap-2">
+                              Acepta mascotas
+                              </span>
+                            )}
+                            {item.kids && (
+                              <span className="inline-flex items-center gap-2">
                               <svg
                                 aria-hidden="true"
                                 className="h-4 w-4"
@@ -1554,8 +1559,9 @@ export function SearchPage() {
                                 <circle cx="12" cy="7" r="3" />
                                 <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
                               </svg>
-                              Niños: {item.kids ? "Sí" : "No"}
-                            </span>
+                              Apto niños
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1600,12 +1606,12 @@ export function SearchPage() {
                         <div className="mt-auto grid grid-cols-2 gap-2 md:flex md:flex-nowrap md:justify-end">
                           <Link
                             {...listingLinkProps(item)}
-                            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-night-900"
+                            className="inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-full bg-[#D4B07A] px-4 py-2 text-sm font-semibold text-night-950 transition hover:brightness-105"
                           >
                             Ver ficha
                           </Link>
                           <button
-                            className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/30 bg-[#128C7E] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110"
+                            className="inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                             type="button"
                             onClick={() => void handleCardWhatsapp(item)}
                           >
@@ -1680,11 +1686,11 @@ export function SearchPage() {
                         <p className="line-clamp-1 text-sm text-[#D1C7BD]">{item.address}</p>
                       </div>
 
-                      <p className="mt-3 min-h-[2.7rem] text-sm text-[#D1C7BD] line-clamp-2">
-                        {item.description?.trim() ? item.description : "Sin descripción."}
+                      <p className="mt-3 text-sm text-[#D1C7BD] line-clamp-2 empty:hidden">
+                        {item.description?.trim() ?? ""}
                       </p>
 
-                      <div className="mt-3 flex min-h-[72px] flex-wrap content-start gap-2 text-xs text-[#D1C7BD]">
+                      <div className="mt-3 flex flex-wrap content-start gap-2 text-xs text-[#D1C7BD]">
                         {visibleGridFeatures.map((feature) => (
                           <span
                             key={`${item.id}-${feature.key}`}
@@ -1696,7 +1702,7 @@ export function SearchPage() {
                         ))}
                         {extraGridFeatures > 0 && (
                           <span className="inline-flex items-center rounded-full border border-gold-500/35 bg-gold-500/10 px-3 py-1 text-gold-300">
-                            +{extraGridFeatures} mas
+                            +{extraGridFeatures} más
                           </span>
                         )}
                       </div>
@@ -1729,15 +1735,15 @@ export function SearchPage() {
                         </div>
                       </div>
 
-                      <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
+                      <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
                         <Link
                           {...listingLinkProps(item)}
-                          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-4 py-2 text-xs font-semibold text-night-900"
+                          className="inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-full bg-[#D4B07A] px-4 py-2 text-sm font-semibold text-night-950 transition hover:brightness-105"
                         >
                           Ver ficha
                         </Link>
                         <button
-                          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
+                          className="inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                           type="button"
                           onClick={() => void handleCardWhatsapp(item)}
                         >
@@ -1770,7 +1776,7 @@ export function SearchPage() {
         )}
         {!hasMore && listings.length > 0 && listStatus === "idle" && (
           <div className="py-4 text-center text-xs text-[#D1C7BD]">
-            {listings.length} de {total} resultados
+            {listings.length} de {total} {total === 1 ? "resultado" : "resultados"}
           </div>
         )}
       </section>
