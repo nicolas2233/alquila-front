@@ -47,7 +47,7 @@ export const propertyLabels: Record<string, string> = {
   LAND: "Terreno",
   FIELD: "Campo",
   QUINTA: "Quinta",
-  COMMERCIAL: "Comercio",
+  COMMERCIAL: "Local comercial",
   OFFICE: "Oficina",
   WAREHOUSE: "Depósito",
 };

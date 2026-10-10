@@ -808,7 +808,7 @@ export function PublishPage() {
     }
     if (!sessionToken) {
       setInitialStatus("error");
-      setInitialError("Necesitas iniciar sesión para editar.");
+      setInitialError("Necesitás iniciar sesión para editar.");
       return;
     }
 
@@ -1583,12 +1583,12 @@ export function PublishPage() {
     }
     setGeoStatus("idle");
     if (shouldSyncFields) {
-      setGeoMessage(`Ubicacion encontrada y campos actualizados: ${result.displayName}`);
+      setGeoMessage(`Ubicación encontrada y campos actualizados: ${result.displayName}`);
     } else {
       setGeoMessage(
         options?.source === "map"
           ? "Punto actualizado. En modo manual no se autocompletan los campos."
-          : "Ubicacion encontrada. En modo manual solo se actualiza el punto."
+          : "Ubicación encontrada. En modo manual solo se actualiza el punto."
       );
     }
     setAddressSuggestions([]);
@@ -1660,7 +1660,7 @@ export function PublishPage() {
     ).trim();
     if (!query) {
       setGeoStatus("error");
-      setGeoMessage("Primero ingresa una dirección aproximada para buscar.");
+      setGeoMessage("Primero ingresá una dirección aproximada para buscar.");
       return;
     }
     setGeoStatus("loading");
@@ -1855,8 +1855,8 @@ export function PublishPage() {
       setShowErrors(true);
       addToast(
         isEditMode
-          ? "Revisa los campos obligatorios antes de guardar."
-          : "Revisa los campos obligatorios antes de publicar.",
+          ? "Revisá los campos obligatorios antes de guardar."
+          : "Revisá los campos obligatorios antes de publicar.",
         "error"
       );
       return;
@@ -1866,7 +1866,7 @@ export function PublishPage() {
 
     try {
       if (!sessionUser || !sessionToken) {
-        throw new Error("Necesitas iniciar sesión.");
+        throw new Error("Necesitás iniciar sesión.");
       }
 
       if (!isEditMode && planHasLimit && planSlotsRemaining !== null && planSlotsRemaining <= 0) {
@@ -2444,7 +2444,7 @@ export function PublishPage() {
                   <option value="LAND">Terreno</option>
                   <option value="FIELD">Campo</option>
                   <option value="QUINTA">Quinta</option>
-                  <option value="COMMERCIAL">Comercial</option>
+                  <option value="COMMERCIAL">Local comercial</option>
                   <option value="OFFICE">Oficina</option>
                   <option value="WAREHOUSE">Depósito</option>
                 </select>
@@ -4039,7 +4039,7 @@ export function PublishPage() {
                 Cupo completo
               </p>
               <h3 className="mt-1 text-lg text-white">
-                No puedes cargar nuevos inmuebles con tu plan actual
+                No podés cargar nuevos inmuebles con tu plan actual
               </h3>
             </div>
             <div className="space-y-3 px-5 py-4 text-sm text-[#D1C7BD] sm:px-6 sm:py-5">

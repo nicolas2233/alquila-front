@@ -306,7 +306,7 @@ export function HomePage() {
             {[
               { n: "01", title: "Creá tu cuenta", body: "Elegí tu perfil (buscador, dueño o inmobiliaria) y verificá tu email con el link que te enviamos.", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
               { n: "02", title: "Buscá o publicá", body: "Usá los filtros, el mapa interactivo o cargá tu propiedad con el asistente de 5 pasos.", icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" },
-              { n: "03", title: "Conectá y cerrá", body: "Contactá por WhatsApp, enviá una solicitud o respondé desde el panel. Sin pasos innecesarios.", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+              { n: "03", title: "Conectá y cerrá", body: "Contactá por WhatsApp, mandá una consulta o respondé desde el panel. Sin pasos innecesarios.", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
             ].map((step, i) => (
               <Reveal key={step.n} delayMs={90 + i * 80} className="relative glass-card p-6">
                 <div className="absolute right-5 top-5 font-display text-5xl font-bold text-white/5">{step.n}</div>

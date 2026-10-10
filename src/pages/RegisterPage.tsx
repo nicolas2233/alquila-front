@@ -73,7 +73,7 @@ const accountTypeOptions: Array<{
   {
     key: "agency",
     title: "Inmobiliaria",
-    text: "Gestioná tu cartera y las solicitudes.",
+    text: "Gestioná tu cartera y las consultas.",
     image:
       "https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=480&q=70",
   },
@@ -198,12 +198,12 @@ export function RegisterPage() {
 
       if (!termsAccepted) {
         setFieldErrors({ termsAccepted: true });
-        throw new Error("Debes aceptar los términos y condiciones.");
+        throw new Error("Debés aceptar los términos y condiciones.");
       }
 
       if (betaMode && !betaAccepted) {
         setFieldErrors({ betaAccepted: true });
-        throw new Error("Debes aceptar el compromiso beta para continuar.");
+        throw new Error("Debés aceptar el compromiso beta para continuar.");
       }
 
       if (contrasena.length < 8) {
@@ -323,7 +323,7 @@ export function RegisterPage() {
       setStatus("success");
       const successMsg =
         (typeof data?.verificationMessage === "string" && data.verificationMessage) ||
-        "Cuenta creada correctamente. Revisa tu email para validarla.";
+        "Cuenta creada correctamente. Revisá tu email para validarla.";
       addToast(successMsg, "success");
       window.setTimeout(() => {
         trackEvent("sign_up", { accountType, plan });
@@ -505,7 +505,7 @@ export function RegisterPage() {
               </h1>
               <p className="text-sm text-[#D1C7BD]">
                 {betaMode
-                  ? `Completa tus datos para activar el acceso ${betaTargetRole === "AGENCY" ? "de inmobiliaria" : "de dueño directo"}.`
+                  ? `Completá tus datos para activar el acceso ${betaTargetRole === "AGENCY" ? "de inmobiliaria" : "de dueño directo"}.`
                   : "Elegí tu perfil y completá los datos."}
               </p>
             </div>
@@ -604,7 +604,7 @@ export function RegisterPage() {
               {accountType === "owner" && (
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
-                    Telefono
+                    Teléfono
                     <input className={fieldClass(!!fieldErrors.phone)} data-error={fieldErrors.phone ? "true" : undefined} value={phone} onChange={(event) => setPhone(event.target.value)} />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -629,7 +629,7 @@ export function RegisterPage() {
               {accountType === "agency" && (
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
-                    Telefono
+                    Teléfono
                     <input className={fieldClass(!!fieldErrors.phone)} data-error={fieldErrors.phone ? "true" : undefined} value={phone} onChange={(event) => setPhone(event.target.value)} />
                   </label>
                   <label className="space-y-2 text-xs text-[#D1C7BD]">
@@ -694,7 +694,7 @@ export function RegisterPage() {
               </label>
               {fieldErrors.termsAccepted && (
                 <p className="text-xs text-[#D4B07A]">
-                  Debes aceptar términos y privacidad para continuar.
+                  Debés aceptar términos y privacidad para continuar.
                 </p>
               )}
 
@@ -721,7 +721,7 @@ export function RegisterPage() {
                   </div>
                   {fieldErrors.betaAccepted && (
                     <p className="text-xs text-[#D4B07A]">
-                      Debes aceptar el compromiso beta para continuar.
+                      Debés aceptar el compromiso beta para continuar.
                     </p>
                   )}
                 </>

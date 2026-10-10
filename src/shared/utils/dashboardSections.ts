@@ -8,9 +8,9 @@ export const getSectionTitle = (section: PanelSection, isAgency: boolean) => {
     return "Mis inmuebles";
   }
   if (section === "requests") {
-    return "Solicitudes";
+    return "Consultas";
   }
-  return "Mis solicitudes";
+  return "Mis consultas";
 };
 
 export const getSectionSubtitle = (section: PanelSection) => {
@@ -20,7 +20,7 @@ export const getSectionSubtitle = (section: PanelSection) => {
   if (section === "listings") {
     return "Controla estados, disponibilidad y contactos.";
   }
-  return "Gestiona las solicitudes recibidas.";
+  return "Gestioná las consultas recibidas.";
 };
 
 

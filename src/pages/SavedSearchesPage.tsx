@@ -34,7 +34,7 @@ const propertyLabels: Record<string, string> = {
   LAND: "Terreno",
   FIELD: "Campo",
   QUINTA: "Quinta",
-  COMMERCIAL: "Comercio",
+  COMMERCIAL: "Local comercial",
   OFFICE: "Oficina",
   WAREHOUSE: "Depósito",
 };
@@ -76,7 +76,7 @@ export function SavedSearchesPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Inicia sesión para ver tus búsquedas guardadas.");
+        setMessage("Iniciá sesión para ver tus búsquedas guardadas.");
         return;
       }
       setStatus("loading");

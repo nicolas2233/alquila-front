@@ -175,7 +175,7 @@ export function PropertyDetailModal({
     LAND: "Terreno",
     FIELD: "Campo",
     QUINTA: "Quinta",
-    COMMERCIAL: "Comercio",
+    COMMERCIAL: "Local comercial",
     OFFICE: "Oficina",
     WAREHOUSE: "Depósito",
   };
@@ -1465,7 +1465,7 @@ export function PropertyDetailModal({
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.16em] text-[#D1C7BD]">
-                  Ubicacion ampliada
+                  Ubicación ampliada
                 </div>
                 <div className="text-sm text-[#E7E2DD]">{listing.address}</div>
               </div>

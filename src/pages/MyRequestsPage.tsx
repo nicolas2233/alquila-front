@@ -46,7 +46,7 @@ const propertyLabels: Record<string, string> = {
   LAND: "Terreno",
   FIELD: "Campo",
   QUINTA: "Quinta",
-  COMMERCIAL: "Comercio",
+  COMMERCIAL: "Local comercial",
   OFFICE: "Oficina",
   WAREHOUSE: "Depósito",
 };
@@ -115,7 +115,7 @@ export function MyRequestsPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Necesitas iniciar sesión.");
+        setMessage("Necesitás iniciar sesión.");
         return;
       }
       setStatus("loading");
@@ -125,7 +125,7 @@ export function MyRequestsPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {
-          throw new Error("No pudimos cargar tus solicitudes.");
+          throw new Error("No pudimos cargar tus consultas.");
         }
         const data = (await response.json()) as { items: MyRequest[] };
         setItems(data.items ?? []);
@@ -133,7 +133,7 @@ export function MyRequestsPage() {
       } catch (error) {
         setStatus("error");
         setMessage(
-          error instanceof Error ? error.message : "No pudimos cargar tus solicitudes."
+          error instanceof Error ? error.message : "No pudimos cargar tus consultas."
         );
       }
     };
@@ -142,7 +142,7 @@ export function MyRequestsPage() {
 
   const openRequestDetail = async (requestItem: MyRequest) => {
     if (!token) {
-      addToast("Necesitas iniciar sesión.", "warning");
+      addToast("Necesitás iniciar sesión.", "warning");
       return;
     }
     setSelectedRequest(requestItem);
@@ -151,7 +151,7 @@ export function MyRequestsPage() {
 
   const openPropertyDetail = async (propertyId: string) => {
     if (!token) {
-      addToast("Necesitas iniciar sesión.", "warning");
+      addToast("Necesitás iniciar sesión.", "warning");
       navigate("/login");
       return;
     }
@@ -181,18 +181,18 @@ export function MyRequestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl text-white">Mis solicitudes</h2>
-        <p className="text-sm text-[#D1C7BD]">Tus solicitudes enviadas a propiedades.</p>
+        <h2 className="text-3xl text-white">Mis consultas</h2>
+        <p className="text-sm text-[#D1C7BD]">Tus consultas enviadas a propiedades.</p>
       </div>
 
       {status === "loading" && (
-        <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
+        <p className="text-xs text-[#D1C7BD]">Cargando consultas...</p>
       )}
       {status === "error" && (
         <p className="text-xs text-[#D4B07A]">{message}</p>
       )}
       {status === "idle" && items.length === 0 && (
-        <p className="text-xs text-[#D1C7BD]">Aun no has hecho solicitudes.</p>
+        <p className="text-xs text-[#D1C7BD]">Todavía no hiciste consultas.</p>
       )}
 
       {status === "idle" && items.length > 0 && (
@@ -274,7 +274,7 @@ export function MyRequestsPage() {
           <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-night-900 shadow-card">
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
-                <h3 className="text-xl text-white">Detalle de solicitud</h3>
+                <h3 className="text-xl text-white">Detalle de consulta</h3>
                 <p className="text-xs text-[#D1C7BD]">
                   {requestTypeLabels[selectedRequest.type] ?? selectedRequest.type}
                 </p>

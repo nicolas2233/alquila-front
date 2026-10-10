@@ -48,7 +48,7 @@ const propertyFilterLabels = {
   LAND: "Terreno",
   FIELD: "Campo",
   QUINTA: "Quinta",
-  COMMERCIAL: "Comercio",
+  COMMERCIAL: "Local comercial",
   WAREHOUSE: "Depósito",
   OFFICE: "Oficina",
 } as const;
@@ -808,7 +808,7 @@ export function SearchPage() {
 
   const handleCardWhatsapp = async (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesión para contactar por WhatsApp.", "warning");
+      addToast("Iniciá sesión para contactar por WhatsApp.", "warning");
       return;
     }
     try {
@@ -817,7 +817,7 @@ export function SearchPage() {
         (sessionUser.role === "OWNER" && detail.ownerUserId === sessionUser.id) ||
         (sessionUser.role.startsWith("AGENCY") && detail.agencyId === sessionUser.agencyId);
       if (isMine) {
-        addToast("No puedes contactar tus propias publicaciones.", "warning");
+        addToast("No podés contactar tus propias publicaciones.", "warning");
         return;
       }
       const method = detail.contactMethods?.find((item) => item.type === "WHATSAPP");
@@ -911,7 +911,7 @@ export function SearchPage() {
             <option value="LAND">Terreno</option>
             <option value="FIELD">Campo</option>
             <option value="QUINTA">Quinta</option>
-            <option value="COMMERCIAL">Comercio</option>
+            <option value="COMMERCIAL">Local comercial</option>
             <option value="WAREHOUSE">Depósito</option>
             <option value="OFFICE">Oficina</option>
           </select>

@@ -26,7 +26,7 @@ export function NotificationsPage() {
     const load = async () => {
       if (!token) {
         setStatus("error");
-        setMessage("Inicia sesión para ver tus notificaciones.");
+        setMessage("Iniciá sesión para ver tus notificaciones.");
         return;
       }
       setStatus("loading");

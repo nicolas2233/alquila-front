@@ -557,7 +557,7 @@ export function AdminPage() {
       .catch((error) => {
         setPropertiesStatus("error");
         setPropertiesError(
-          error instanceof Error ? error.message : "Error al cargar publicaciónes."
+          error instanceof Error ? error.message : "Error al cargar publicaciones."
         );
       });
   }, [token, effectiveRole, tab, propertiesPage, propertiesStatusFilter]);
@@ -1018,7 +1018,7 @@ export function AdminPage() {
     if (!token) return;
     setAdsError("");
     if (!adTitle.trim()) {
-      setAdsError("El titulo es obligatorio.");
+      setAdsError("El título es obligatorio.");
       return;
     }
     setAdSaving(true);
@@ -1260,7 +1260,7 @@ export function AdminPage() {
                 { label: "Usuarios", value: overview.users },
                 { label: "Inmobiliarias", value: overview.agencies },
                 { label: "Publicaciones", value: overview.properties },
-                { label: "Solicitudes", value: overview.contactRequests },
+                { label: "Consultas", value: overview.contactRequests },
                 { label: "Reportes abiertos", value: overview.reports },
                 { label: "Verificaciones pendientes", value: overview.pendingVerifications },
               ].map((item) => (
@@ -1654,7 +1654,7 @@ export function AdminPage() {
             </select>
           </div>
           {propertiesStatus === "loading" && (
-            <div className="text-xs text-[#D1C7BD]">Cargando publicaciónes...</div>
+            <div className="text-xs text-[#D1C7BD]">Cargando publicaciones...</div>
           )}
           {propertiesStatus === "error" && (
             <div className="text-xs text-[#D4B07A]">{propertiesError}</div>
@@ -1879,7 +1879,7 @@ export function AdminPage() {
             </label>
             <div className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>Selecciona el punto en el mapa</span>
+                <span>Seleccioná el punto en el mapa</span>
                 {poiLat && poiLng && (
                   <span className="text-[11px] text-[#E7E2DD]">
                     {Number(poiLat).toFixed(5)}, {Number(poiLng).toFixed(5)}
@@ -1952,7 +1952,7 @@ export function AdminPage() {
               />
             </div>
             <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
-              Direccion (opcional)
+              Dirección (opcional)
               <input
                 className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={poiAddress}
@@ -1960,7 +1960,7 @@ export function AdminPage() {
               />
             </label>
             <label className="space-y-2 text-xs text-[#D1C7BD] md:col-span-2">
-              Descripcion (opcional)
+              Descripción (opcional)
               <textarea
                 rows={3}
                 className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"

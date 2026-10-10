@@ -68,7 +68,7 @@ const propertyLabels: Record<string, string> = {
   LAND: "Terreno",
   FIELD: "Campo",
   QUINTA: "Quinta",
-  COMMERCIAL: "Comercio",
+  COMMERCIAL: "Local comercial",
   OFFICE: "Oficina",
   WAREHOUSE: "Depósito",
 };
@@ -529,7 +529,7 @@ export function DashboardPage() {
   const loadProperties = useCallback(async () => {
     if (!sessionUser) {
       setPropertyStatus("error");
-      setPropertyError("Necesitas iniciar sesión.");
+      setPropertyError("Necesitás iniciar sesión.");
       return;
     }
 
@@ -633,7 +633,7 @@ export function DashboardPage() {
   const updateBillingCycle = useCallback(
     async (billingCycle: "MONTHLY" | "ANNUAL") => {
       if (!sessionToken) {
-        addToast("Necesitas iniciar sesión.", "warning");
+        addToast("Necesitás iniciar sesión.", "warning");
         return;
       }
       if (!subscriptionInfo || subscriptionInfo.billingCycle === billingCycle) {
@@ -721,7 +721,7 @@ export function DashboardPage() {
 
   const requestMercadoPagoPaymentSync = useCallback(async () => {
     if (!sessionToken) {
-      throw new Error("Necesitas iniciar sesión.");
+      throw new Error("Necesitás iniciar sesión.");
     }
     const response = await fetch(`${env.apiUrl}/subscriptions/current/payment-sync`, {
       method: "POST",
@@ -1219,7 +1219,7 @@ export function DashboardPage() {
                 syncData.message ??
                   "¡Listo! Mercado Pago confirmó tu suscripción y se activó el mes gratis."
               );
-              addToast(syncData.message ?? "Mes gratis activo. Ya puedes publicar.", "success");
+              addToast(syncData.message ?? "Mes gratis activo. Ya podés publicar.", "success");
               window.setTimeout(() => {
                 setPaymentMethodModalOpen(false);
                 resetEmbeddedPaymentForm();
@@ -1236,7 +1236,7 @@ export function DashboardPage() {
 
         setPaymentMethodModalStatus("idle");
         setPaymentMethodModalMessage(
-          "Recibimos los datos de tu tarjeta, pero la confirmación aún está pendiente. Puedes esperar unos segundos o usar “Verificar ahora”."
+          "Recibimos los datos de tu tarjeta, pero la confirmación aún está pendiente. Podés esperar unos segundos o usar “Verificar ahora”."
         );
         addToast(data.message ?? "Medio de pago enviado a Mercado Pago.", "success");
       } catch (error) {
@@ -1297,31 +1297,31 @@ export function DashboardPage() {
     const message = normalize(raw);
 
     if (message.includes("card token service not found")) {
-      return "Mercado Pago no pudo tokenizar la tarjeta con este formulario. Intenta nuevamente o usa el flujo por redirección como respaldo.";
+      return "Mercado Pago no pudo tokenizar la tarjeta con este formulario. Intentá nuevamente o usa el flujo por redirección como respaldo.";
     }
     if (message.includes("no primary field found")) {
-      return "El formulario de tarjeta aún no terminó de inicializarse. Espera un segundo e inténtalo de nuevo. Si persiste, cierra y vuelve a abrir el modal.";
+      return "El formulario de tarjeta aún no terminó de inicializarse. Esperá un segundo e intentalo de nuevo. Si persiste, cierra y volvé a abrir el modal.";
     }
     if (message.includes("payer_email is required")) {
-      return "Mercado Pago requiere un email válido para asociar la suscripción. Revisa el campo “Email de Mercado Pago”.";
+      return "Mercado Pago requiere un email válido para asociar la suscripción. Revisá el campo “Email de Mercado Pago”.";
     }
     if (message.includes("back_url is required")) {
       return "Mercado Pago requiere una URL pública de retorno para vincular la suscripción. En local usa un túnel (ngrok/cloudflared) o prueba este flujo desde Railway.";
     }
     if (message.includes("identification") && message.includes("number")) {
-      return "Revisa el tipo y número de documento del titular. Mercado Pago no pudo validarlos.";
+      return "Revisá el tipo y número de documento del titular. Mercado Pago no pudo validarlos.";
     }
     if (message.includes("security code") || message.includes("cvv")) {
-      return "Revisa el código de seguridad (CVV) de la tarjeta e inténtalo de nuevo.";
+      return "Revisá el código de seguridad (CVV) de la tarjeta e intentalo de nuevo.";
     }
     if (message.includes("expiration") || message.includes("vencimiento")) {
-      return "Revisa la fecha de vencimiento de la tarjeta.";
+      return "Revisá la fecha de vencimiento de la tarjeta.";
     }
     if (message.includes("card number") || message.includes("numero de tarjeta")) {
-      return "Revisa el número de tarjeta. Mercado Pago no pudo validarlo.";
+      return "Revisá el número de tarjeta. Mercado Pago no pudo validarlo.";
     }
     if (message.includes("timeout")) {
-      return "Mercado Pago demoró en responder. Intenta nuevamente en unos segundos.";
+      return "Mercado Pago demoró en responder. Intentá nuevamente en unos segundos.";
     }
     if (message.includes("invalid")) {
       return `Mercado Pago rechazó algunos datos de la tarjeta. ${raw}`;
@@ -1345,12 +1345,12 @@ export function DashboardPage() {
 
     if (!payerEmail || !/^\S+@\S+\.\S+$/.test(payerEmail)) {
       setPaymentMethodModalStatus("error");
-      setPaymentMethodModalMessage("Ingresa un email válido para Mercado Pago.");
+      setPaymentMethodModalMessage("Ingresá un email válido para Mercado Pago.");
       return;
     }
     if (!cardholderName) {
       setPaymentMethodModalStatus("error");
-      setPaymentMethodModalMessage("Ingresa el nombre del titular de la tarjeta.");
+      setPaymentMethodModalMessage("Ingresá el nombre del titular de la tarjeta.");
       return;
     }
     if (!identificationType || !identificationNumber) {
@@ -1459,7 +1459,7 @@ export function DashboardPage() {
           );
           setPlanChangeInlineTone("success");
           setPlanChangeInlineMessage(
-            "Plan actualizado. Completa el medio de pago en el formulario integrado para activar el mes gratis."
+            "Plan actualizado. Completá el medio de pago en el formulario integrado para activar el mes gratis."
           );
           setPlanModalOpen(false);
           openEmbeddedPaymentMethodModal();
@@ -1533,7 +1533,7 @@ export function DashboardPage() {
   const loadRequests = useCallback(async () => {
     if (!sessionToken) {
       setRequestStatus("error");
-      setRequestError("Necesitas iniciar sesión.");
+      setRequestError("Necesitás iniciar sesión.");
       return;
     }
     setRequestStatus("loading");
@@ -1546,7 +1546,7 @@ export function DashboardPage() {
         },
       });
       if (!response.ok) {
-        throw new Error("No pudimos cargar las solicitudes.");
+        throw new Error("No pudimos cargar las consultas.");
       }
       const data = (await response.json()) as { items: typeof contactRequests };
       setContactRequests(data.items ?? []);
@@ -1554,7 +1554,7 @@ export function DashboardPage() {
     } catch (error) {
       setRequestStatus("error");
       setRequestError(
-        error instanceof Error ? error.message : "Error al cargar solicitudes."
+        error instanceof Error ? error.message : "Error al cargar consultas."
       );
     }
   }, [sessionToken]);
@@ -1562,7 +1562,7 @@ export function DashboardPage() {
   const loadRequestDetail = useCallback(
     async (requestId: string) => {
       if (!sessionToken) {
-        addToast("Necesitas iniciar sesión.", "warning");
+        addToast("Necesitás iniciar sesión.", "warning");
         return null;
       }
       try {
@@ -1600,7 +1600,7 @@ export function DashboardPage() {
   const loadMyRequests = useCallback(async () => {
     if (!sessionToken) {
       setRequestStatus("error");
-      setRequestError("Necesitas iniciar sesión.");
+      setRequestError("Necesitás iniciar sesión.");
       return;
     }
     setRequestStatus("loading");
@@ -1613,7 +1613,7 @@ export function DashboardPage() {
         },
       });
       if (!response.ok) {
-        throw new Error("No pudimos cargar tus solicitudes.");
+        throw new Error("No pudimos cargar tus consultas.");
       }
       const data = (await response.json()) as { items: typeof myRequests };
       setMyRequests(data.items ?? []);
@@ -1621,7 +1621,7 @@ export function DashboardPage() {
     } catch (error) {
       setRequestStatus("error");
       setRequestError(
-        error instanceof Error ? error.message : "Error al cargar tus solicitudes."
+        error instanceof Error ? error.message : "Error al cargar tus consultas."
       );
     }
   }, [sessionToken]);
@@ -1800,7 +1800,7 @@ export function DashboardPage() {
       setHighlightFlash((prev) => !prev);
       setHighlightPulse(false);
     } else {
-      addToast("No encontramos esa solicitud.", "warning");
+      addToast("No encontramos esa consulta.", "warning");
     }
     setPendingRequestId(null);
     };
@@ -2281,7 +2281,7 @@ export function DashboardPage() {
       setAgencyStatus("idle");
       if (agencyProfileTab === "data") {
         setAgencyProfileTab("styles");
-        addToast("Datos guardados. Ahora puedes ajustar estilos.", "success");
+        addToast("Datos guardados. Ahora podés ajustar estilos.", "success");
       } else {
         addToast("Perfil actualizado.", "success");
       }
@@ -2298,7 +2298,7 @@ export function DashboardPage() {
     const query = agencyMapQuery.trim() || agencyAddress.trim();
     if (!query) {
       setAgencyGeoStatus("error");
-      setAgencyGeoMessage("Ingresa una dirección para ubicar la inmobiliaria.");
+      setAgencyGeoMessage("Ingresá una dirección para ubicar la inmobiliaria.");
       return;
     }
     setAgencyGeoStatus("loading");
@@ -2316,7 +2316,7 @@ export function DashboardPage() {
       setAgencyAddress(formattedAddress || result.displayName);
       setAgencyMapQuery(formattedAddress || result.displayName);
       setAgencyGeoStatus("idle");
-      setAgencyGeoMessage("Ubicacion encontrada. Ajusta el punto en el mapa si hace falta.");
+      setAgencyGeoMessage("Ubicación encontrada. Ajusta el punto en el mapa si hace falta.");
     } catch (error) {
       setAgencyGeoStatus("error");
       setAgencyGeoMessage(
@@ -2341,7 +2341,7 @@ export function DashboardPage() {
       setAgencyAddress(formattedAddress || result.displayName);
       setAgencyMapQuery(formattedAddress || result.displayName);
       setAgencyGeoStatus("idle");
-      setAgencyGeoMessage("Direccion actualizada desde el mapa.");
+      setAgencyGeoMessage("Dirección actualizada desde el mapa.");
     } catch {
       setAgencyGeoStatus("error");
       setAgencyGeoMessage(
@@ -2353,7 +2353,7 @@ export function DashboardPage() {
   const updateRequestStatus = async (id: string, status: "NEW" | "CONTACTED" | "CLOSED") => {
     if (!sessionToken) {
       setRequestStatus("error");
-      setRequestError("Necesitas iniciar sesión.");
+      setRequestError("Necesitás iniciar sesión.");
       return;
     }
     try {
@@ -2366,7 +2366,7 @@ export function DashboardPage() {
         body: JSON.stringify({ status }),
       });
       if (!response.ok) {
-        throw new Error("No pudimos actualizar la solicitud.");
+        throw new Error("No pudimos actualizar la consulta.");
       }
       setContactRequests((prev) =>
         prev.map((item) => (item.id === id ? { ...item, status } : item))
@@ -2374,7 +2374,7 @@ export function DashboardPage() {
     } catch (error) {
       setRequestStatus("error");
       setRequestError(
-        error instanceof Error ? error.message : "No pudimos actualizar la solicitud."
+        error instanceof Error ? error.message : "No pudimos actualizar la consulta."
       );
     }
   };
@@ -2438,7 +2438,7 @@ export function DashboardPage() {
 
   const sendRentalRequirements = async (id: string) => {
     if (!sessionToken) {
-      addToast("Necesitas iniciar sesión.", "error");
+      addToast("Necesitás iniciar sesión.", "error");
       return;
     }
     try {
@@ -2482,12 +2482,12 @@ export function DashboardPage() {
       title: isAgency ? "Perfil de inmobiliaria" : "Perfil de dueño directo",
       description: isAgency
         ? "Configura identidad, canales y hero público de tu agencia."
-        : "Gestiona tus datos personales y de contacto.",
+        : "Gestioná tus datos personales y de contacto.",
     },
     subscription: {
       badge: "Plan",
       title: "Mi suscripción",
-      description: "Revisa tu plan, cupo, trial y próximos pasos de cobro.",
+      description: "Revisá tu plan, cupo, trial y próximos pasos de cobro.",
     },
     listings: {
       badge: "Publicaciones",
@@ -2496,13 +2496,13 @@ export function DashboardPage() {
     },
     requests: {
       badge: "Gestión",
-      title: "Solicitudes de contacto",
+      title: "Consultas de contacto",
       description: "Responde consultas y seguimiento comercial desde un solo lugar.",
     },
     "my-requests": {
       badge: "Actividad",
-      title: "Mis solicitudes",
-      description: "Revisa el estado de tus consultas y conversaciones abiertas.",
+      title: "Mis consultas",
+      description: "Revisá el estado de tus consultas y conversaciones abiertas.",
     },
     "beta-feedback": {
       badge: "Beta",
@@ -2525,7 +2525,7 @@ export function DashboardPage() {
     ? "Controlá tu plan y el cupo disponible"
     : activeSection === "listings"
     ? "Gestioná tus inmuebles con foco comercial"
-    : "Respondé solicitudes sin perder contexto";
+    : "Respondé consultas sin perder contexto";
   const premiumHeroDescription = isProfileHero
     ? isAgency
       ? "Mostrá identidad, canales de contacto y una presencia profesional para reforzar confianza."
@@ -2743,7 +2743,7 @@ export function DashboardPage() {
             onClick={() => handleSelectSection("requests")}
             className={sidebarButtonClass("requests")}
           >
-            Solicitudes
+            Consultas
           </button>
           {sessionUser?.role === "VISITOR" && (
             <button
@@ -2751,7 +2751,7 @@ export function DashboardPage() {
               onClick={() => handleSelectSection("my-requests")}
               className={sidebarButtonClass("my-requests")}
             >
-              Mis solicitudes
+              Mis consultas
             </button>
           )}
           {sessionUser?.isBetaUser && (
@@ -2782,7 +2782,7 @@ export function DashboardPage() {
             <div>
               <h3 className="text-lg text-white">Perfil de inmobiliaria</h3>
               <p className="text-xs text-[#D1C7BD]">
-                Edita los datos que veran tus clientes.
+                Editá los datos que verán tus clientes.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -2890,7 +2890,7 @@ export function DashboardPage() {
                   />
                 </label>
                 <label className="space-y-2 text-xs text-[#D1C7BD]">
-                  Telefono
+                  Teléfono
                   <input
                     className={agencyInputClass}
                     value={agencyPhone}
@@ -2962,7 +2962,7 @@ export function DashboardPage() {
               <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/40 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs uppercase tracking-[0.12em] text-[#D1C7BD]">
-                    Ubicacion en mapa de la inmobiliaria
+                    Ubicación en mapa de la inmobiliaria
                   </p>
                   <button
                     type="button"
@@ -3069,7 +3069,7 @@ export function DashboardPage() {
                     </div>
                   </div>
                   <div className="relative mt-4 grid gap-2 sm:grid-cols-3">
-                    {["Contacto", "Ubicacion", "Canales"].map((item) => (
+                    {["Contacto", "Ubicación", "Canales"].map((item) => (
                       <div
                         key={item}
                         className="rounded-xl border px-3 py-2 text-[11px] text-white/90"
@@ -3409,7 +3409,7 @@ export function DashboardPage() {
               />
             </label>
             <label className="space-y-2 text-xs text-[#D1C7BD]">
-              Telefono
+              Teléfono
               <input
                 className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white"
                 value={ownerPhone}
@@ -3823,7 +3823,7 @@ export function DashboardPage() {
                             0,
                             planUsageCount - (subscriptionInfo.pendingPlan.maxProperties ?? 0),
                           )}{" "}
-                          publicación(es). Debes pausar o dar de baja publicaciones antes de la
+                          publicación(es). Debés pausar o dar de baja publicaciones antes de la
                           fecha de cambio.
                         </p>
                       )}
@@ -3934,7 +3934,7 @@ export function DashboardPage() {
                 <option value="LAND">Terreno</option>
                 <option value="FIELD">Campo</option>
                 <option value="QUINTA">Quinta</option>
-                <option value="COMMERCIAL">Comercio</option>
+                <option value="COMMERCIAL">Local comercial</option>
                 <option value="OFFICE">Oficina</option>
                 <option value="WAREHOUSE">Depósito</option>
               </select>
@@ -4177,7 +4177,7 @@ export function DashboardPage() {
         <div className="glass-card space-y-4 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg text-white">Solicitudes de contacto</h3>
+              <h3 className="text-lg text-white">Consultas de contacto</h3>
               <p className="text-xs text-[#D1C7BD]">
                 Gestioná interesados y reservas de visita.
               </p>
@@ -4196,10 +4196,10 @@ export function DashboardPage() {
             <p className="text-xs text-[#D4B07A]">{requestError}</p>
           )}
           {requestStatus === "loading" && (
-            <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando consultas...</p>
           )}
           {requestStatus === "idle" && contactRequests.length === 0 && (
-            <p className="text-xs text-[#D1C7BD]">Todavía no recibiste solicitudes.</p>
+            <p className="text-xs text-[#D1C7BD]">Todavía no recibiste consultas.</p>
           )}
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -4216,7 +4216,7 @@ export function DashboardPage() {
                 <option value="LAND">Terreno</option>
                 <option value="FIELD">Campo</option>
                 <option value="QUINTA">Quinta</option>
-                <option value="COMMERCIAL">Comercio</option>
+                <option value="COMMERCIAL">Local comercial</option>
                 <option value="OFFICE">Oficina</option>
                 <option value="WAREHOUSE">Depósito</option>
               </select>
@@ -4322,7 +4322,7 @@ export function DashboardPage() {
 
                     <div className="flex flex-col justify-end gap-3 rounded-2xl border border-white/10 bg-black/15 p-3">
                       <label className="space-y-1 text-[11px] text-[#D1C7BD]">
-                        Estado de solicitud
+                        Estado de consulta
                         <select
                           className="w-full rounded-xl border border-white/10 bg-night-900/70 px-3 py-2 text-xs text-white"
                           value={request.status}
@@ -4363,9 +4363,9 @@ export function DashboardPage() {
         <div className="glass-card space-y-4 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg text-white">Mis solicitudes enviadas</h3>
+              <h3 className="text-lg text-white">Mis consultas enviadas</h3>
               <p className="text-xs text-[#D1C7BD]">
-                Historial de solicitudes que enviaste.
+                Historial de consultas que enviaste.
               </p>
             </div>
             <button
@@ -4382,10 +4382,10 @@ export function DashboardPage() {
             <p className="text-xs text-[#D4B07A]">{requestError}</p>
           )}
           {requestStatus === "loading" && (
-            <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
+            <p className="text-xs text-[#D1C7BD]">Cargando consultas...</p>
           )}
           {requestStatus === "idle" && myRequests.length === 0 && (
-            <p className="text-xs text-[#D1C7BD]">Todavía no enviaste solicitudes.</p>
+            <p className="text-xs text-[#D1C7BD]">Todavía no enviaste consultas.</p>
           )}
 
           {myRequests.length > 0 && (
@@ -5313,7 +5313,7 @@ export function DashboardPage() {
           <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#1B1714] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
             <div className="flex items-center justify-between border-b border-white/10 bg-[#211c18] px-6 py-4">
               <div>
-                <h3 className="text-xl text-white">Detalle de solicitud</h3>
+                <h3 className="text-xl text-white">Detalle de consulta</h3>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-gold-400/35 bg-gold-500/12 px-2.5 py-1 text-[11px] font-semibold text-gold-100">
                     {requestTypeLabels[selectedRequest.type] ?? selectedRequest.type}
@@ -5382,7 +5382,7 @@ export function DashboardPage() {
                       {(() => {
                         const phone = selectedRequest.phone ?? selectedRequest.requesterUser?.phone;
                         if (!phone) return null;
-                        const message = `Hola ${selectedRequest.name ?? ""}, vimos tu solicitud por "${
+                        const message = `Hola ${selectedRequest.name ?? ""}, vimos tu consulta por "${
                           selectedRequest.property.title
                         }".`;
                         const link = buildWhatsappLink(phone, message);
@@ -5504,7 +5504,7 @@ export function DashboardPage() {
                 ¿Eliminar <span className="font-semibold text-white">"{deleteConfirmItem.title}"</span>?
               </p>
               <p className="mt-2 text-xs text-[#BFB8AD]">
-                Se borrarán permanentemente el inmueble, sus fotos y todas las solicitudes de contacto asociadas. No se puede deshacer.
+                Se borrarán permanentemente el inmueble, sus fotos y todas las consultas de contacto asociadas. No se puede deshacer.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-white/10 px-6 py-4">

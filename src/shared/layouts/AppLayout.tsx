@@ -256,7 +256,7 @@ export function AppLayout() {
     mobileCenterAction = { to: "/registro", label: "Crear cuenta", icon: <IconPlus /> };
     mobileRightItems = [
       { to: "/", label: "Inicio", icon: <DockIcon><IconHome /></DockIcon> },
-      { to: "/login", label: "Login", icon: <DockIcon><IconLogin /></DockIcon> },
+      { to: "/login", label: "Ingresar", icon: <DockIcon><IconLogin /></DockIcon> },
     ];
   } else if (user.role === "VISITOR") {
     mobileCenterAction = {
@@ -335,7 +335,7 @@ export function AppLayout() {
                 <>
                   <NavLink to="/mis-solicitudes" className={navClass}>
                     <span className="inline-flex items-center gap-2">
-                      Mis solicitudes
+                      Mis consultas
                       {notificationCount > 0 && (
                         <span className="h-2 w-2 rounded-full bg-gold-400" />
                       )}

@@ -370,7 +370,7 @@ export function AgencyProfilePage() {
 
   const handleCardWhatsapp = async (listing: SearchListing) => {
     if (!sessionUser) {
-      addToast("Inicia sesión para contactar por WhatsApp.", "warning");
+      addToast("Iniciá sesión para contactar por WhatsApp.", "warning");
       navigate("/login");
       return;
     }
@@ -380,7 +380,7 @@ export function AgencyProfilePage() {
         (sessionUser.role === "OWNER" && detail.ownerUserId === sessionUser.id) ||
         (sessionUser.role.startsWith("AGENCY") && detail.agencyId === sessionUser.agencyId);
       if (isMine) {
-        addToast("No puedes contactar tus propias publicaciones.", "warning");
+        addToast("No podés contactar tus propias publicaciones.", "warning");
         return;
       }
       const method = detail.contactMethods?.find((item) => item.type === "WHATSAPP");
@@ -691,7 +691,7 @@ export function AgencyProfilePage() {
             {typeof agency?.lat === "number" && typeof agency?.lng === "number" && (
               <div className="rounded-2xl border border-white/15 bg-night-900/45 p-3">
                 <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-[#aac0ff]">
-                  Ubicacion exacta
+                  Ubicación exacta
                 </p>
                 <div className="overflow-hidden rounded-xl border border-white/10">
                   <MapContainer

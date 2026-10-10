@@ -280,7 +280,7 @@ export function ListingPage() {
 
   const handleReportProperty = async (reason: string) => {
     if (!token || !sessionUser) {
-      throw new Error("Inicia sesión para reportar.");
+      throw new Error("Iniciá sesión para reportar.");
     }
     const response = await fetch(`${env.apiUrl}/properties/${listing.id}/report`, {
       method: "POST",
@@ -315,28 +315,28 @@ export function ListingPage() {
   const handleInterest = async () => {
     if (!token || !sessionUser) {
       setContactStatus("error");
-      setContactMessage("Inicia sesión para enviar la solicitud.");
-      addToast("Inicia sesión para enviar la solicitud.", "warning");
+      setContactMessage("Iniciá sesión para enviar la consulta.");
+      addToast("Iniciá sesión para enviar la consulta.", "warning");
       setInterestPresetOpen(false);
       navigate("/login");
       return;
     }
     if (isOwnListing) {
       setContactStatus("error");
-      setContactMessage("No puedes enviar solicitudes a tus propias publicaciones.");
-      addToast("No puedes enviar solicitudes a tus propias publicaciones.", "warning");
+      setContactMessage("No podés enviar consultas a tus propias publicaciones.");
+      addToast("No podés enviar consultas a tus propias publicaciones.", "warning");
       setInterestPresetOpen(false);
       return;
     }
     if (alreadySentInterest) {
       setContactStatus("success");
-      setContactMessage("Ya enviaste una solicitud para esta publicación.");
-      addToast("Ya enviaste una solicitud para esta publicación.", "info");
+      setContactMessage("Ya enviaste una consulta para esta publicación.");
+      addToast("Ya enviaste una consulta para esta publicación.", "info");
       setInterestPresetOpen(false);
       return;
     }
     setContactStatus("loading");
-    setContactMessage("Enviando solicitud...");
+    setContactMessage("Enviando consulta...");
     try {
       const selectedPreset =
         interestMessagePresets.find((preset) => preset.id === interestPresetId) ??
@@ -354,18 +354,18 @@ export function ListingPage() {
         }),
       });
       if (!response.ok) {
-        throw new Error("No pudimos enviar la solicitud.");
+        throw new Error("No pudimos enviar la consulta.");
       }
       markContactRequestSent({ propertyId: listing.id, type: "INTEREST" });
       setContactStatus("success");
-      setContactMessage("Solicitud enviada correctamente.");
+      setContactMessage("Consulta enviada correctamente.");
       setInterestPresetOpen(false);
-      addToast("Solicitud enviada correctamente.", "success");
+      addToast("Consulta enviada correctamente.", "success");
     } catch (interestError) {
       const message =
         interestError instanceof Error
           ? interestError.message
-          : "No pudimos enviar la solicitud.";
+          : "No pudimos enviar la consulta.";
       setContactStatus("error");
       setContactMessage(message);
       addToast(message, "error");
@@ -478,7 +478,7 @@ export function ListingPage() {
                       className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:w-auto"
                       type="button"
                       onClick={() => {
-                        addToast("Inicia sesión para contactar por WhatsApp.", "warning");
+                        addToast("Iniciá sesión para contactar por WhatsApp.", "warning");
                         navigate("/login");
                       }}
                     >
@@ -515,7 +515,7 @@ export function ListingPage() {
                       className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD] sm:w-auto"
                       type="button"
                       onClick={() => {
-                        addToast("Inicia sesión para ver el teléfono.", "warning");
+                        addToast("Iniciá sesión para ver el teléfono.", "warning");
                         navigate("/login");
                       }}
                     >
@@ -690,8 +690,8 @@ export function ListingPage() {
               onClick={() => {
                 addToast(
                   stickyContact.kind === "WHATSAPP"
-                    ? "Inicia sesión para contactar por WhatsApp."
-                    : "Inicia sesión para ver el teléfono.",
+                    ? "Iniciá sesión para contactar por WhatsApp."
+                    : "Iniciá sesión para ver el teléfono.",
                   "warning"
                 );
                 navigate("/login");

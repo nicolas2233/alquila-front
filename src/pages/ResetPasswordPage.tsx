@@ -19,7 +19,7 @@ export function ResetPasswordPage() {
     event.preventDefault();
 
     if (!token) {
-      const msg = "Token invalido.";
+      const msg = "El enlace no es válido o venció.";
       setStatus("error");
       setMessage(msg);
       addToast(msg, "error");
@@ -42,7 +42,7 @@ export function ResetPasswordPage() {
       }
 
       setStatus("success");
-      setMessage("Contraseña actualizada. Inicia sesión.");
+      setMessage("Contraseña actualizada. Iniciá sesión.");
       addToast("Contraseña actualizada.", "success");
       setTimeout(() => navigate("/login"), 500);
     } catch (error) {
@@ -72,18 +72,18 @@ export function ResetPasswordPage() {
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Nueva contraseña</p>
             <h2 className="font-display text-3xl leading-tight text-white">
-              Configura una clave segura
+              Elegí una contraseña segura
             </h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
-              Crea una nueva contraseña para recuperar el acceso a tu cuenta y continuar en DomusBrag.
+              Creá una nueva contraseña para recuperar el acceso a tu cuenta y continuar en DomusBrag.
             </p>
           </div>
 
           <div className="grid gap-2">
             {[
-              { label: "1", title: "Ingresa clave", detail: "Minimo 8 caracteres." },
-              { label: "2", title: "Confirma clave", detail: "Debe coincidir." },
-              { label: "3", title: "Accede", detail: "Inicia sesión nuevamente." },
+              { label: "1", title: "Ingresá la contraseña", detail: "Mínimo 8 caracteres." },
+              { label: "2", title: "Confirmá la contraseña", detail: "Debe coincidir." },
+              { label: "3", title: "Accede", detail: "Iniciá sesión nuevamente." },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export function ResetPasswordPage() {
           <form className="w-full max-w-md space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5 text-center lg:text-left">
               <h1 className="font-display text-3xl text-white sm:text-[2rem]">Cambiar contraseña</h1>
-              <p className="text-sm text-[#D1C7BD]">Completa los campos para actualizar tu clave.</p>
+              <p className="text-sm text-[#D1C7BD]">Completá los campos para actualizar tu contraseña.</p>
             </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
@@ -116,7 +116,7 @@ export function ResetPasswordPage() {
                     className="w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 pr-14 text-sm text-white outline-none transition focus:border-gold-400/60"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Minimo 8 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     autoComplete="new-password"
                   />
                   <button

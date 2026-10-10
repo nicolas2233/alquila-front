@@ -79,7 +79,7 @@ export function AgencyProfileForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg text-white">Perfil de inmobiliaria</h3>
-          <p className="text-xs text-[#D1C7BD]">Edita los datos que vern tus clientes.</p>
+          <p className="text-xs text-[#D1C7BD]">Editá los datos que verán tus clientes.</p>
         </div>
         <button
           className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"

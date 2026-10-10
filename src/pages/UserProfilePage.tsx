@@ -227,7 +227,7 @@ export function UserProfilePage() {
       <div>
         <h2 className="text-3xl text-white">Mi perfil</h2>
         <p className="text-sm text-[#D1C7BD]">
-          Completa tus datos de contacto y perfil. La identidad registrada se muestra en modo lectura.
+          Completá tus datos de contacto y perfil. La identidad registrada se muestra en modo lectura.
         </p>
       </div>
 

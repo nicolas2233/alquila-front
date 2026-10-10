@@ -44,7 +44,7 @@ type GeoSuggestion = { lat: number; lng: number; displayName: string };
 const operationLabels: Record<OperationType, string> = { SALE: "Venta", RENT: "Alquiler", TEMPORARY: "Temporario" };
 const typeLabels: Record<PropertyType, string> = {
   HOUSE: "Casa", APARTMENT: "Depto", LAND: "Terreno", FIELD: "Campo",
-  QUINTA: "Quinta", COMMERCIAL: "Comercio", OFFICE: "Oficina", WAREHOUSE: "Depósito",
+  QUINTA: "Quinta", COMMERCIAL: "Local comercial", OFFICE: "Oficina", WAREHOUSE: "Depósito",
 };
 const poiLabels: Record<PoiCategory, string> = {
   SCHOOL: "Escuela", KINDER: "Jardín", FIRE: "Bomberos",

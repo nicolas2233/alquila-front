@@ -38,7 +38,7 @@ export function ChangePasswordPage() {
       }
 
       setStatus("success");
-      setMessage("Contraseña actualizada. Inicia sesión nuevamente.");
+      setMessage("Contraseña actualizada. Iniciá sesión nuevamente.");
       addToast("Contraseña actualizada.", "success");
       clearSession();
       setTimeout(() => navigate("/login"), 500);
@@ -68,17 +68,17 @@ export function ChangePasswordPage() {
 
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Cambio obligatorio</p>
-            <h2 className="font-display text-3xl leading-tight text-white">Actualiza tu contraseña</h2>
+            <h2 className="font-display text-3xl leading-tight text-white">Actualizá tu contraseña</h2>
             <p className="max-w-sm text-sm text-[#E7E2DD]">
-              Por seguridad, primero debes crear una nueva clave para continuar usando tu cuenta.
+              Por seguridad, primero debés crear una nueva contraseña para continuar usando tu cuenta.
             </p>
           </div>
 
           <div className="grid gap-2">
             {[
-              { label: "1", title: "Nueva clave", detail: "Minimo 8 caracteres." },
+              { label: "1", title: "Nueva contraseña", detail: "Mínimo 8 caracteres." },
               { label: "2", title: "Confirmacion", detail: "Debe coincidir." },
-              { label: "3", title: "Acceso seguro", detail: "Inicia sesión otra vez." },
+              { label: "3", title: "Acceso seguro", detail: "Iniciá sesión otra vez." },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="flex items-center gap-3">
@@ -99,7 +99,7 @@ export function ChangePasswordPage() {
           <form className="w-full max-w-md space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5 text-center lg:text-left">
               <h1 className="font-display text-3xl text-white sm:text-[2rem]">Cambiar contraseña</h1>
-              <p className="text-sm text-[#D1C7BD]">Completa los campos para guardar tu nueva clave.</p>
+              <p className="text-sm text-[#D1C7BD]">Completá los campos para guardar tu nueva contraseña.</p>
             </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
@@ -111,7 +111,7 @@ export function ChangePasswordPage() {
                     className="w-full rounded-xl border border-white/15 bg-night-900/40 px-3 py-2.5 pr-14 text-sm text-white outline-none transition focus:border-gold-400/60"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Minimo 8 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     autoComplete="new-password"
                   />
                   <button
