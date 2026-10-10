@@ -47,7 +47,7 @@ const steps: OnboardingStep[] = [
       </svg>
     ),
     title: "Publicá tu primer inmueble",
-    description: "El proceso toma 5 minutos. Completá la información básica, ubicación, características y fotos. ¡Tu primera publicación es gratis!",
+    description: "Te lleva unos 5 minutos: datos básicos, ubicación, características y fotos. Antes de publicar, verificá tu email con el link que te enviamos.",
     cta: { label: "Crear publicación", to: "/publicar" },
   },
   {
