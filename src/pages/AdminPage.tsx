@@ -807,7 +807,7 @@ export function AdminPage() {
           item.id === property.id ? { ...item, featured: data.featured, featuredUntil: data.featuredUntil ?? null } : item
         )
       );
-      addToast(nextFeatured ? "Propiedad destacada." : "Destaque removido.", "success");
+      addToast(nextFeatured ? "Inmueble destacado." : "Destaque removido.", "success");
     } catch (error) {
       addToast(error instanceof Error ? error.message : "No pudimos actualizar. Probá de nuevo en unos segundos.", "error");
     } finally {

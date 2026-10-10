@@ -647,7 +647,7 @@ export function ListingPage() {
       {similar.length > 0 ? (
         <section className="mx-auto mt-10 w-full max-w-5xl px-4">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#D1C7BD]">
-            Propiedades relacionadas
+            Inmuebles relacionados
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {similar.map((rel) => (

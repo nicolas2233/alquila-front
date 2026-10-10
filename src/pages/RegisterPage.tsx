@@ -59,7 +59,7 @@ const accountTypeOptions: Array<{
   {
     key: "viewer",
     title: "Buscador",
-    text: "Explorá y consultá propiedades.",
+    text: "Explorá y consultá inmuebles.",
     image:
       "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=480&q=70",
   },
@@ -375,10 +375,10 @@ export function RegisterPage() {
                 Bienvenido a DomusBrag
               </h2>
               <p className="mt-2 text-sm text-[#E7E2DD]">
-                Una nueva plataforma inmobiliaria pensada para facilitar la publicación y búsqueda de propiedades de forma más simple, ordenada y cercana.
+                Una nueva plataforma inmobiliaria pensada para facilitar la publicación y búsqueda de inmuebles de forma más simple, ordenada y cercana.
               </p>
               <p className="mt-3 text-sm text-[#D1C7BD]">
-                La plataforma muestra propiedades según la ubicación del usuario, pero también permite buscar y publicar en otras localidades, ampliando el alcance para quienes quieren vender, alquilar o encontrar una propiedad en distintos lugares.
+                La plataforma muestra inmuebles según la ubicación del usuario, pero también permite buscar y publicar en otras localidades, ampliando el alcance para quienes quieren vender, alquilar o encontrar un inmueble en distintos lugares.
               </p>
               {betaInviteLabel && (
                 <p className="mt-3 text-xs text-[#BDB5A9]">Grupo: {betaInviteLabel}</p>

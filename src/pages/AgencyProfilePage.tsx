@@ -627,7 +627,7 @@ export function AgencyProfilePage() {
                 {agency?.name ?? "Inmobiliaria"}
               </h2>
               <p className="mx-auto max-w-2xl text-sm text-[#d5def6] md:text-base">
-                {agency?.description?.trim() || "Gestión de propiedades en Bragado con atención personalizada."}
+                {agency?.description?.trim() || "Gestión de inmuebles en Bragado con atención personalizada."}
               </p>
               {socialLinks.length > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -720,7 +720,7 @@ export function AgencyProfilePage() {
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg text-white">Propiedades publicadas</h3>
+              <h3 className="text-lg text-white">Inmuebles publicados</h3>
               <p className="text-xs text-[#D1C7BD]">
                 {listings.length} inmuebles activos
               </p>

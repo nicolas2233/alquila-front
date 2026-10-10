@@ -132,7 +132,7 @@ export function HomePage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-[#E7E2DD] md:text-base">
-            Propiedades en venta, alquiler y temporario. Sin intermediarios innecesarios, sin duplicados, con contacto directo al dueño o inmobiliaria.
+            Inmuebles en venta, alquiler y temporario. Sin intermediarios innecesarios, sin duplicados, con contacto directo al dueño o inmobiliaria.
           </p>
 
           {/* Quick search bar. En una sola fila el contenido no entra abajo de ~410px y
@@ -188,7 +188,7 @@ export function HomePage() {
                   to={sessionUser.role === "VISITOR" ? "/buscar" : "/panel?tab=subscription"}
                   className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-6 py-2.5 text-sm font-semibold text-night-900"
                 >
-                  {sessionUser.role === "VISITOR" ? "Buscar propiedades" : "Ir al panel"}
+                  {sessionUser.role === "VISITOR" ? "Buscar inmuebles" : "Ir al panel"}
                 </Link>
                 {(sessionUser.role === "OWNER" || sessionUser.role?.startsWith("AGENCY")) && (
                   <Link to="/publicar" className="rounded-full border border-white/25 px-6 py-2.5 text-sm text-white">
@@ -343,7 +343,7 @@ export function HomePage() {
           <div className="grid gap-4 md:grid-cols-3">
             {[
               { n: "01", title: "Creá tu cuenta", body: "Elegí tu perfil (buscador, dueño o inmobiliaria) y verificá tu email con el link que te enviamos.", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
-              { n: "02", title: "Buscá o publicá", body: "Usá los filtros, el mapa interactivo o cargá tu propiedad con el asistente de 5 pasos.", icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" },
+              { n: "02", title: "Buscá o publicá", body: "Usá los filtros, el mapa interactivo o cargá tu inmueble con el asistente de 4 pasos.", icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" },
               { n: "03", title: "Conectá y cerrá", body: "Contactá por WhatsApp, mandá una consulta o respondé desde el panel. Sin pasos innecesarios.", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
             ].map((step, i) => (
               <Reveal key={step.n} delayMs={90 + i * 80} className="relative glass-card p-6">
@@ -421,7 +421,7 @@ export function HomePage() {
               Si sos dueño directo, publicar es gratis
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#D1C7BD]">
-              Subí tu propiedad sin pagar nada y sin tarjeta. Aparece en la búsqueda y en el mapa,
+              Subí tu inmueble sin pagar nada y sin tarjeta. Aparece en la búsqueda y en el mapa,
               y los interesados te contactan directo. Las inmobiliarias tienen planes propios.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -483,7 +483,7 @@ export function HomePage() {
                 Crear cuenta gratis
               </Link>
               <Link to="/buscar" className="rounded-full border border-white/25 px-8 py-3 text-sm text-white hover:border-white/40">
-                Buscar propiedades
+                Buscar inmuebles
               </Link>
             </div>
           </div>

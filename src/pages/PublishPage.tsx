@@ -1830,7 +1830,7 @@ export function PublishPage() {
     // se completan con los datos ya cargados en vez de frenar la publicacion. El backend
     // exige ambos (title min 3, description min 1), asi que se resuelve antes de mandar.
     const datosAuto = { propertyType, operationType, locality: localityId, rooms, bathrooms, areaM2 };
-    const tituloParaEnviar = title.trim() || buildAutoTitle(datosAuto) || "Propiedad en Bragado";
+    const tituloParaEnviar = title.trim() || buildAutoTitle(datosAuto) || "Inmueble en Bragado";
     const descripcionParaEnviar = description.trim() || buildAutoDescription(datosAuto);
 
     const canSubmit =
@@ -2312,7 +2312,7 @@ export function PublishPage() {
       )}
       <header className="flex min-w-0 flex-wrap items-end justify-between gap-2 px-1">
         <h1 className="text-2xl leading-tight text-white md:text-3xl">
-          {isEditMode ? "Editar publicación" : "Publicar propiedad"}
+          {isEditMode ? "Editar publicación" : "Publicar inmueble"}
         </h1>
         {!isEditMode && (isOwner || isAgency) && subscriptionInfo && planHasLimit && planSlotsRemaining !== null && planSlotsRemaining <= 1 && (
           <p className={`text-xs ${planSlotsRemaining <= 0 ? "text-rose-300" : "text-amber-200"}`}>

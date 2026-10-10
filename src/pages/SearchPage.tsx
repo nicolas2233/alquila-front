@@ -1034,12 +1034,12 @@ export function SearchPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/62" />
         <div className="relative mx-auto flex h-full max-w-5xl items-center justify-center px-4 text-center sm:px-6">
           <div className="space-y-3 md:space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Buscar propiedades</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#D1C7BD]">Buscar inmuebles</p>
             <h2 className="font-display text-3xl leading-tight text-white sm:text-4xl md:text-5xl">
               Búsqueda en Bragado
             </h2>
             <p className="mx-auto max-w-2xl text-xs text-[#E7E2DD] sm:text-sm md:text-base">
-              Propiedades en Bragado con filtros claros, fotos, ubicación y contacto rápido.
+              Inmuebles en Bragado con filtros claros, fotos, ubicación y contacto rápido.
             </p>
             <div className="flex justify-center">
               <span className="gold-pill">Resultados actualizados</span>
@@ -1228,7 +1228,7 @@ export function SearchPage() {
             {activeFilters.length > 0 ? (
               <>
                 <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]/90">Sin coincidencias</p>
-                <h4 className="mt-2 text-xl text-white">Ninguna propiedad coincide con tu búsqueda</h4>
+                <h4 className="mt-2 text-xl text-white">Ningún inmueble coincide con tu búsqueda</h4>
                 <p className="mt-2 max-w-xl text-sm text-[#D1C7BD]">
                   Probá ampliar el rango de precio o quitar algún filtro. Si no encontrás lo que
                   buscás, guardá la búsqueda y te avisamos cuando aparezca.
@@ -1237,9 +1237,9 @@ export function SearchPage() {
             ) : (
               <>
                 <p className="text-xs uppercase tracking-[0.18em] text-[#D1C7BD]/90">Recién arrancamos</p>
-                <h4 className="mt-2 text-xl text-white">Todavía no hay propiedades publicadas</h4>
+                <h4 className="mt-2 text-xl text-white">Todavía no hay inmuebles publicados</h4>
                 <p className="mt-2 max-w-xl text-sm text-[#D1C7BD]">
-                  Estamos sumando las primeras propiedades de Bragado. Si tenés una para vender o
+                  Estamos sumando los primeros inmuebles de Bragado. Si tenés una para vender o
                   alquilar, publicarla es gratis y vas a ser de los primeros en aparecer.
                 </p>
               </>
