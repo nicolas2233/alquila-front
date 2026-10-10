@@ -275,9 +275,11 @@ export function AppLayout() {
   let accountLinks: Array<{ to: string; label: string; showDot?: boolean }> = [];
 
   if (!user) {
-    mobileCenterAction = { to: "/registro", label: "Publicar", icon: <IconPlus /> };
+    // Sin sesión la mayoría busca: el botón central es el Mapa. "Publicar" queda a un costado
+    // y lleva al registro con el perfil de dueño ya elegido.
+    mobileCenterAction = { to: "/mapa", label: "Mapa", icon: <IconMap /> };
     mobileRightItems = [
-      mapItem,
+      { to: "/registro?tipo=dueno", label: "Publicar", icon: <DockIcon><IconPlus /></DockIcon> },
       { to: "/login", label: "Ingresar", icon: <DockIcon><IconLogin /></DockIcon> },
     ];
   } else if (user.role === "VISITOR") {
