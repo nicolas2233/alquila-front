@@ -784,7 +784,7 @@ export function AgencyProfilePage() {
             <p className="text-xs text-[#D1C7BD]">Cargando publicaciones...</p>
           )}
           {listingStatus === "error" && listings.length === 0 && (
-            <p className="text-xs text-[#AF8C5C]">No hay publicaciones activas.</p>
+            <p className="text-xs text-[#D4B07A]">No hay publicaciones activas.</p>
           )}
           {listingStatus === "idle" && listings.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-night-900/48 p-4 text-xs text-[#D1C7BD]">
@@ -887,7 +887,7 @@ export function AgencyProfilePage() {
                     </div>
                     <div className="mt-auto flex flex-wrap gap-1.5 md:flex-nowrap md:justify-end">
                       <button
-                        className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-3 py-1.5 text-[11px] font-semibold text-night-900"
+                        className="rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-night-900"
                         type="button"
                         onClick={() => openModal(listing)}
                         onMouseEnter={() => prefetchDetail(listing.id)}
@@ -895,7 +895,7 @@ export function AgencyProfilePage() {
                         Ver ficha
                       </button>
                       <button
-                        className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:brightness-110"
+                        className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/30 bg-[#128C7E] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110"
                         type="button"
                         onClick={() => void handleCardWhatsapp(listing)}
                       >
@@ -999,7 +999,7 @@ export function AgencyProfilePage() {
                             Ver ficha
                           </button>
                           <button
-                            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
                             type="button"
                             onClick={() => void handleCardWhatsapp(listing)}
                           >

@@ -13,7 +13,7 @@ export function NotFoundPage() {
     <section className="relative isolate overflow-hidden rounded-[28px] border border-white/12 bg-night-900/68 px-5 py-10 shadow-card sm:px-8 md:py-14">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(175,140,92,0.22),transparent_42%),radial-gradient(circle_at_85%_80%,rgba(231,226,221,0.12),transparent_45%)]" />
       <div className="relative mx-auto max-w-3xl text-center">
-        <p className="text-xs uppercase tracking-[0.18em] text-[#AF8C5C]">Error 404</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-[#D4B07A]">Error 404</p>
         <h1 className="mt-3 font-display text-4xl leading-tight text-white md:text-5xl">
           No encontramos esa página
         </h1>

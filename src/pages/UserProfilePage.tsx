@@ -273,7 +273,7 @@ export function UserProfilePage() {
           <p className="text-xs text-[#D1C7BD]">Cargando perfil...</p>
         )}
         {status === "error" && (
-          <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>
+          <p className="text-xs text-[#D4B07A]">{errorMessage}</p>
         )}
 
         <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/48 p-4">

@@ -308,7 +308,7 @@ export function LoginPage() {
                 </div>
               </label>
 
-              {status === "error" && <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>}
+              {status === "error" && <p className="text-xs text-[#D4B07A]">{errorMessage}</p>}
 
               <div className="flex flex-wrap gap-3">
                 <button

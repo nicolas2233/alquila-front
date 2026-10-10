@@ -189,7 +189,7 @@ export function MyRequestsPage() {
         <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
       )}
       {status === "error" && (
-        <p className="text-xs text-[#AF8C5C]">{message}</p>
+        <p className="text-xs text-[#D4B07A]">{message}</p>
       )}
       {status === "idle" && items.length === 0 && (
         <p className="text-xs text-[#D1C7BD]">Aun no has hecho solicitudes.</p>

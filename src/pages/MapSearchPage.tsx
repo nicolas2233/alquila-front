@@ -347,7 +347,7 @@ export function MapSearchPage() {
           </button>
         ))}
         {hasActive && onClear && (
-          <button type="button" onClick={onClear} className="ml-auto text-[11px] text-[#AF8C5C] hover:underline shrink-0 pl-1">
+          <button type="button" onClick={onClear} className="ml-auto text-[11px] text-[#D4B07A] hover:underline shrink-0 pl-1">
             Limpiar
           </button>
         )}
@@ -443,7 +443,7 @@ export function MapSearchPage() {
             title={toolbarOpen ? "Ocultar filtros" : "Mostrar filtros"}
             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border backdrop-blur-md shadow-xl transition-all duration-200 select-none
               ${toolbarOpen
-                ? "bg-[#AF8C5C]/20 border-[#AF8C5C]/45 text-[#AF8C5C]"
+                ? "bg-[#AF8C5C]/20 border-[#AF8C5C]/45 text-[#D4B07A]"
                 : "bg-[#1c1916]/96 border-white/15 text-[#D1C7BD] hover:border-white/30 hover:text-white"}`}
           >
             {toolbarOpen ? (
@@ -473,7 +473,7 @@ export function MapSearchPage() {
                 type="button"
                 onClick={() => setListPanelOpen((v) => !v)}
                 title={listPanelOpen ? "Cerrar lista" : "Ver lista de inmuebles"}
-                className={`${btnBase} p-[7px] gap-1 ${listPanelOpen ? "bg-[#AF8C5C]/20 border-[#AF8C5C]/35 text-[#AF8C5C]" : "bg-[#2a2722] border-white/15 text-[#D1C7BD] hover:text-white hover:border-white/30"}`}
+                className={`${btnBase} p-[7px] gap-1 ${listPanelOpen ? "bg-[#AF8C5C]/20 border-[#AF8C5C]/35 text-[#D4B07A]" : "bg-[#2a2722] border-white/15 text-[#D1C7BD] hover:text-white hover:border-white/30"}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                   <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -528,7 +528,7 @@ export function MapSearchPage() {
               {hasActiveFilters && (
                 <>
                   <span className="h-5 w-px bg-white/15 mx-0.5 shrink-0" />
-                  <button type="button" onClick={clearFilters} className={`${btnBase} bg-[#2a2722] text-[#AF8C5C] border-[#AF8C5C]/25 hover:border-[#AF8C5C]/50`}>Limpiar</button>
+                  <button type="button" onClick={clearFilters} className={`${btnBase} bg-[#2a2722] text-[#D4B07A] border-[#AF8C5C]/25 hover:border-[#AF8C5C]/50`}>Limpiar</button>
                 </>
               )}
             </div>
@@ -624,7 +624,7 @@ export function MapSearchPage() {
                     className="flex w-full items-center gap-2.5 border-b border-white/8 px-3 py-2.5 text-left text-xs text-white/80 last:border-0 hover:bg-white/8 hover:text-white transition"
                     onClick={() => { skipSuggestionRef.current = true; setMapCenter([s.lat, s.lng]); setLocationSearch(s.displayName.split(",")[0]?.trim() ?? s.displayName); setShowSuggestions(false); setLocationSuggestions([]); }}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 shrink-0 text-[#AF8C5C]">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 shrink-0 text-[#D4B07A]">
                       <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
                     </svg>
                     <span className="truncate">{s.displayName}</span>

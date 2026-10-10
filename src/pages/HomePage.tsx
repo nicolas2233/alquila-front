@@ -326,7 +326,7 @@ export function HomePage() {
         {homeAds.length > 0 && (
           <Reveal>
             <div className="mb-3 flex items-center gap-2">
-              <span className="rounded-full border border-white/10 bg-white/4 px-2.5 py-0.5 text-xs uppercase tracking-[0.16em] text-[#9f988d]">
+              <span className="rounded-full border border-white/10 bg-white/4 px-2.5 py-0.5 text-xs uppercase tracking-[0.16em] text-[#BDB5A9]">
                 Patrocinado
               </span>
             </div>

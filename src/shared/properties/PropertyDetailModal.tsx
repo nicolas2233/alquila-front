@@ -1358,7 +1358,7 @@ export function PropertyDetailModal({
                         className={
                           reportStatus === "success"
                             ? "text-xs text-emerald-300"
-                            : "text-xs text-[#AF8C5C]"
+                            : "text-xs text-[#D4B07A]"
                         }
                       >
                         {reportMessage}

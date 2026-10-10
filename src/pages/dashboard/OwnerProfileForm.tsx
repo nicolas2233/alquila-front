@@ -80,7 +80,7 @@ export function OwnerProfileForm({
       {status === "loading" && (
         <p className="text-xs text-[#D1C7BD]">Cargando perfil...</p>
       )}
-      {status === "error" && <p className="text-xs text-[#AF8C5C]">{error}</p>}
+      {status === "error" && <p className="text-xs text-[#D4B07A]">{error}</p>}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/48 p-4 md:col-span-2">

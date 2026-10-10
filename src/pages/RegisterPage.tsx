@@ -94,7 +94,7 @@ function PlanGoldGratis({ esInmobiliaria }: { esInmobiliaria: boolean }) {
         Durante la etapa inicial todas las cuentas acceden al plan Gold sin cargo, con hasta{" "}
         {esInmobiliaria ? "50" : "10"} inmuebles publicados. No te pedimos tarjeta.
       </p>
-      <p className="mt-1.5 text-xs leading-relaxed text-[#9f988d]">
+      <p className="mt-1.5 text-xs leading-relaxed text-[#BDB5A9]">
         DomusBrag se reserva el derecho de incorporar planes pagos para inmobiliarias más
         adelante. Si eso ocurre te vamos a avisar con anticipación y vas a poder decidir si
         continuar.
@@ -381,7 +381,7 @@ export function RegisterPage() {
                 La plataforma muestra propiedades según la ubicación del usuario, pero también permite buscar y publicar en otras localidades, ampliando el alcance para quienes quieren vender, alquilar o encontrar una propiedad en distintos lugares.
               </p>
               {betaInviteLabel && (
-                <p className="mt-3 text-xs text-[#9f988d]">Grupo: {betaInviteLabel}</p>
+                <p className="mt-3 text-xs text-[#BDB5A9]">Grupo: {betaInviteLabel}</p>
               )}
             </div>
           ) : (
@@ -450,7 +450,7 @@ export function RegisterPage() {
                 <p className="mt-2 text-xs leading-relaxed text-[#D1C7BD]">
                   Como usuario beta obtenés acceso Gold sin costo por 30 días desde la creación de tu cuenta. A cambio, nos comprometemos a escuchar tu feedback.
                 </p>
-                <p className="mt-1.5 text-xs text-[#9f988d]">
+                <p className="mt-1.5 text-xs text-[#BDB5A9]">
                   Sin tarjeta requerida. El acceso vence automáticamente al mes 30.
                 </p>
               </div>
@@ -491,7 +491,7 @@ export function RegisterPage() {
                     ✦ Invitación Beta · Acceso Gold 30 días
                   </span>
                   {betaInviteLabel && (
-                    <span className="text-xs text-[#9f988d]">{betaInviteLabel}</span>
+                    <span className="text-xs text-[#BDB5A9]">{betaInviteLabel}</span>
                   )}
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-[#D1C7BD]">
@@ -544,7 +544,7 @@ export function RegisterPage() {
                     placeholder="tuemail@ejemplo.com"
                     autoComplete="email"
                   />
-                  <span className={emailInvalid ? "text-xs text-[#AF8C5C]" : "text-xs text-[#D1C7BD]"}>
+                  <span className={emailInvalid ? "text-xs text-[#D4B07A]" : "text-xs text-[#D1C7BD]"}>
                     {emailInvalid ? "Email invalido." : "Formato válido de email."}
                   </span>
                 </label>
@@ -564,7 +564,7 @@ export function RegisterPage() {
                   <span
                     className={
                       contrasena.length > 0 && contrasenaRemaining > 0
-                        ? "text-xs text-[#AF8C5C]"
+                        ? "text-xs text-[#D4B07A]"
                         : "text-xs text-[#D1C7BD]"
                     }
                   >
@@ -693,7 +693,7 @@ export function RegisterPage() {
                 </span>
               </label>
               {fieldErrors.termsAccepted && (
-                <p className="text-xs text-[#AF8C5C]">
+                <p className="text-xs text-[#D4B07A]">
                   Debes aceptar términos y privacidad para continuar.
                 </p>
               )}
@@ -720,7 +720,7 @@ export function RegisterPage() {
                     </label>
                   </div>
                   {fieldErrors.betaAccepted && (
-                    <p className="text-xs text-[#AF8C5C]">
+                    <p className="text-xs text-[#D4B07A]">
                       Debes aceptar el compromiso beta para continuar.
                     </p>
                   )}
@@ -745,7 +745,7 @@ export function RegisterPage() {
               </button>
             </div>
 
-            {status === "error" && <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>}
+            {status === "error" && <p className="text-xs text-[#D4B07A]">{errorMessage}</p>}
             {status === "success" && (
               <div className="rounded-2xl border border-white/10 bg-night-900/40 p-4">
                 <h4 className="text-sm text-white">Cuenta creada</h4>

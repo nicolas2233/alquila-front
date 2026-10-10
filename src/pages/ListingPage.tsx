@@ -275,7 +275,7 @@ export function ListingPage() {
     return <p className="text-xs text-[#D1C7BD]">Cargando publicación...</p>;
   }
   if (status === "error" || !listing) {
-    return <p className="text-xs text-[#AF8C5C]">{error || "No encontrada."}</p>;
+    return <p className="text-xs text-[#D4B07A]">{error || "No encontrada."}</p>;
   }
 
   const handleReportProperty = async (reason: string) => {
@@ -407,7 +407,7 @@ export function ListingPage() {
           label: "WhatsApp",
           href: sessionUser ? link : null,
           className:
-            "shrink-0 rounded-full bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white",
+            "shrink-0 rounded-full bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white",
         };
       }
     }
@@ -475,7 +475,7 @@ export function ListingPage() {
                   return (
                     <button
                       key={contact.id}
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:w-auto"
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:w-auto"
                       type="button"
                       onClick={() => {
                         addToast("Inicia sesión para contactar por WhatsApp.", "warning");
@@ -489,7 +489,7 @@ export function ListingPage() {
                 return (
                   <a
                     key={contact.id}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 sm:w-auto"
                     href={link}
                     target="_blank"
                     rel="noreferrer"
@@ -627,7 +627,7 @@ export function ListingPage() {
                 </div>
                 <div className="p-3">
                   <p className="truncate text-xs font-medium text-[#E7E2DD]">{rel.title}</p>
-                  <p className="mt-0.5 truncate text-[11px] text-[#AF8C5C]">{rel.address}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-[#D4B07A]">{rel.address}</p>
                   <p className="mt-1 text-xs font-semibold text-white">{rel.price}</p>
                 </div>
               </Link>
@@ -658,7 +658,7 @@ export function ListingPage() {
                 </div>
                 <div className="p-3">
                   <p className="truncate text-xs font-medium text-[#E7E2DD]">{rel.title}</p>
-                  <p className="mt-0.5 truncate text-[11px] text-[#AF8C5C]">{rel.address}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-[#D4B07A]">{rel.address}</p>
                   <p className="mt-1 text-xs font-semibold text-white">{rel.price}</p>
                 </div>
               </Link>

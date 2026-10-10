@@ -1688,7 +1688,7 @@ export function PublishPage() {
     <div className="space-y-3 rounded-2xl border border-[#AF8C5C]/30 bg-night-900/40 p-3 md:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">
             Ubicación asistida
           </p>
           <p className="text-[11px] text-[#D1C7BD]">
@@ -1787,14 +1787,14 @@ export function PublishPage() {
               ))}
             </div>
           ) : suggestionsStatus === "idle" ? (
-            <div className="text-[11px] text-[#9a948a]">
+            <div className="text-[11px] text-[#BDB5A9]">
               No encontramos sugerencias para esa dirección.
             </div>
           ) : null}
         </div>
       )}
       {geoMessage && (
-        <div className={`text-xs ${geoStatus === "error" ? "text-[#AF8C5C]" : "text-[#D1C7BD]"}`}>
+        <div className={`text-xs ${geoStatus === "error" ? "text-[#D4B07A]" : "text-[#D1C7BD]"}`}>
           {geoMessage}
         </div>
       )}
@@ -2210,7 +2210,7 @@ export function PublishPage() {
   if (isEditMode && initialStatus === "error") {
     return (
       <div className="glass-card space-y-4 p-6">
-        <p className="text-sm text-[#AF8C5C]">{initialError || "No pudimos cargar la publicación."}</p>
+        <p className="text-sm text-[#D4B07A]">{initialError || "No pudimos cargar la publicación."}</p>
         <button
           type="button"
           className="rounded-full border border-white/20 px-4 py-2 text-xs text-[#E7E2DD]"
@@ -2322,7 +2322,7 @@ export function PublishPage() {
           </p>
         )}
         {planUsageStatus === "error" && (
-          <p className="text-xs text-[#AF8C5C]">{planUsageError}</p>
+          <p className="text-xs text-[#D4B07A]">{planUsageError}</p>
         )}
       </header>
       {!isEditMode && !emailVerified && (
@@ -2493,7 +2493,7 @@ export function PublishPage() {
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="Contá lo más importante: estado, distribución, barrio, servicios y condiciones."
                 />
-                <span className="text-[11px] text-[#9f988d]">
+                <span className="text-[11px] text-[#BDB5A9]">
                   Opcional. Si la dejás vacía escribimos una con los datos del inmueble, y
                   podés mejorarla cuando quieras.
                 </span>
@@ -2908,7 +2908,7 @@ export function PublishPage() {
                   {areaError ? (
                     <span className="text-[11px] text-red-300">Debe ser mayor a 0.</span>
                   ) : (
-                    <span className="text-[11px] text-[#9f988d]">
+                    <span className="text-[11px] text-[#BDB5A9]">
                       Opcional. Si no la sabés, podés completarla después.
                     </span>
                   )}
@@ -3531,7 +3531,7 @@ export function PublishPage() {
                               <div className="truncate text-[11px] uppercase tracking-[0.12em] text-[#D1C7BD]">
                                 {metric.label}
                               </div>
-                              <div className={`truncate text-xs font-semibold ${metric.active ? "text-white" : "text-[#9a948a]"}`}>
+                              <div className={`truncate text-xs font-semibold ${metric.active ? "text-white" : "text-[#BDB5A9]"}`}>
                                 {metric.value}
                               </div>
                             </div>
@@ -3739,11 +3739,11 @@ export function PublishPage() {
               {/* Al menos una foto es obligatoria: un aviso sin imagenes practicamente
                   no recibe consultas, asi que publicarlo no le sirve a nadie. */}
               {photosValid ? (
-                <p className="text-[11px] text-[#9f988d]">
+                <p className="text-[11px] text-[#BDB5A9]">
                   La primera foto es la principal: es la que se ve en el listado y al compartir. Arrastrá las miniaturas para cambiar el orden.
                 </p>
               ) : (
-                <p className={`text-[11px] ${showErrors ? "text-red-300" : "text-[#AF8C5C]"}`}>
+                <p className={`text-[11px] ${showErrors ? "text-red-300" : "text-[#D4B07A]"}`}>
                   Necesitás al menos una foto para publicar.
                 </p>
               )}
@@ -3886,7 +3886,7 @@ export function PublishPage() {
                   className={inputClass(videoUrl.trim().length > 0 && !parseVideoUrl(videoUrl))}
                 />
                 {videoUrl.trim().length === 0 ? (
-                  <p className="text-[11px] leading-tight text-[#9f988d]">
+                  <p className="text-[11px] leading-tight text-[#BDB5A9]">
                     Pegá el link de un reel de Instagram o un video de YouTube y se va a ver dentro
                     de la ficha. Los avisos con video reciben más consultas.
                   </p>
@@ -3895,7 +3895,7 @@ export function PublishPage() {
                     Link válido de {parseVideoUrl(videoUrl)!.provider === "youtube" ? "YouTube" : "Instagram"}.
                   </p>
                 ) : (
-                  <p className="text-[11px] leading-tight text-[#AF8C5C]">
+                  <p className="text-[11px] leading-tight text-[#D4B07A]">
                     Por ahora solo aceptamos links de YouTube o Instagram.
                   </p>
                 )}
@@ -3972,7 +3972,7 @@ export function PublishPage() {
           )}
 
           {status === "error" && (
-            <p className="text-xs text-[#AF8C5C]">{errorMessage}</p>
+            <p className="text-xs text-[#D4B07A]">{errorMessage}</p>
           )}
         {status === "success" && (
           <p className="text-xs text-[#9fe0c0]">{isEditMode ? "Cambios guardados correctamente." : "Publicación creada correctamente."}</p>
@@ -4035,7 +4035,7 @@ export function PublishPage() {
         <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-night-950 px-4">
           <div className="w-full max-w-lg rounded-3xl border border-[#AF8C5C]/35 bg-night-900 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
             <div className="border-b border-white/10 px-5 py-4 sm:px-6">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">
                 Cupo completo
               </p>
               <h3 className="mt-1 text-lg text-white">

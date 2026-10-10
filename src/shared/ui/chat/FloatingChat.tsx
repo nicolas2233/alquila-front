@@ -297,7 +297,7 @@ export function FloatingChat({
                 <div className="px-3 py-2 text-[11px] text-[#D1C7BD]">Cargando...</div>
               )}
               {chatStatus === "error" && (
-                <div className="px-3 py-2 text-[11px] text-[#AF8C5C]">{chatError}</div>
+                <div className="px-3 py-2 text-[11px] text-[#D4B07A]">{chatError}</div>
               )}
               {chatStatus === "idle" && chats.length === 0 && (
                 <div className="px-3 py-2 text-[11px] text-[#D1C7BD]">
@@ -358,7 +358,7 @@ export function FloatingChat({
                       </div>
                     )}
                     {messagesStatus === "error" && (
-                      <div className="text-[11px] text-[#AF8C5C]">{messagesError}</div>
+                      <div className="text-[11px] text-[#D4B07A]">{messagesError}</div>
                     )}
                     {messagesStatus === "idle" && messages.length === 0 && (
                       <div className="text-[11px] text-[#D1C7BD]">
@@ -411,7 +411,7 @@ export function FloatingChat({
                   </div>
                   <div className="border-t border-white/10 bg-night-900/82 px-3 py-3">
                     {replyError && (
-                      <div className="mb-2 text-[11px] text-[#AF8C5C]">{replyError}</div>
+                      <div className="mb-2 text-[11px] text-[#D4B07A]">{replyError}</div>
                     )}
                     <div className="flex items-end gap-2">
                       <textarea

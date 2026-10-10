@@ -1,10 +1,12 @@
-﻿/** @type {import('tailwindcss').Config} */
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./index.html", "./src/**/*.{ts,tsx}", "./src/**/*.{js,jsx}", "./src/**/*.html"],
   theme: {
     extend: {
       colors: {
         night: {
+          // 950 se usaba en ~34 clases pero no estaba definido: esos fondos salían transparentes.
+          950: "#2A2622",
           900: "#3A342F",
           800: "#474440",
           700: "#5A534C",
@@ -13,7 +15,8 @@ module.exports = {
         gold: {
           100: "#E7E2DD",
           200: "#D1C7BD",
-          300: "#AF8C5C",
+          // Dorado para TEXTO: #AF8C5C daba contraste 3.1 sobre night-800 (WCAG pide 4.5).
+          300: "#D4B07A",
           500: "#AF8C5C",
           400: "#D1C7BD",
         },

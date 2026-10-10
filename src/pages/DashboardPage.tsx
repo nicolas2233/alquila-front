@@ -2540,7 +2540,7 @@ export function DashboardPage() {
       ? "w-full rounded-2xl border border-[#AF8C5C]/55 bg-gradient-to-r from-[#AF8C5C]/25 to-[#D1C7BD]/20 px-3 py-2 text-left text-white shadow-[0_8px_24px_rgba(175,140,92,0.18)]"
       : "w-full rounded-2xl border border-white/10 bg-night-900/32 px-3 py-2 text-left text-[#E7E2DD] hover:border-white/20";
   const agencyInputClass =
-    "w-full rounded-2xl border border-white/15 bg-night-900/62 px-3 py-2.5 text-sm text-white placeholder:text-[#9a948a]";
+    "w-full rounded-2xl border border-white/15 bg-night-900/62 px-3 py-2.5 text-sm text-white placeholder:text-[#BDB5A9]";
   const agencyProfileStep = agencyProfileTab === "data" ? 1 : 2;
 
   return (
@@ -2694,7 +2694,7 @@ export function DashboardPage() {
           </div>
         </div>
         {isAgency && !agencyId && (
-          <p className="relative mt-4 text-xs text-[#AF8C5C]">
+          <p className="relative mt-4 text-xs text-[#D4B07A]">
             Falta asociar una inmobiliaria a tu usuario.
           </p>
         )}
@@ -2771,7 +2771,7 @@ export function DashboardPage() {
       {activeSection === "profile" && isAgency && (
         <div className="glass-card space-y-6 p-6 md:p-7">
           <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">
               Perfil público inmobiliaria
             </p>
             <p className="mt-1 text-xs text-[#D1C7BD]">
@@ -2809,7 +2809,7 @@ export function DashboardPage() {
           </div>
 
           {!agencyId && (
-            <p className="text-xs text-[#AF8C5C]">
+            <p className="text-xs text-[#D4B07A]">
               Necesitamos asociar tu usuario a una inmobiliaria.
             </p>
           )}
@@ -2818,7 +2818,7 @@ export function DashboardPage() {
             <p className="text-xs text-[#D1C7BD]">Cargando datos...</p>
           )}
           {agencyStatus === "error" && (
-            <p className="text-xs text-[#AF8C5C]">{agencyError}</p>
+            <p className="text-xs text-[#D4B07A]">{agencyError}</p>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2996,7 +2996,7 @@ export function DashboardPage() {
                 {agencyGeoMessage && (
                   <p
                     className={`text-xs ${
-                      agencyGeoStatus === "error" ? "text-[#AF8C5C]" : "text-[#D1C7BD]"
+                      agencyGeoStatus === "error" ? "text-[#D4B07A]" : "text-[#D1C7BD]"
                     }`}
                   >
                     {agencyGeoMessage}
@@ -3198,7 +3198,7 @@ export function DashboardPage() {
                       className="h-16 w-28 rounded-xl border border-white/10 object-cover"
                     />
                   ) : (
-                    <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-dashed border-white/20 text-[11px] text-[#9a948a]">
+                    <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-dashed border-white/20 text-[11px] text-[#BDB5A9]">
                       Sin imagen
                     </div>
                   )}
@@ -3298,7 +3298,7 @@ export function DashboardPage() {
             <p className="text-xs text-[#D1C7BD]">Cargando perfil...</p>
           )}
           {ownerStatus === "error" && (
-            <p className="text-xs text-[#AF8C5C]">{ownerError}</p>
+            <p className="text-xs text-[#D4B07A]">{ownerError}</p>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -3588,7 +3588,7 @@ export function DashboardPage() {
           <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Siguiente paso</p>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">Siguiente paso</p>
                 <h4 className="mt-1 text-lg font-semibold text-white">{subscriptionRevenueTitle}</h4>
                 <p className="mt-1 text-sm leading-relaxed text-[#D1C7BD]">
                   {subscriptionRevenueDescription}
@@ -3677,7 +3677,7 @@ export function DashboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className={currentPlanCardClass}>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Plan actual</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">Plan actual</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-gold-400/35 bg-gold-500/10 px-3 py-1 text-xs font-semibold text-gold-100">
                   {subscriptionInfo?.planCode ?? "SIN PLAN"}
@@ -3831,20 +3831,20 @@ export function DashboardPage() {
                   )}
                 </div>
               ) : (
-                <p className="mt-3 text-xs text-[#AF8C5C]">
+                <p className="mt-3 text-xs text-[#D4B07A]">
                   No encontramos una suscripción asociada. Si tu cuenta es antigua, la podemos regularizar.
                 </p>
               )}
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-night-900/45 p-4">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">Cupo de inmuebles</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">Cupo de inmuebles</p>
               {planUsageStatus === "loading" ? (
                 <p className="mt-3 text-sm text-[#D1C7BD]">Calculando cupo...</p>
               ) : (
                 <div className="mt-3 space-y-3">
                   {planUsageError ? (
-                    <p className="text-xs text-[#AF8C5C]">{planUsageError}</p>
+                    <p className="text-xs text-[#D4B07A]">{planUsageError}</p>
                   ) : null}
                   {planHasPropertyLimit ? (
                     <>
@@ -3966,7 +3966,7 @@ export function DashboardPage() {
             </div>
           </div>
           {propertyStatus === "error" && (
-            <p className="text-xs text-[#AF8C5C]">{propertyError}</p>
+            <p className="text-xs text-[#D4B07A]">{propertyError}</p>
           )}
           {propertyStatus === "loading" && (
             <p className="text-xs text-[#D1C7BD]">Cargando publicaciones...</p>
@@ -4193,7 +4193,7 @@ export function DashboardPage() {
           </div>
 
           {requestStatus === "error" && (
-            <p className="text-xs text-[#AF8C5C]">{requestError}</p>
+            <p className="text-xs text-[#D4B07A]">{requestError}</p>
           )}
           {requestStatus === "loading" && (
             <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
@@ -4379,7 +4379,7 @@ export function DashboardPage() {
           </div>
 
           {requestStatus === "error" && (
-            <p className="text-xs text-[#AF8C5C]">{requestError}</p>
+            <p className="text-xs text-[#D4B07A]">{requestError}</p>
           )}
           {requestStatus === "loading" && (
             <p className="text-xs text-[#D1C7BD]">Cargando solicitudes...</p>
@@ -4475,7 +4475,7 @@ export function DashboardPage() {
 
           {/* New feedback form */}
           <div className="space-y-3 rounded-2xl border border-white/10 bg-night-900/32 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#AF8C5C]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#D4B07A]">
               Nueva observación
             </p>
             <label className="block space-y-1.5 text-xs text-[#D1C7BD]">
@@ -4511,10 +4511,10 @@ export function DashboardPage() {
                 placeholder="Describí con detalle: qué pasó, qué esperabas, qué mejorarías o qué te gustaría que existiera..."
                 maxLength={3000}
               />
-              <span className="text-[11px] text-[#9f988d]">{betaFeedbackBody.length}/3000</span>
+              <span className="text-[11px] text-[#BDB5A9]">{betaFeedbackBody.length}/3000</span>
             </label>
             {betaFeedbackStatus === "error" && (
-              <p className="text-xs text-[#AF8C5C]">No pudimos enviar tu observación. Intentá nuevamente.</p>
+              <p className="text-xs text-[#D4B07A]">No pudimos enviar tu observación. Intentá nuevamente.</p>
             )}
             <button
               type="button"
@@ -4532,11 +4532,11 @@ export function DashboardPage() {
           )}
           {betaFeedbackItems.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#9f988d]">Observaciones enviadas</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#BDB5A9]">Observaciones enviadas</p>
               {betaFeedbackItems.map((item) => {
                 const catLabels: Record<string, string> = { UX: "UX", FEATURE: "Mejora", BUG: "Error", GENERAL: "General" };
                 const statusLabelsMap: Record<string, { label: string; cls: string }> = {
-                  UNREAD: { label: "Recibida", cls: "bg-white/8 text-[#9f988d]" },
+                  UNREAD: { label: "Recibida", cls: "bg-white/8 text-[#BDB5A9]" },
                   READ: { label: "Vista", cls: "bg-sky-500/15 text-sky-300" },
                   ADDRESSED: { label: "Atendida", cls: "bg-emerald-500/15 text-emerald-300" },
                 };
@@ -4546,7 +4546,7 @@ export function DashboardPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <div className="font-semibold text-white">{item.title}</div>
-                        <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-[#9f988d]">
+                        <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-[#BDB5A9]">
                           <span>{catLabels[item.category] ?? item.category}</span>
                           <span>{new Date(item.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
                         </div>
@@ -4562,7 +4562,7 @@ export function DashboardPage() {
             </div>
           )}
           {betaFeedbackStatus === "idle" && betaFeedbackItems.length === 0 && (
-            <p className="text-xs text-[#9f988d]">Todavía no enviaste observaciones. ¡Tu opinión ayuda a mejorar la plataforma!</p>
+            <p className="text-xs text-[#BDB5A9]">Todavía no enviaste observaciones. ¡Tu opinión ayuda a mejorar la plataforma!</p>
           )}
         </div>
       )}
@@ -4910,7 +4910,7 @@ export function DashboardPage() {
               {planOptionsStatus === "loading" ? (
                 <p className="text-sm text-[#D1C7BD]">Cargando planes...</p>
               ) : planOptionsStatus === "error" ? (
-                <p className="text-sm text-[#AF8C5C]">{planOptionsError}</p>
+                <p className="text-sm text-[#D4B07A]">{planOptionsError}</p>
               ) : filteredPlanOptions.length === 0 ? (
                 <p className="text-sm text-[#D1C7BD]">No hay planes disponibles para mostrar.</p>
               ) : (
@@ -5284,7 +5284,7 @@ export function DashboardPage() {
             </div>
             <div className="border-t border-white/10 bg-night-900/95 px-6 py-4 backdrop-blur-sm">
               {quickEditError && (
-                <p className="mb-3 text-xs text-[#AF8C5C]">{quickEditError}</p>
+                <p className="mb-3 text-xs text-[#D4B07A]">{quickEditError}</p>
               )}
               <div className="flex justify-end gap-2">
                 <button
@@ -5391,7 +5391,7 @@ export function DashboardPage() {
                         }
                         return (
                           <a
-                            className="inline-flex items-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(37,211,102,0.25)]"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(37,211,102,0.25)]"
                             href={link}
                             target="_blank"
                             rel="noreferrer"
@@ -5457,12 +5457,12 @@ export function DashboardPage() {
         />
       )}
       {requestPreviewStatus === "error" && requestPreviewError && (
-        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/78 px-4 py-3 text-xs text-[#AF8C5C] shadow-card">
+        <div className="fixed bottom-6 right-6 rounded-xl border border-white/10 bg-night-900/78 px-4 py-3 text-xs text-[#D4B07A] shadow-card">
           {requestPreviewError}
         </div>
       )}
       {publicStatus === "error" && publicError && (
-        <div className="fixed bottom-6 left-6 rounded-xl border border-white/10 bg-night-900/78 px-4 py-3 text-xs text-[#AF8C5C] shadow-card">
+        <div className="fixed bottom-6 left-6 rounded-xl border border-white/10 bg-night-900/78 px-4 py-3 text-xs text-[#D4B07A] shadow-card">
           {publicError}
         </div>
       )}

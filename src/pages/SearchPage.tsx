@@ -191,7 +191,7 @@ function LocalityAutocomplete({
       <div className="relative">
         <input
           type="text"
-          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#9a948a] focus:border-gold-400/50 focus:outline-none"
+          className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#BDB5A9] focus:border-gold-400/50 focus:outline-none"
           placeholder="Buscar zona..."
           value={displayValue}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
@@ -940,7 +940,7 @@ export function SearchPage() {
           <label className="space-y-2 text-xs text-[#D1C7BD]">
             Precio mínimo
             <input
-              className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#9a948a]"
+              className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#BDB5A9]"
               type="number"
               min={0}
               step="1000"
@@ -964,7 +964,7 @@ export function SearchPage() {
           <label className="space-y-2 text-xs text-[#D1C7BD]">
             Precio máximo
             <input
-              className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#9a948a]"
+              className="w-full rounded-xl border border-white/10 bg-night-900/48 px-3 py-2 text-sm text-white placeholder:text-[#BDB5A9]"
               type="number"
               min={0}
               step="1000"
@@ -1217,7 +1217,7 @@ export function SearchPage() {
           <p className="text-xs text-[#D1C7BD]">Cargando publicaciones...</p>
         )}
         {listStatus === "error" && (
-          <p className="text-xs text-[#AF8C5C]">{listError}</p>
+          <p className="text-xs text-[#D4B07A]">{listError}</p>
         )}
         {listStatus === "idle" && listings.length === 0 && (
           <div className="overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-night-900/90 via-night-800/80 to-night-700/70 p-6 text-xs text-[#D1C7BD] shadow-soft">
@@ -1597,15 +1597,15 @@ export function SearchPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="mt-auto flex flex-wrap gap-1.5 md:flex-nowrap md:justify-end">
+                        <div className="mt-auto grid grid-cols-2 gap-2 md:flex md:flex-nowrap md:justify-end">
                           <Link
                             {...listingLinkProps(item)}
-                            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] px-3 py-1.5 text-[11px] font-semibold text-night-900"
+                            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#AF8C5C] to-[#D1C7BD] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-night-900"
                           >
                             Ver ficha
                           </Link>
                           <button
-                            className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:brightness-110"
+                            className="inline-flex items-center gap-1 rounded-full border border-[#25D366]/30 bg-[#128C7E] min-h-[44px] px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110"
                             type="button"
                             onClick={() => void handleCardWhatsapp(item)}
                           >
@@ -1735,7 +1735,7 @@ export function SearchPage() {
                           Ver ficha
                         </Link>
                         <button
-                          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#25D366]/30 bg-[#128C7E] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
                           type="button"
                           onClick={() => void handleCardWhatsapp(item)}
                         >

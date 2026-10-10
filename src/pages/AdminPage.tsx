@@ -237,7 +237,7 @@ function Pagination({
       >
         ← Anterior
       </button>
-      <span className="text-[#9f988d]">
+      <span className="text-[#BDB5A9]">
         {page} / {pages} &middot; {total} total
       </span>
       <button
@@ -265,12 +265,12 @@ function VerificationPayload({ payload }: { payload: Record<string, unknown> }) 
     type: "Tipo",
   };
   const entries = Object.entries(payload);
-  if (entries.length === 0) return <span className="text-[#9f988d]">Sin datos</span>;
+  if (entries.length === 0) return <span className="text-[#BDB5A9]">Sin datos</span>;
   return (
     <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
       {entries.map(([key, value]) => (
         <>
-          <span key={`${key}-k`} className="shrink-0 text-[#9f988d]">{labels[key] ?? key}</span>
+          <span key={`${key}-k`} className="shrink-0 text-[#BDB5A9]">{labels[key] ?? key}</span>
           <span key={`${key}-v`} className="break-all text-[#E7E2DD]">{String(value ?? "—")}</span>
         </>
       ))}
@@ -1252,7 +1252,7 @@ export function AdminPage() {
             <div className="glass-card p-4 text-xs text-[#D1C7BD]">Cargando...</div>
           )}
           {overviewStatus === "error" && (
-            <div className="glass-card p-4 text-xs text-[#AF8C5C]">{overviewError}</div>
+            <div className="glass-card p-4 text-xs text-[#D4B07A]">{overviewError}</div>
           )}
           {overview && (
             <>
@@ -1286,9 +1286,9 @@ export function AdminPage() {
           {plansStatus === "loading" && (
             <div className="text-xs text-[#D1C7BD]">Cargando planes...</div>
           )}
-          {plansStatus === "error" && <div className="text-xs text-[#AF8C5C]">{plansError}</div>}
+          {plansStatus === "error" && <div className="text-xs text-[#D4B07A]">{plansError}</div>}
           {plansError && plansStatus !== "error" && (
-            <div className="text-xs text-[#AF8C5C]">{plansError}</div>
+            <div className="text-xs text-[#D4B07A]">{plansError}</div>
           )}
 
           <div className="space-y-3">
@@ -1310,7 +1310,7 @@ export function AdminPage() {
                       <span className="rounded-full border border-gold-500/30 bg-night-900/60 px-3 py-1 text-[11px] tracking-[0.12em] text-[#D1C7BD]">
                         {plan.code}
                       </span>
-                      <span className="text-xs text-[#9f988d]">
+                      <span className="text-xs text-[#BDB5A9]">
                         {plan.updatedAt && plan.updatedAt !== plan.createdAt
                           ? `Actualizado ${formatShortDateTime(plan.updatedAt)}`
                           : `Creado ${formatShortDateTime(plan.createdAt)}`}
@@ -1343,7 +1343,7 @@ export function AdminPage() {
                         }
                       />
                       {isPaidPlan && Number(draft.priceAmount || 0) < 15 && (
-                        <div className="text-[11px] text-[#AF8C5C]">
+                        <div className="text-[11px] text-[#D4B07A]">
                           Mercado Pago puede rechazar montos menores a ARS 15.
                         </div>
                       )}
@@ -1372,7 +1372,7 @@ export function AdminPage() {
                     >
                       {isSaving ? "Guardando..." : "Guardar cambios"}
                     </button>
-                    <span className="text-xs text-[#9f988d]">
+                    <span className="text-xs text-[#BDB5A9]">
                       {isPaidPlan
                         ? "Impacta nuevas activaciones y renovaciones. Revisa reglas de cambio de plan."
                         : "Plan gratuito para dueño directo (sin cobro)."}
@@ -1423,13 +1423,13 @@ export function AdminPage() {
             <div className="text-xs text-[#D1C7BD]">Cargando usuarios...</div>
           )}
           {usersStatus === "error" && (
-            <div className="text-xs text-[#AF8C5C]">{usersError}</div>
+            <div className="text-xs text-[#D4B07A]">{usersError}</div>
           )}
           {userTotal > 0 && (
-            <div className="text-right text-[11px] text-[#9f988d]">{userTotal} usuario{userTotal !== 1 ? "s" : ""} encontrado{userTotal !== 1 ? "s" : ""}</div>
+            <div className="text-right text-[11px] text-[#BDB5A9]">{userTotal} usuario{userTotal !== 1 ? "s" : ""} encontrado{userTotal !== 1 ? "s" : ""}</div>
           )}
           {usersStatus === "idle" && users.length === 0 && (
-            <div className="text-xs text-[#9f988d]">No se encontraron usuarios.</div>
+            <div className="text-xs text-[#BDB5A9]">No se encontraron usuarios.</div>
           )}
           {users.map((user) => (
             <div
@@ -1439,7 +1439,7 @@ export function AdminPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-white">{user.name ?? "Sin nombre"}</span>
-                  <span className="rounded-full border border-white/10 bg-night-900/40 px-2 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[#9f988d]">{user.role}</span>
+                  <span className="rounded-full border border-white/10 bg-night-900/40 px-2 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[#BDB5A9]">{user.role}</span>
                 </div>
                 <div className="text-[#D1C7BD]">{user.email}</div>
                 {user.subscription && (
@@ -1450,7 +1450,7 @@ export function AdminPage() {
                       </span>
                       <span>{user.subscription.planName}</span>
                       {user.subscription.maxProperties > 0 && (
-                        <span className="text-[#9f988d]">
+                        <span className="text-[#BDB5A9]">
                           Hasta {user.subscription.maxProperties} inmuebles
                         </span>
                       )}
@@ -1483,7 +1483,7 @@ export function AdminPage() {
                           </span>
                           <span>{terms ? `v${terms.version}` : "Sin registro"}</span>
                           {terms ? (
-                            <span className="text-[#9f988d]">{formatShortDateTime(terms.acceptedAt)}</span>
+                            <span className="text-[#BDB5A9]">{formatShortDateTime(terms.acceptedAt)}</span>
                           ) : null}
                         </div>
                         <div className="inline-flex items-center gap-2">
@@ -1492,7 +1492,7 @@ export function AdminPage() {
                           </span>
                           <span>{privacy ? `v${privacy.version}` : "Sin registro"}</span>
                           {privacy ? (
-                            <span className="text-[#9f988d]">{formatShortDateTime(privacy.acceptedAt)}</span>
+                            <span className="text-[#BDB5A9]">{formatShortDateTime(privacy.acceptedAt)}</span>
                           ) : null}
                         </div>
                       </>
@@ -1600,7 +1600,7 @@ export function AdminPage() {
                   </div>
                 )}
                 <div className="rounded-2xl border border-white/10 bg-night-950/35 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#AF8C5C]">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#D4B07A]">
                     Inmuebles cargados
                   </p>
                   {user.properties?.length ? (
@@ -1636,7 +1636,7 @@ export function AdminPage() {
             <div>
               <h3 className="text-lg text-white">Publicaciones</h3>
               {propertiesTotal > 0 && (
-                <p className="text-xs text-[#9f988d]">{propertiesTotal} publicaciones en total</p>
+                <p className="text-xs text-[#BDB5A9]">{propertiesTotal} publicaciones en total</p>
               )}
             </div>
             <select
@@ -1657,10 +1657,10 @@ export function AdminPage() {
             <div className="text-xs text-[#D1C7BD]">Cargando publicaciónes...</div>
           )}
           {propertiesStatus === "error" && (
-            <div className="text-xs text-[#AF8C5C]">{propertiesError}</div>
+            <div className="text-xs text-[#D4B07A]">{propertiesError}</div>
           )}
           {propertiesStatus === "idle" && properties.length === 0 && (
-            <div className="text-xs text-[#9f988d]">No hay publicaciones con ese filtro.</div>
+            <div className="text-xs text-[#BDB5A9]">No hay publicaciones con ese filtro.</div>
           )}
           {properties.map((item) => (
             <div
@@ -1720,10 +1720,10 @@ export function AdminPage() {
             <div className="text-xs text-[#D1C7BD]">Cargando reportes...</div>
           )}
           {reportsStatus === "error" && (
-            <div className="text-xs text-[#AF8C5C]">{reportsError}</div>
+            <div className="text-xs text-[#D4B07A]">{reportsError}</div>
           )}
           {reportsStatus === "idle" && reports.length === 0 && (
-            <div className="text-xs text-[#9f988d]">No hay reportes abiertos.</div>
+            <div className="text-xs text-[#BDB5A9]">No hay reportes abiertos.</div>
           )}
           {reports.map((report) => (
             <div
@@ -1769,7 +1769,7 @@ export function AdminPage() {
             <div>
               <h3 className="text-lg text-white">Verificaciones</h3>
               {verificationsTotal > 0 && (
-                <p className="text-xs text-[#9f988d]">{verificationsTotal} en total</p>
+                <p className="text-xs text-[#BDB5A9]">{verificationsTotal} en total</p>
               )}
             </div>
             <select
@@ -1787,10 +1787,10 @@ export function AdminPage() {
             <div className="text-xs text-[#D1C7BD]">Cargando verificaciones...</div>
           )}
           {verificationsStatus === "error" && (
-            <div className="text-xs text-[#AF8C5C]">{verificationsError}</div>
+            <div className="text-xs text-[#D4B07A]">{verificationsError}</div>
           )}
           {verificationsStatus === "idle" && verifications.length === 0 && (
-            <div className="text-xs text-[#9f988d]">No hay verificaciones con ese filtro.</div>
+            <div className="text-xs text-[#BDB5A9]">No hay verificaciones con ese filtro.</div>
           )}
           {verifications.map((item) => (
             <div
@@ -1808,7 +1808,7 @@ export function AdminPage() {
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] ${item.status === "APPROVED" ? "bg-emerald-500/15 text-emerald-300" : item.status === "REJECTED" ? "bg-rose-500/15 text-rose-300" : "bg-gold-500/15 text-gold-300"}`}>
                       {item.status === "PENDING" ? "Pendiente" : item.status === "APPROVED" ? "Aprobado" : "Rechazado"}
                     </span>
-                    <span className="text-[#9f988d]">{formatShortDateTime(item.createdAt)}</span>
+                    <span className="text-[#BDB5A9]">{formatShortDateTime(item.createdAt)}</span>
                   </div>
                 </div>
                 <select
@@ -1936,7 +1936,7 @@ export function AdminPage() {
               {poiSearchMessage && (
                 <div
                   className={`text-[11px] ${
-                    poiSearchStatus === "error" ? "text-[#AF8C5C]" : "text-[#D1C7BD]"
+                    poiSearchStatus === "error" ? "text-[#D4B07A]" : "text-[#D1C7BD]"
                   }`}
                 >
                   {poiSearchMessage}
@@ -1978,7 +1978,7 @@ export function AdminPage() {
             >
               {poiSaving ? "Guardando..." : "Agregar punto"}
             </button>
-            {poisError && <span className="text-xs text-[#AF8C5C]">{poisError}</span>}
+            {poisError && <span className="text-xs text-[#D4B07A]">{poisError}</span>}
           </div>
 
           <div className="space-y-3">
@@ -1987,7 +1987,7 @@ export function AdminPage() {
               <div className="text-xs text-[#D1C7BD]">Cargando puntos...</div>
             )}
             {poisStatus === "error" && (
-              <div className="text-xs text-[#AF8C5C]">{poisError}</div>
+              <div className="text-xs text-[#D4B07A]">{poisError}</div>
             )}
             {pois.map((poi) => (
               <div
@@ -2105,7 +2105,7 @@ export function AdminPage() {
               >
                 {adSaving ? "Guardando..." : "Agregar publicidad"}
               </button>
-              {adsError && <span className="text-xs text-[#AF8C5C]">{adsError}</span>}
+              {adsError && <span className="text-xs text-[#D4B07A]">{adsError}</span>}
             </div>
           </div>
 
@@ -2113,16 +2113,16 @@ export function AdminPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#D1C7BD]">Publicidades activas e inactivas</span>
-              <span className="text-[11px] text-[#9f988d]">{ads.length} total</span>
+              <span className="text-[11px] text-[#BDB5A9]">{ads.length} total</span>
             </div>
             {adsStatus === "loading" && (
               <div className="text-xs text-[#D1C7BD]">Cargando publicidad...</div>
             )}
             {adsStatus === "error" && (
-              <div className="text-xs text-[#AF8C5C]">{adsError}</div>
+              <div className="text-xs text-[#D4B07A]">{adsError}</div>
             )}
             {adsStatus === "idle" && ads.length === 0 && (
-              <div className="text-xs text-[#9f988d]">No hay publicidades creadas.</div>
+              <div className="text-xs text-[#BDB5A9]">No hay publicidades creadas.</div>
             )}
             {ads.map((ad) => (
               <div
@@ -2179,16 +2179,16 @@ export function AdminPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-white">{ad.title}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ad.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ad.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#BDB5A9]"}`}>
                           {ad.isActive ? "Activo" : "Inactivo"}
                         </span>
-                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#9f988d]">
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#BDB5A9]">
                           Prioridad {ad.priority}
                         </span>
                       </div>
                       {ad.body && <p className="mt-0.5 text-[#D1C7BD]">{ad.body}</p>}
                       {ad.linkUrl && (
-                        <p className="mt-0.5 truncate text-[11px] text-[#9f988d]">{ad.linkUrl}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-[#BDB5A9]">{ad.linkUrl}</p>
                       )}
                       {ad.ctaText && (
                         <span className="mt-1 inline-block rounded-full border border-gold-500/25 bg-gold-500/8 px-2 py-0.5 text-[11px] text-gold-300">
@@ -2273,7 +2273,7 @@ export function AdminPage() {
 
             {betaInvitesStatus === "loading" && <p className="text-xs text-[#D1C7BD]">Cargando...</p>}
             {betaInvites.length === 0 && betaInvitesStatus === "idle" && (
-              <p className="text-xs text-[#9f988d]">No hay invitaciones creadas todavía.</p>
+              <p className="text-xs text-[#BDB5A9]">No hay invitaciones creadas todavía.</p>
             )}
             <div className="space-y-3">
               {betaInvites.map((invite) => {
@@ -2286,10 +2286,10 @@ export function AdminPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${invite.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#9f988d]"}`}>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${invite.isActive ? "bg-emerald-500/15 text-emerald-300" : "bg-white/6 text-[#BDB5A9]"}`}>
                             {invite.isActive ? "Activa" : "Inactiva"}
                           </span>
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#9f988d]">
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#BDB5A9]">
                             {invite.targetRole === "OWNER" ? "Dueño directo" : "Inmobiliaria"}
                           </span>
                           <span className="text-[#D1C7BD]">
@@ -2299,7 +2299,7 @@ export function AdminPage() {
                           {invite.label && <span className="font-semibold text-white">{invite.label}</span>}
                         </div>
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className="truncate max-w-xs text-[11px] text-[#9f988d] font-mono">{url}</span>
+                          <span className="truncate max-w-xs text-[11px] text-[#BDB5A9] font-mono">{url}</span>
                           <button
                             type="button"
                             onClick={() => { void navigator.clipboard.writeText(url); addToast("Link copiado.", "success"); }}
@@ -2308,7 +2308,7 @@ export function AdminPage() {
                             Copiar
                           </button>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-[#9f988d]">
+                        <p className="mt-0.5 text-[11px] text-[#BDB5A9]">
                           Creada {formatShortDateTime(invite.createdAt)}
                         </p>
                       </div>
@@ -2341,7 +2341,7 @@ export function AdminPage() {
               <div>
                 <h3 className="text-sm text-white">Observaciones de usuarios beta</h3>
                 {betaFeedbackTotal > 0 && (
-                  <p className="text-xs text-[#9f988d]">{betaFeedbackTotal} observaciones en total</p>
+                  <p className="text-xs text-[#BDB5A9]">{betaFeedbackTotal} observaciones en total</p>
                 )}
               </div>
               <select
@@ -2358,7 +2358,7 @@ export function AdminPage() {
 
             {betaFeedbackStatus === "loading" && <p className="text-xs text-[#D1C7BD]">Cargando...</p>}
             {betaFeedbackStatus === "idle" && betaFeedbackList.length === 0 && (
-              <p className="text-xs text-[#9f988d]">No hay observaciones con ese filtro.</p>
+              <p className="text-xs text-[#BDB5A9]">No hay observaciones con ese filtro.</p>
             )}
 
             <div className="space-y-3">
@@ -2370,7 +2370,7 @@ export function AdminPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-white">{item.title}</span>
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#9f988d]">{catLabels[item.category] ?? item.category}</span>
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-[#BDB5A9]">{catLabels[item.category] ?? item.category}</span>
                           {item.status === "UNREAD" && (
                             <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[11px] font-semibold text-gold-300">Nueva</span>
                           )}
@@ -2381,7 +2381,7 @@ export function AdminPage() {
                             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-300">Atendida</span>
                           )}
                         </div>
-                        <div className="mt-0.5 text-[#9f988d]">
+                        <div className="mt-0.5 text-[#BDB5A9]">
                           {item.user.name ?? item.user.email} · {formatShortDateTime(item.createdAt)}
                         </div>
                       </div>

@@ -146,7 +146,7 @@ export function ChangePasswordPage() {
               </label>
 
               {message && (
-                <p className={status === "error" ? "text-xs text-[#AF8C5C]" : "text-xs text-[#D1C7BD]"}>
+                <p className={status === "error" ? "text-xs text-[#D4B07A]" : "text-xs text-[#D1C7BD]"}>
                   {message}
                 </p>
               )}
